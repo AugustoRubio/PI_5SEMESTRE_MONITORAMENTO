@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4">Painel de Controle Central</h2>
+        <p class="text-muted">Utilize os botões abaixo para alterar o estado do ambiente simulado. As alterações refletirão no Zabbix.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Controle SNMP: Sensores -->
+    <div class="col-md-6">
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Simulação SNMP: Sensores</h5>
+            </div>
+            <div class="card-body">
+                <p>Controle os valores dos sensores de temperatura e umidade.</p>
+                <button class="btn btn-danger mb-2" onclick="callApi('/api/snmp/temperature/increase')">Aumentar Temperatura</button>
+                <button class="btn btn-info mb-2" onclick="callApi('/api/snmp/temperature/decrease')">Diminuir Temperatura</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controle SNMP: Nobreak -->
+    <div class="col-md-6">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">Simulação SNMP: Nobreak (UPS)</h5>
+            </div>
+            <div class="card-body">
+                <p>Simule quedas de energia e uso de baterias.</p>
+                <button class="btn btn-dark mb-2" onclick="callApi('/api/snmp/ups/power-fail')">Simular Queda de Energia</button>
+                <button class="btn btn-success mb-2" onclick="callApi('/api/snmp/ups/power-restore')">Restaurar Energia</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-2">
+    <!-- Controle de Ataques: DDoS -->
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">Simulação de Ataques: DDoS</h5>
+            </div>
+            <div class="card-body">
+                <p>Gere tráfego massivo para testar a detecção do Suricata e consumo de link.</p>
+                <button class="btn btn-outline-danger mb-2" onclick="callApi('/api/attacks/ddos/start')">Iniciar Ataque DDoS</button>
+                <button class="btn btn-outline-secondary mb-2" onclick="callApi('/api/attacks/ddos/stop')">Parar Ataque</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controle de Ataques: Brute Force -->
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0">Simulação de Ataques: Brute Force</h5>
+            </div>
+            <div class="card-body">
+                <p>Simule tentativas de login repetidas em um serviço (SSH/FTP).</p>
+                <button class="btn btn-outline-danger mb-2" onclick="callApi('/api/attacks/bruteforce/start')">Iniciar Brute Force</button>
+                <button class="btn btn-outline-secondary mb-2" onclick="callApi('/api/attacks/bruteforce/stop')">Parar Ataque</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
