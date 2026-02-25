@@ -5,9 +5,13 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 import time
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Configurações de Segurança
-SECRET_KEY = "sua_chave_secreta_super_segura_aqui_mude_em_producao" # Em produção, use variáveis de ambiente
+SECRET_KEY = os.getenv("SECRET_KEY", "chave_fallback_insegura_apenas_para_dev")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
