@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>Central de Simulação de Ataques (Red Team)</h2>
+        <p class="text-muted">Controle os vetores de ataque contra a infraestrutura simulada no GNS3. Escolha a origem do ataque para testar diferentes camadas de defesa (Firewall de Borda vs. Segurança Interna).</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Card: Ataque Externo (VPS) -->
+    <div class="col-md-6 mb-4">
+        <div class="card border-danger h-100">
+            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="bi bi-globe"></i> Ataque Externo (WAN)</h5>
+                <span class="badge bg-dark" id="status-ext">Status: INATIVO</span>
+            </div>
+            <div class="card-body">
+                <p><strong>Origem:</strong> VPS Off-site (via Túnel GRE/Wireguard)</p>
+                <p><strong>Alvo:</strong> IP Público/NAT do pfSense no GNS3</p>
+                <p class="text-muted small">Simula um ataque vindo da Internet. O tráfego passará pelo Mikrotik, túnel GRE e deverá ser inspecionado/bloqueado pelo pfSense de borda.</p>
+                
+                <hr>
+                <h6>Vetor: DDoS (SYN Flood)</h6>
+                <div class="d-grid gap-2 mb-3">
+                    <button class="btn btn-outline-danger" onclick="launchAttack('external', 'ddos', 'start')">
+                        <i class="bi bi-play-fill"></i> Iniciar DDoS Externo
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="launchAttack('external', 'ddos', 'stop')">
+                        <i class="bi bi-stop-fill"></i> Parar Ataque
+                    </button>
+                </div>
+
+                <h6>Vetor: Brute Force (SSH/FTP)</h6>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-warning text-dark" onclick="launchAttack('external', 'bruteforce', 'start')">
+                        <i class="bi bi-play-fill"></i> Iniciar Brute Force Externo
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="launchAttack('external', 'bruteforce', 'stop')">
+                        <i class="bi bi-stop-fill"></i> Parar Ataque
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card: Ataque Interno (LAN) -->
+    <div class="col-md-6 mb-4">
+        <div class="card border-warning h-100">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="bi bi-pc-display-horizontal"></i> Ataque Interno (LAN/DMZ)</h5>
+                <span class="badge bg-dark" id="status-int">Status: INATIVO</span>
+            </div>
+            <div class="card-body">
+                <p><strong>Origem:</strong> VM Comprometida dentro do GNS3</p>
+                <p><strong>Alvo:</strong> Servidor Web/Banco de Dados na mesma rede (Lateral Movement)</p>
+                <p class="text-muted small">Simula um atacante que já invadiu a rede interna (ou um funcionário mal-intencionado). O tráfego não passa pelo firewall de borda, testando a detecção do Suricata (IDS) interno.</p>
+                
+                <hr>
+                <h6>Vetor: DDoS (UDP Flood / MAC Spoofing)</h6>
+                <div class="d-grid gap-2 mb-3">
+                    <button class="btn btn-outline-danger" onclick="launchAttack('internal', 'ddos', 'start')">
+                        <i class="bi bi-play-fill"></i> Iniciar DDoS Interno
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="launchAttack('internal', 'ddos', 'stop')">
+                        <i class="bi bi-stop-fill"></i> Parar Ataque
+                    </button>
+                </div>
+
+                <h6>Vetor: Man-in-the-Middle (ARP Poisoning)</h6>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-warning text-dark" onclick="launchAttack('internal', 'mitm', 'start')">
+                        <i class="bi bi-play-fill"></i> Iniciar MitM (Interceptação)
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="launchAttack('internal', 'mitm', 'stop')">
+                        <i class="bi bi-stop-fill"></i> Parar Ataque
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function launchAttack(origin, type, action) {
+        // origin: 'external' ou 'internal'
+        // type: 'ddos', 'bruteforce', 'mitm'
+        // action: 'start' ou 'stop'
+        
+        const endpoint = `/api/attacks/${origin}/${type}/${action}`;
+        
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                alert(data.message);
+                
+                // Atualiza os badges de status visualmente
+                const statusBadge = origin === 'external' ? document.getElementById('status-ext') : document.getElementById('status-int');
+                
+                if (action === 'start') {
+                    statusBadge.className = 'badge bg-danger blink';
+                    statusBadge.textContent = `Status: ATACANDO (${type.toUpperCase()})`;
+                } else {
+                    statusBadge.className = 'badge bg-dark';
+                    statusBadge.textContent = 'Status: INATIVO';
+                }
+            } else {
+                alert('Erro ao comunicar com a API de ataques.');
+            }
+        } catch (error) {
+            alert('Erro de conexão.');
+        }
+    }
+</script>
+<style>
+    .blink { animation: blinker 1.5s linear infinite; }
+    @keyframes blinker { 50% { opacity: 0; } }
+</style>
+{% endblock %}

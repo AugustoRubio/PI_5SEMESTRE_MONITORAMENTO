@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>Gerenciamento de Dispositivos Simulados (GNS3)</h2>
+        <p class="text-muted">Controle o estado dos dispositivos SNMP que estão rodando dentro do ambiente virtualizado do GNS3.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Card: Nobreak (UPS) -->
+    <div class="col-md-6 mb-4">
+        <div class="card border-warning h-100">
+            <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Nobreak (UPS) - Sala do Servidor</h5>
+                <span class="badge bg-success" id="status-ups">Status: ONLINE (Rede Elétrica)</span>
+            </div>
+            <div class="card-body">
+                <p><strong>IP no GNS3:</strong> 192.168.1.50 (Exemplo)</p>
+                <p><strong>Bateria Atual:</strong> <span id="battery-level">100%</span></p>
+                <p class="text-muted small">Simule uma queda de energia para testar se o Zabbix gera o alerta de "Operando na Bateria" e se o nível da bateria começa a cair.</p>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-dark" onclick="simulatePowerEvent('fail')">
+                        <i class="bi bi-lightning-charge-fill"></i> Simular Queda de Energia
+                    </button>
+                    <button class="btn btn-success" onclick="simulatePowerEvent('restore')">
+                        <i class="bi bi-plug-fill"></i> Restaurar Energia
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card: Sensor de Temperatura -->
+    <div class="col-md-6 mb-4">
+        <div class="card border-info h-100">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Sensor de Temperatura/Umidade</h5>
+                <span class="badge bg-primary" id="status-temp">Status: NORMAL</span>
+            </div>
+            <div class="card-body">
+                <p><strong>IP no GNS3:</strong> 192.168.1.51 (Exemplo)</p>
+                <h3 class="text-center my-3">
+                    <span id="current-temp">22.5</span> °C / <span id="current-hum">45</span> %
+                </h3>
+                <p class="text-muted small">Altere a temperatura para forçar o Zabbix a disparar um alerta de "Temperatura Crítica no Datacenter".</p>
+                
+                <div class="d-flex justify-content-center gap-3">
+                    <button class="btn btn-danger" onclick="changeTemperature('up')">
+                        <i class="bi bi-arrow-up-circle"></i> Aumentar (+5°C)
+                    </button>
+                    <button class="btn btn-primary" onclick="changeTemperature('down')">
+                        <i class="bi bi-arrow-down-circle"></i> Diminuir (-5°C)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Funções para atualizar a interface visualmente (Mock)
+    // No futuro, essas funções farão chamadas reais para a API do Painel, 
+    // que por sua vez se comunicará com a VM no GNS3.
+
+    async function simulatePowerEvent(action) {
+        const endpoint = action === 'fail' ? '/api/snmp/ups/power-fail' : '/api/snmp/ups/power-restore';
+        
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            
+            if (response.ok) {
+                const statusBadge = document.getElementById('status-ups');
+                const batteryLevel = document.getElementById('battery-level');
+                
+                if (action === 'fail') {
+                    statusBadge.className = 'badge bg-danger';
+                    statusBadge.textContent = 'Status: BATERIA (Queda de Energia)';
+                    batteryLevel.textContent = '98% (Descarregando...)';
+                    alert('Queda de energia simulada! Verifique o Zabbix.');
+                } else {
+                    statusBadge.className = 'badge bg-success';
+                    statusBadge.textContent = 'Status: ONLINE (Rede Elétrica)';
+                    batteryLevel.textContent = '100% (Carregando...)';
+                    alert('Energia restaurada!');
+                }
+            } else {
+                alert('Erro ao comunicar com a API.');
+            }
+        } catch (error) {
+            alert('Erro de conexão.');
+        }
+    }
+
+    async function changeTemperature(direction) {
+        const endpoint = direction === 'up' ? '/api/snmp/temperature/increase' : '/api/snmp/temperature/decrease';
+        
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            
+            if (response.ok) {
+                const tempSpan = document.getElementById('current-temp');
+                const statusBadge = document.getElementById('status-temp');
+                let currentTemp = parseFloat(tempSpan.textContent);
+                
+                if (direction === 'up') {
+                    currentTemp += 5.0;
+                } else {
+                    currentTemp -= 5.0;
+                }
+                
+                tempSpan.textContent = currentTemp.toFixed(1);
+                
+                if (currentTemp >= 30.0) {
+                    statusBadge.className = 'badge bg-danger';
+                    statusBadge.textContent = 'Status: CRÍTICO (Superaquecimento)';
+                } else if (currentTemp <= 15.0) {
+                    statusBadge.className = 'badge bg-warning text-dark';
+                    statusBadge.textContent = 'Status: ALERTA (Muito Frio)';
+                } else {
+                    statusBadge.className = 'badge bg-primary';
+                    statusBadge.textContent = 'Status: NORMAL';
+                }
+                
+            } else {
+                alert('Erro ao comunicar com a API.');
+            }
+        } catch (error) {
+            alert('Erro de conexão.');
+        }
+    }
+</script>
+{% endblock %}

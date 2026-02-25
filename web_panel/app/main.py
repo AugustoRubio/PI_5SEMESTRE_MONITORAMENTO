@@ -28,6 +28,12 @@ async def login_page(request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
-    # A verificação de token no frontend será feita via JavaScript, 
-    # mas a página principal só carrega os dados se o JS enviar o token válido.
     return templates.TemplateResponse("index.html", {"request": request, "title": "Dashboard Principal"})
+
+@app.get("/devices", response_class=HTMLResponse)
+async def devices_page(request: Request):
+    return templates.TemplateResponse("devices.html", {"request": request, "title": "Gerenciamento de Dispositivos"})
+
+@app.get("/attacks", response_class=HTMLResponse)
+async def attacks_page(request: Request):
+    return templates.TemplateResponse("attacks.html", {"request": request, "title": "Central de Ataques"})
