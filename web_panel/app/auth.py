@@ -8,6 +8,8 @@ import time
 import os
 from dotenv import load_dotenv
 
+import json
+
 load_dotenv()
 
 # Configurações de Segurança
@@ -22,15 +24,29 @@ LOCKOUT_TIME_SECONDS = 300 # 5 minutos
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
 
-# Banco de dados em memória para usuários (apenas para o projeto)
-# A senha "breath" em hash bcrypt
-USERS_DB = {
-    "Augusto": {
-        "username": "Augusto",
-        "hashed_password": pwd_context.hash("breath"),
-        "disabled": False,
-    }
-}
+USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "users.json")
+
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        # Cria o arquivo com o usuário padrão se não existir
+        default_users = {
+            "Augusto": {
+                "username": "Augusto",
+                "hashed_password": pwd_context.hash("breath"),
+                "disabled": False,
+            }
+        }
+        save_users(default_users)
+        return default_users
+    with open(USERS_FILE, "r") as f:
+        return json.load(f)
+
+def save_users(users_db):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users_db, f, indent=4)
+
+# Carrega os usuários na inicialização
+USERS_DB = load_users()
 
 # Dicionário para rastrear tentativas de login falhas por IP
 # Formato: {"ip_address": {"attempts": int, "lockout_until": float}}

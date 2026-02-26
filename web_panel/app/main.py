@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from app.routers import snmp, attacks, auth
+from app.routers import snmp, attacks, auth, admin
 from app.auth import get_current_user
 import os
 
@@ -21,6 +21,7 @@ templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 app.include_router(auth.router, prefix="/api/auth", tags=["Autenticação"])
 app.include_router(snmp.router, prefix="/api/snmp", tags=["SNMP"], dependencies=[Depends(get_current_user)])
 app.include_router(attacks.router, prefix="/api/attacks", tags=["Ataques"], dependencies=[Depends(get_current_user)])
+app.include_router(admin.router, prefix="/api/admin", tags=["Administração"], dependencies=[Depends(get_current_user)])
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -37,3 +38,11 @@ async def devices_page(request: Request):
 @app.get("/attacks", response_class=HTMLResponse)
 async def attacks_page(request: Request):
     return templates.TemplateResponse("attacks.html", {"request": request, "title": "Central de Ataques"})
+
+@app.get("/config", response_class=HTMLResponse)
+async def config_page(request: Request):
+    return templates.TemplateResponse("config.html", {"request": request, "title": "Configurações do Ambiente"})
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page(request: Request):
+    return templates.TemplateResponse("admin.html", {"request": request, "title": "Administração de Usuários"})

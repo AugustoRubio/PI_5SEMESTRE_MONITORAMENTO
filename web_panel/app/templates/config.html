@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>Configurações do Ambiente (GNS3)</h2>
+        <p class="text-muted">Defina os IPs e credenciais SSH das máquinas virtuais que estão rodando dentro do GNS3 e da VPS externa. O Painel Web usará essas informações para se conectar e executar os comandos de simulação.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Configuração: Simulador SNMP -->
+    <div class="col-md-6 mb-4">
+        <div class="card border-primary h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0"><i class="bi bi-hdd-network"></i> VM Simulador SNMP (GNS3)</h5>
+            </div>
+            <div class="card-body">
+                <form id="config-snmp-form">
+                    <div class="mb-3">
+                        <label class="form-label">Endereço IP</label>
+                        <input type="text" class="form-control" id="snmp_ip" placeholder="Ex: 192.168.1.50" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Usuário SSH</label>
+                        <input type="text" class="form-control" id="snmp_user" placeholder="Ex: root" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Senha SSH (ou deixe em branco se usar chave)</label>
+                        <input type="password" class="form-control" id="snmp_pass">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Salvar Configuração SNMP</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuração: Atacante Externo (VPS) -->
+    <div class="col-md-6 mb-4">
+        <div class="card border-danger h-100">
+            <div class="card-header bg-danger text-white">
+                <h5 class="card-title mb-0"><i class="bi bi-globe"></i> VPS Atacante (Externa)</h5>
+            </div>
+            <div class="card-body">
+                <form id="config-vps-form">
+                    <div class="mb-3">
+                        <label class="form-label">Endereço IP (via Túnel)</label>
+                        <input type="text" class="form-control" id="vps_ip" placeholder="Ex: 10.10.10.2" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Usuário SSH</label>
+                        <input type="text" class="form-control" id="vps_user" placeholder="Ex: root" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Senha SSH</label>
+                        <input type="password" class="form-control" id="vps_pass">
+                    </div>
+                    <button type="submit" class="btn btn-danger w-100">Salvar Configuração VPS</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Função para carregar as configurações salvas (Mock por enquanto)
+    async function loadConfigs() {
+        // No futuro, isso fará um GET para a API para buscar as configs do banco/arquivo
+        const snmpConfig = JSON.parse(localStorage.getItem('config_snmp') || '{}');
+        const vpsConfig = JSON.parse(localStorage.getItem('config_vps') || '{}');
+
+        if (snmpConfig.ip) document.getElementById('snmp_ip').value = snmpConfig.ip;
+        if (snmpConfig.user) document.getElementById('snmp_user').value = snmpConfig.user;
+        
+        if (vpsConfig.ip) document.getElementById('vps_ip').value = vpsConfig.ip;
+        if (vpsConfig.user) document.getElementById('vps_user').value = vpsConfig.user;
+    }
+
+    // Salvar Configuração SNMP
+    document.getElementById('config-snmp-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const config = {
+            ip: document.getElementById('snmp_ip').value,
+            user: document.getElementById('snmp_user').value,
+            pass: document.getElementById('snmp_pass').value
+        };
+        localStorage.setItem('config_snmp', JSON.stringify(config));
+        alert('Configuração da VM SNMP salva com sucesso!');
+    });
+
+    // Salvar Configuração VPS
+    document.getElementById('config-vps-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const config = {
+            ip: document.getElementById('vps_ip').value,
+            user: document.getElementById('vps_user').value,
+            pass: document.getElementById('vps_pass').value
+        };
+        localStorage.setItem('config_vps', JSON.stringify(config));
+        alert('Configuração da VPS salva com sucesso!');
+    });
+
+    // Carrega as configs ao abrir a página
+    loadConfigs();
+</script>
+{% endblock %}

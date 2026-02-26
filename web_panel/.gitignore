@@ -1,0 +1,22 @@
+# Ignorar ambientes virtuais
+venv/
+.venv/
+env/
+__pycache__/
+
+# Ignorar arquivos de configuração locais e segredos
+.env
+*.pem
+certs/
+
+# Ignorar arquivos compilados do Python
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorar banco de dados SQLite (se viermos a usar)
+*.sqlite3
+*.db
+
+# Ignorar logs
+*.log

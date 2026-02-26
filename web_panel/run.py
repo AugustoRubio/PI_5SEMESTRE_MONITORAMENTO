@@ -11,6 +11,7 @@ if __name__ == "__main__":
     key_path = os.getenv("SSL_KEY_PATH", "certs/key.pem")
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", 8443))
+    reload_mode = os.getenv("RELOAD", "False").lower() in ("true", "1", "t")
     
     if not os.path.exists(cert_path) or not os.path.exists(key_path):
         print("="*60)
@@ -28,5 +29,5 @@ if __name__ == "__main__":
         port=port,
         ssl_keyfile=key_path,
         ssl_certfile=cert_path,
-        reload=False  # Em produção (Debian), o reload deve ficar desativado
+        reload=reload_mode  # Em produção (Debian), o reload deve ficar desativado
     )

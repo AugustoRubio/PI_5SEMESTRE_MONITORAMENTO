@@ -1,0 +1,18 @@
+# Arquivo de simulação SNMP para o Nobreak (UPS)
+# OID Base: 1.3.6.1.2.1.33 (UPS MIB Padrão)
+
+# Nome do Dispositivo
+1.3.6.1.2.1.1.5.0|4|Nobreak APC Smart-UPS 3000
+
+# Status da Bateria (1 = unknown, 2 = batteryNormal, 3 = batteryLow, 4 = batteryDepleted)
+# OID: 1.3.6.1.2.1.33.1.2.1.0 (upsBatteryStatus)
+1.3.6.1.2.1.33.1.2.1.0|2|2
+
+# Nível de Carga da Bateria (em porcentagem)
+# OID: 1.3.6.1.2.1.33.1.2.4.0 (upsEstimatedChargeRemaining)
+1.3.6.1.2.1.33.1.2.4.0|2|100
+
+# Fonte de Energia Atual (1 = other, 2 = none, 3 = normal, 4 = bypass, 5 = battery)
+# OID: 1.3.6.1.2.1.33.1.4.1.0 (upsSecondsOnBattery) - Usaremos para indicar se está na bateria
+# Se for 0, está na rede. Se for > 0, está na bateria.
+1.3.6.1.2.1.33.1.4.1.0|2|0

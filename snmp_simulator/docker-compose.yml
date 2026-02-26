@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  snmpsim:
+    image: tandrup/snmpsim
+    container_name: snmpsim_pi
+    ports:
+      - "161:161/udp"
+    volumes:
+      - ./data:/usr/snmpsim/data
+    restart: unless-stopped
+    command: >
+      --agent-udpv4-endpoint=0.0.0.0:161
+      --process-user=snmpsim
+      --process-group=snmpsim
+      --data-dir=/usr/snmpsim/data

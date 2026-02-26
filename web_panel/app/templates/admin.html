@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2 class="mb-4"><i class="bi bi-person-badge"></i> Administração de Usuários</h2>
+        <p class="text-muted">Gerencie os usuários que têm acesso ao painel web.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Lista de Usuários -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <h5 class="card-title mb-0">Usuários Cadastrados</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nome de Usuário</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Adicionar Novo Usuário -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">Adicionar Usuário</h5>
+            </div>
+            <div class="card-body">
+                <form id="addUserForm">
+                    <div class="mb-3">
+                        <label for="newUsername" class="form-label">Nome de Usuário</label>
+                        <input type="text" class="form-control" id="newUsername" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newPassword" class="form-label">Senha</label>
+                        <input type="password" class="form-control" id="newPassword" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100">Adicionar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Alterar Senha -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="changePasswordModalLabel">Alterar Senha</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="changePasswordForm">
+            <input type="hidden" id="changePasswordUsername">
+            <div class="mb-3">
+                <label for="updatePassword" class="form-label">Nova Senha</label>
+                <input type="password" class="form-control" id="updatePassword" required>
+            </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" onclick="submitChangePassword()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Carregar usuários ao iniciar
+    document.addEventListener('DOMContentLoaded', loadUsers);
+
+    async function loadUsers() {
+        try {
+            const response = await fetch('/api/admin/users', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            
+            if (response.status === 401) {
+                logout();
+                return;
+            }
+
+            const data = await response.json();
+            const tbody = document.getElementById('usersTableBody');
+            tbody.innerHTML = '';
+
+            data.users.forEach(username => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="align-middle">${username}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary me-2" onclick="openChangePasswordModal('${username}')">Alterar Senha</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUser('${username}')">Excluir</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (error) {
+            console.error('Erro ao carregar usuários:', error);
+        }
+    }
+
+    // Adicionar usuário
+    document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('newUsername').value;
+        const password = document.getElementById('newPassword').value;
+
+        try {
+            const response = await fetch('/api/admin/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                document.getElementById('addUserForm').reset();
+                loadUsers();
+            } else {
+                alert(data.detail || 'Erro ao adicionar usuário');
+            }
+        } catch (error) {
+            alert('Erro na requisição: ' + error);
+        }
+    });
+
+    // Excluir usuário
+    async function deleteUser(username) {
+        if (!confirm(`Tem certeza que deseja excluir o usuário ${username}?`)) return;
+
+        try {
+            const response = await fetch(`/api/admin/users/${username}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                loadUsers();
+            } else {
+                alert(data.detail || 'Erro ao excluir usuário');
+            }
+        } catch (error) {
+            alert('Erro na requisição: ' + error);
+        }
+    }
+
+    // Alterar senha
+    let changePasswordModal;
+    
+    function openChangePasswordModal(username) {
+        document.getElementById('changePasswordUsername').value = username;
+        document.getElementById('updatePassword').value = '';
+        
+        if (!changePasswordModal) {
+            changePasswordModal = new bootstrap.Modal(document.getElementById('changePasswordModal'));
+        }
+        changePasswordModal.show();
+    }
+
+    async function submitChangePassword() {
+        const username = document.getElementById('changePasswordUsername').value;
+        const new_password = document.getElementById('updatePassword').value;
+
+        if (!new_password) {
+            alert('A nova senha não pode estar vazia.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/admin/users/${username}/password`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ new_password })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                changePasswordModal.hide();
+            } else {
+                alert(data.detail || 'Erro ao alterar senha');
+            }
+        } catch (error) {
+            alert('Erro na requisição: ' + error);
+        }
+    }
+</script>
+{% endblock %}
