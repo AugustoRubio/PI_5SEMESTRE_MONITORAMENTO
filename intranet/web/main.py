@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 import os
@@ -59,6 +60,13 @@ if DB_USER and DB_PASSWORD:
     init_db(SQLALCHEMY_DATABASE_URL)
 
 app = FastAPI(title="Intranet Faculdade")
+
+# Monta a pasta de arquivos estáticos (para a logo e css)
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir)
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 
 # Middleware para redirecionar para a página de setup se o DB não estiver configurado

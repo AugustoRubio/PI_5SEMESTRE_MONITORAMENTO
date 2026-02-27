@@ -3,36 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Intranet Faculdade</title>
+    <title>Acesso Restrito - CANES</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background-color: #f4f6f9; display: flex; align-items: center; justify-content: center; height: 100vh; }
-        .login-card { width: 100%; max-width: 400px; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background: white; }
+        body { 
+            background: linear-gradient(135deg, #1e3c5a 0%, #0d1b2a 100%);
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .login-wrapper {
+            width: 100%;
+            max-width: 420px;
+            padding: 15px;
+        }
+        .login-card { 
+            padding: 40px 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+            background: rgba(255, 255, 255, 0.98); 
+            border-top: 5px solid #ff5722; /* Linha laranja estilo a logo */
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .logo-container img {
+            max-width: 100%;
+            height: auto;
+        }
+        .btn-custom {
+            background-color: #1e3c5a;
+            border-color: #1e3c5a;
+            color: white;
+            font-weight: 500;
+            padding: 10px;
+            transition: all 0.3s ease;
+        }
+        .btn-custom:hover {
+            background-color: #ff5722;
+            border-color: #ff5722;
+            color: white;
+            transform: translateY(-2px);
+        }
+        .form-control {
+            padding: 12px;
+            background-color: #f8f9fa;
+            border: 1px solid #ced4da;
+        }
+        .form-control:focus {
+            border-color: #1e3c5a;
+            box-shadow: 0 0 0 0.2rem rgba(30, 60, 90, 0.25);
+        }
+        .input-group-text {
+            background-color: #fff;
+            color: #6c757d;
+        }
     </style>
 </head>
 <body>
 
-<div class="login-card">
-    <h3 class="text-center mb-4 text-primary">Intranet Faculdade</h3>
-    
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('error')) {
-            document.write('<div class="alert alert-danger">Usuário ou senha incorretos!</div>');
-        }
-    </script>
+<div class="login-wrapper">
+    <div class="login-card">
+        
+        <div class="logo-container">
+            <!-- A imagem da logo será carregada da pasta static -->
+            <img src="/static/logo.png" alt="Logo CANES Centro Universitário" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x100.png?text=CANES+Centro+Universitário';">
+        </div>
+        
+        <h5 class="text-center mb-4 text-muted" style="font-weight: 400; font-size: 1rem;">Acesso Administrativo & Docente</h5>
+        
+        <script>
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('error')) {
+                document.write(`
+                    <div class="alert alert-danger d-flex align-items-center" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <div>Credenciais inválidas! Tente novamente.</div>
+                    </div>
+                `);
+            }
+        </script>
 
-    <form action="/login" method="POST">
-        <div class="mb-3">
-            <label class="form-label">Usuário (Professor)</label>
-            <input type="text" name="username" class="form-control" required placeholder="Ex: professor">
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Senha</label>
-            <input type="password" name="password" class="form-control" required placeholder="Ex: senha123">
-        </div>
-        <button type="submit" class="btn btn-primary w-100">Entrar no Sistema</button>
-    </form>
+        <form action="/login" method="POST">
+            <div class="mb-3">
+                <label class="form-label text-muted small fw-bold text-uppercase">Usuário</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                    <input type="text" name="username" class="form-control" required placeholder="Digite seu usuário">
+                </div>
+            </div>
+            
+            <div class="mb-4">
+                <label class="form-label text-muted small fw-bold text-uppercase">Senha</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                    <input type="password" name="password" class="form-control" required placeholder="Digite sua senha">
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-custom w-100 mb-3">
+                <i class="fas fa-sign-in-alt me-2"></i> Acessar Painel
+            </button>
+            
+            <div class="text-center">
+                <small class="text-muted"><i class="fas fa-shield-alt me-1"></i> Ambiente Seguro e Monitorado</small>
+            </div>
+        </form>
+    </div>
 </div>
 
 </body>
