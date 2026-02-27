@@ -7,49 +7,57 @@ import os
 import time
 import random
 
-# Configuração do Banco de Dados MariaDB
-# Usando localhost como padrão para rodar nativamente sem Docker
-DB_USER = os.getenv("DB_USER", "intranet_user")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "intranet_pass")
+# Variáveis globais para o banco de dados
+engine = None
+SessionLocal = None
+Base = declarative_base()
+DB_CONFIGURED = False
+
+# Modelo de Aluno
+class Student(Base):
+    __tablename__ = "students"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    registration = Column(String, unique=True, index=True)
+    course = Column(String)
+
+def init_db(db_url):
+    global engine, SessionLocal, DB_CONFIGURED
+    try:
+        temp_engine = create_engine(db_url, pool_pre_ping=True)
+        # Testa a conexão
+        with temp_engine.connect() as connection:
+            pass
+        
+        # Se conectou, configura as variáveis globais
+        engine = temp_engine
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        Base.metadata.create_all(bind=engine)
+        DB_CONFIGURED = True
+        return True, "Conectado com sucesso!"
+    except Exception as e:
+        return False, str(e)
+
+# Tenta carregar as configurações iniciais do .env
+DB_USER = os.getenv("DB_USER", "")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
 DB_PORT = os.getenv("DB_PORT", "3306")
 DB_NAME = os.getenv("DB_NAME", "intranet_db")
 
-SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-
-# Tenta conectar ao banco de dados com retries
-engine = None
-for i in range(5):
-    try:
-        engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
-        engine.connect()
-        print("Conectado ao MariaDB com sucesso!")
-        break
-    except Exception as e:
-        print(f"Aguardando banco de dados... ({i+1}/5)")
-        time.sleep(2)
-
-if not engine:
-    print("AVISO: Não foi possível conectar ao MariaDB. Verifique se o serviço está rodando.")
-    print("O sistema tentará iniciar, mas as rotas que dependem do banco falharão.")
-else:
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-    Base = declarative_base()
-
-    # Modelo de Aluno
-    class Student(Base):
-        __tablename__ = "students"
-        id = Column(Integer, primary_key=True, index=True)
-        name = Column(String, index=True)
-        registration = Column(String, unique=True, index=True)
-        course = Column(String)
-
-    # Cria as tabelas automaticamente no MariaDB se elas não existirem
-    # É assim que a estrutura do banco é injetada!
-    Base.metadata.create_all(bind=engine)
+if DB_USER and DB_PASSWORD:
+    SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    init_db(SQLALCHEMY_DATABASE_URL)
 
 app = FastAPI(title="Intranet Faculdade")
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
+
+# Middleware para redirecionar para a página de setup se o DB não estiver configurado
+@app.middleware("http")
+async def check_setup(request: Request, call_next):
+    if not DB_CONFIGURED and request.url.path not in ["/setup", "/docs", "/openapi.json"]:
+        return RedirectResponse(url="/setup")
+    return await call_next(request)
 
 # Dependência do DB
 def get_db():
@@ -60,6 +68,28 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# --- ROTAS DE SETUP ---
+
+@app.get("/setup", response_class=HTMLResponse)
+async def setup_get(request: Request):
+    if DB_CONFIGURED:
+        return RedirectResponse(url="/")
+    return templates.TemplateResponse("setup.html", {"request": request})
+
+@app.post("/setup")
+async def setup_post(request: Request, db_host: str = Form(...), db_port: str = Form(...), db_user: str = Form(...), db_pass: str = Form(...), db_name: str = Form(...)):
+    db_url = f"mysql+pymysql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+    success, msg = init_db(db_url)
+    
+    if success:
+        # Salva as configurações no arquivo .env
+        env_path = os.path.join(os.path.dirname(__file__), ".env")
+        with open(env_path, "w") as f:
+            f.write(f"DB_HOST={db_host}\nDB_PORT={db_port}\nDB_USER={db_user}\nDB_PASSWORD={db_pass}\nDB_NAME={db_name}\n")
+        return RedirectResponse(url="/", status_code=303)
+    else:
+        return templates.TemplateResponse("setup.html", {"request": request, "error": f"Erro ao conectar: {msg}"})
 
 # --- ROTAS FRONTEND ---
 
