@@ -31,8 +31,9 @@ cd ..
 
 # 4. Configurar o Nginx e SELinux
 echo "Configurando o Nginx e SELinux..."
+
 # No AlmaLinux/RHEL, as configurações de sites ficam em /etc/nginx/conf.d/
-sudo cp ../nginx/default.conf /etc/nginx/conf.d/intranet.conf
+sudo cp nginx/default.conf /etc/nginx/conf.d/intranet.conf
 
 # O SELinux vem ativado por padrão no AlmaLinux. 
 # Precisamos permitir que o Nginx faça proxy reverso (conexões de rede) para o Uvicorn na porta 8000.
@@ -45,6 +46,7 @@ sudo systemctl restart nginx
 echo "Configurando o Firewall..."
 sudo firewall-cmd --permanent --add-service=http
 sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --permanent --add-port=8000/tcp
 sudo firewall-cmd --reload
 
 # 6. Criar serviço Systemd para a aplicação FastAPI
