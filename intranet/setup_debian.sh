@@ -22,10 +22,11 @@ sudo mysql -e "FLUSH PRIVILEGES;"
 
 # 3. Configurar o ambiente Python
 echo "Configurando o ambiente Python..."
-cd /caminho/para/sua/pasta/intranet/web # <-- ALTERE ESTE CAMINHO NO SERVIDOR
+cd web
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+cd ..
 
 # 4. Configurar o Nginx
 echo "Configurando o Nginx..."
@@ -37,6 +38,11 @@ sudo systemctl restart nginx
 
 # 5. Criar serviço Systemd para a aplicação FastAPI (Opcional, mas recomendado)
 echo "Criando serviço systemd para a Intranet..."
+
+# Obtém o diretório atual absoluto onde o script está sendo executado
+INTRANET_DIR=$(pwd)
+WEB_DIR="$INTRANET_DIR/web"
+
 cat <<EOF | sudo tee /etc/systemd/system/intranet.service
 [Unit]
 Description=Intranet FastAPI Application
@@ -44,10 +50,10 @@ After=network.target mariadb.service
 
 [Service]
 User=$USER
-WorkingDirectory=/caminho/para/sua/pasta/intranet/web # <-- ALTERE ESTE CAMINHO
-Environment="PATH=/caminho/para/sua/pasta/intranet/web/venv/bin" # <-- ALTERE ESTE CAMINHO
-EnvironmentFile=/caminho/para/sua/pasta/intranet/web/.env # <-- CRIE ESTE ARQUIVO BASEADO NO .env.example
-ExecStart=/caminho/para/sua/pasta/intranet/web/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+WorkingDirectory=$WEB_DIR
+Environment="PATH=$WEB_DIR/venv/bin"
+EnvironmentFile=$WEB_DIR/.env
+ExecStart=$WEB_DIR/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
 
 [Install]
 WantedBy=multi-user.target
