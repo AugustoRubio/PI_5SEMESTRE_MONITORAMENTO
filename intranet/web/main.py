@@ -79,7 +79,11 @@ async def setup_get(request: Request):
 
 @app.post("/setup")
 async def setup_post(request: Request, db_host: str = Form(...), db_port: str = Form(...), db_user: str = Form(...), db_pass: str = Form(...), db_name: str = Form(...)):
-    db_url = f"mysql+pymysql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+    # Trata o caso onde a senha pode conter caracteres especiais como '@' que quebram a URL do SQLAlchemy
+    import urllib.parse
+    safe_pass = urllib.parse.quote_plus(db_pass)
+    
+    db_url = f"mysql+pymysql://{db_user}:{safe_pass}@{db_host}:{db_port}/{db_name}"
     success, msg = init_db(db_url)
     
     if success:
@@ -89,7 +93,15 @@ async def setup_post(request: Request, db_host: str = Form(...), db_port: str = 
             f.write(f"DB_HOST={db_host}\nDB_PORT={db_port}\nDB_USER={db_user}\nDB_PASSWORD={db_pass}\nDB_NAME={db_name}\n")
         return RedirectResponse(url="/", status_code=303)
     else:
-        return templates.TemplateResponse("setup.html", {"request": request, "error": f"Erro ao conectar: {msg}"})
+        # Retorna os dados preenchidos para não perder o que foi digitado
+        form_data = {
+            "db_host": db_host,
+            "db_port": db_port,
+            "db_user": db_user,
+            "db_name": db_name,
+            "db_pass": db_pass
+        }
+        return templates.TemplateResponse("setup.html", {"request": request, "error": f"Erro ao conectar: {msg}", "form_data": form_data})
 
 # --- ROTAS FRONTEND ---
 

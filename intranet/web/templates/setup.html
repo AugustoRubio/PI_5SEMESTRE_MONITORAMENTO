@@ -38,23 +38,23 @@
     <form action="/setup" method="POST">
         <div class="mb-3">
             <label class="form-label">Host do Banco de Dados</label>
-            <input type="text" class="form-control" name="db_host" value="127.0.0.1" required>
+            <input type="text" class="form-control" name="db_host" value="{{ form_data.db_host if form_data else '127.0.0.1' }}" required>
         </div>
         <div class="mb-3">
             <label class="form-label">Porta</label>
-            <input type="text" class="form-control" name="db_port" value="3306" required>
+            <input type="text" class="form-control" name="db_port" value="{{ form_data.db_port if form_data else '3306' }}" required>
         </div>
         <div class="mb-3">
             <label class="form-label">Nome do Banco</label>
-            <input type="text" class="form-control" name="db_name" value="intranet_db" required>
+            <input type="text" class="form-control" name="db_name" value="{{ form_data.db_name if form_data else 'intranet_db' }}" required>
         </div>
         <div class="mb-3">
             <label class="form-label">Usuário</label>
-            <input type="text" class="form-control" name="db_user" value="intranet_user" required>
+            <input type="text" class="form-control" name="db_user" value="{{ form_data.db_user if form_data else 'intranet_user' }}" required>
         </div>
         <div class="mb-3">
             <label class="form-label">Senha</label>
-            <input type="password" class="form-control" name="db_pass" required>
+            <input type="password" class="form-control" name="db_pass" value="{{ form_data.db_pass if form_data else '' }}" required>
         </div>
         <button type="submit" class="btn btn-primary w-100">Testar Conexão e Salvar</button>
     </form>
