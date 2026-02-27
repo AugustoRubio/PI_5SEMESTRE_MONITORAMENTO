@@ -5,59 +5,103 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Intranet Faculdade</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="bg-light">
 
-<nav class="navbar navbar-dark bg-primary mb-4">
+<nav class="navbar navbar-dark bg-primary mb-4 shadow-sm">
     <div class="container">
-        <a class="navbar-brand" href="#">Intranet Faculdade - Portal do Professor</a>
-        <a href="/logout" class="btn btn-outline-light btn-sm">Sair</a>
+        <a class="navbar-brand" href="#"><i class="fas fa-university me-2"></i>Intranet Faculdade {% if is_admin %}- Admin{% else %}- Professor{% endif %}</a>
+        <div>
+            <span class="text-white me-3"><i class="fas fa-user-circle me-1"></i> Bem-vindo</span>
+            <a href="/logout" class="btn btn-outline-light btn-sm"><i class="fas fa-sign-out-alt"></i> Sair</a>
+        </div>
     </div>
 </nav>
 
 <div class="container">
     <div class="row">
-        <!-- Formulário de Cadastro -->
+        <!-- Coluna da Esquerda (Formulários) -->
         <div class="col-md-4">
+            <!-- Formulário de Cadastro de Aluno -->
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">Cadastrar Novo Aluno</h5>
+                    <h5 class="mb-0"><i class="fas fa-user-graduate me-2"></i>Cadastrar Aluno</h5>
                 </div>
                 <div class="card-body">
                     <form action="/students" method="POST">
                         <div class="mb-3">
-                            <label class="form-label">Nome Completo</label>
-                            <input type="text" name="name" class="form-control" required>
+                            <label class="form-label form-control-sm mb-0">Nome Completo</label>
+                            <input type="text" name="name" class="form-control form-control-sm" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">RA (Registro Acadêmico)</label>
-                            <input type="text" name="registration" class="form-control" required>
+                            <label class="form-label form-control-sm mb-0">RA (Registro Acadêmico)</label>
+                            <input type="text" name="registration" class="form-control form-control-sm" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Curso</label>
-                            <select name="course" class="form-select" required>
+                            <label class="form-label form-control-sm mb-0">Curso</label>
+                            <select name="course" class="form-select form-select-sm" required>
                                 <option value="Engenharia de Software">Engenharia de Software</option>
                                 <option value="Ciência da Computação">Ciência da Computação</option>
                                 <option value="Sistemas de Informação">Sistemas de Informação</option>
                                 <option value="Redes de Computadores">Redes de Computadores</option>
                             </select>
                         </div>
-                        <button type="submit" class="btn btn-success w-100">Salvar Aluno</button>
+                        <button type="submit" class="btn btn-success btn-sm w-100">Salvar Aluno</button>
                     </form>
                 </div>
             </div>
+
+            {% if is_admin %}
+            <!-- Formulário de Cadastro de Professor/Admin -->
+            <div class="card shadow-sm mb-4 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-chalkboard-teacher me-2"></i>Cadastrar Professor/Admin</h5>
+                </div>
+                <div class="card-body">
+                    <form action="/professors" method="POST">
+                        <div class="mb-2">
+                            <label class="form-label form-control-sm mb-0">Nome Completo</label>
+                            <input type="text" name="name" class="form-control form-control-sm" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-2">
+                                <label class="form-label form-control-sm mb-0">Username</label>
+                                <input type="text" name="username" class="form-control form-control-sm" required>
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="form-label form-control-sm mb-0">Senha</label>
+                                <input type="password" name="password" class="form-control form-control-sm" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label form-control-sm mb-0">Departamento/Acesso</label>
+                            <select name="department" class="form-select form-select-sm" required>
+                                <option value="TI">TI / Informática</option>
+                                <option value="Exatas">Exatas</option>
+                                <option value="Humanas">Humanas</option>
+                                <option value="Admin">Administrador do Sistema</option>
+                            </select>
+                            <small class="text-muted" style="font-size: 0.7em;">Somente o departamento 'Admin' pode cadastrar outros usuários.</small>
+                        </div>
+                        <button type="submit" class="btn btn-warning btn-sm w-100">Salvar Usuário</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
-        <!-- Lista de Alunos -->
+        <!-- Área da Direita: Listagens -->
         <div class="col-md-8">
-            <div class="card shadow-sm">
+            <!-- Lista de Alunos -->
+            <div class="card shadow-sm mb-4">
                 <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Alunos Matriculados</h5>
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Alunos Matriculados</h5>
                     <span class="badge bg-light text-dark">{{ students|length }} alunos</span>
                 </div>
-                <div class="card-body p-0">
-                    <table class="table table-striped table-hover mb-0">
-                        <thead class="table-light">
+                <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-striped table-hover mb-0 font-sm">
+                        <thead class="table-light sticky-top">
                             <tr>
                                 <th>ID</th>
                                 <th>RA</th>
@@ -82,9 +126,61 @@
                     </table>
                 </div>
             </div>
+
+            {% if is_admin %}
+            <!-- Lista de Professores/Admins -->
+            <div class="card shadow-sm border-secondary">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-id-badge me-2"></i>Equipe e Professores (Área Admin)</h5>
+                    <span class="badge bg-light text-dark">{{ professors|length }} membros</span>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-striped table-hover mb-0 font-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Usuário</th>
+                                <th>Nome</th>
+                                <th>Departamento</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for prof in professors %}
+                            <tr>
+                                <td>{{ prof.id }}</td>
+                                <td><strong>{{ prof.username }}</strong></td>
+                                <td>{{ prof.name }}</td>
+                                <td>
+                                    {% if prof.department == 'Admin' %}
+                                        <span class="badge bg-danger">Admin</span>
+                                    {% else %}
+                                        <span class="badge bg-info text-dark">{{ prof.department }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <form action="/professors/delete/{{ prof.id }}" method="POST" style="display:inline;" onsubmit="return confirm('Tem certeza que deseja remover este usuário?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" title="Remover"><i class="fas fa-trash-alt"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">Nenhum professor cadastrado ainda.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
+
+<style>
+    .font-sm { font-size: 0.9em; }
+</style>
 
 </body>
 </html>

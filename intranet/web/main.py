@@ -127,6 +127,9 @@ async def login(username: str = Form(...), password: str = Form(...), db: Sessio
     if professor or (username == "professor" and password == "senha123"):
         response = RedirectResponse(url="/dashboard", status_code=302)
         response.set_cookie(key="session", value="authenticated")
+        # Define se é admin (o admin padrão ou alguém do departamento "Admin")
+        is_admin = "true" if (username == "professor" and password == "senha123") or (professor and professor.department == "Admin") else "false"
+        response.set_cookie(key="is_admin", value=is_admin)
         return response
     return RedirectResponse(url="/?error=1", status_code=302)
 
@@ -134,6 +137,7 @@ async def login(username: str = Form(...), password: str = Form(...), db: Sessio
 async def logout():
     response = RedirectResponse(url="/", status_code=302)
     response.delete_cookie("session")
+    response.delete_cookie("is_admin")
     return response
 
 @app.get("/dashboard", response_class=HTMLResponse)
@@ -141,8 +145,16 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated":
         return RedirectResponse(url="/", status_code=302)
     
+    is_admin = request.cookies.get("is_admin") == "true"
     students = db.query(Student).all()
-    return templates.TemplateResponse("dashboard.html", {"request": request, "students": students})
+    professors = db.query(Professor).all() if is_admin else []
+    
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request, 
+        "students": students, 
+        "professors": professors,
+        "is_admin": is_admin
+    })
 
 @app.post("/students")
 async def create_student(request: Request, name: str = Form(...), registration: str = Form(...), course: str = Form(...), db: Session = Depends(get_db)):
@@ -152,6 +164,39 @@ async def create_student(request: Request, name: str = Form(...), registration: 
     new_student = Student(name=name, registration=registration, course=course)
     db.add(new_student)
     db.commit()
+    return RedirectResponse(url="/dashboard", status_code=302)
+
+@app.post("/professors")
+async def create_professor_web(
+    request: Request, 
+    username: str = Form(...), 
+    password: str = Form(...), 
+    name: str = Form(...), 
+    department: str = Form(...), 
+    db: Session = Depends(get_db)
+):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("is_admin") != "true":
+        return RedirectResponse(url="/dashboard", status_code=302)
+    
+    # Verifica se já existe
+    existing = db.query(Professor).filter(Professor.username == username).first()
+    if not existing:
+        new_prof = Professor(username=username, password=password, name=name, department=department)
+        db.add(new_prof)
+        db.commit()
+        
+    return RedirectResponse(url="/dashboard", status_code=302)
+
+@app.post("/professors/delete/{prof_id}")
+async def delete_professor_web(request: Request, prof_id: int, db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("is_admin") != "true":
+        return RedirectResponse(url="/dashboard", status_code=302)
+        
+    prof = db.query(Professor).filter(Professor.id == prof_id).first()
+    if prof:
+        db.delete(prof)
+        db.commit()
+        
     return RedirectResponse(url="/dashboard", status_code=302)
 
 # --- ROTAS DE ADMINISTRAÇÃO (API PARA ZABBIX/PAINEL) ---
