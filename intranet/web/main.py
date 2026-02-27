@@ -21,6 +21,15 @@ class Student(Base):
     registration = Column(String(50), unique=True, index=True)
     course = Column(String(255))
 
+# Modelo de Professor
+class Professor(Base):
+    __tablename__ = "professors"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True)
+    password = Column(String(255))
+    name = Column(String(255))
+    department = Column(String(255))
+
 def init_db(db_url):
     global engine, SessionLocal, DB_CONFIGURED
     try:
@@ -110,9 +119,12 @@ async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
-async def login(username: str = Form(...), password: str = Form(...)):
-    # Login simples hardcoded para o professor
-    if username == "professor" and password == "senha123":
+async def login(username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
+    # Verifica se o professor existe no banco de dados
+    professor = db.query(Professor).filter(Professor.username == username, Professor.password == password).first()
+    
+    # Fallback para o admin padrão caso o banco esteja vazio
+    if professor or (username == "professor" and password == "senha123"):
         response = RedirectResponse(url="/dashboard", status_code=302)
         response.set_cookie(key="session", value="authenticated")
         return response
@@ -141,6 +153,38 @@ async def create_student(request: Request, name: str = Form(...), registration: 
     db.add(new_student)
     db.commit()
     return RedirectResponse(url="/dashboard", status_code=302)
+
+# --- ROTAS DE ADMINISTRAÇÃO (API PARA ZABBIX/PAINEL) ---
+
+@app.get("/api/professors")
+async def get_professors(db: Session = Depends(get_db)):
+    """Retorna a lista de professores (útil para monitoramento/painel)."""
+    professors = db.query(Professor).all()
+    return [{"id": p.id, "username": p.username, "name": p.name, "department": p.department} for p in professors]
+
+@app.post("/api/professors")
+async def create_professor(username: str = Form(...), password: str = Form(...), name: str = Form(...), department: str = Form(...), db: Session = Depends(get_db)):
+    """Cria um novo professor via API."""
+    # Verifica se já existe
+    existing = db.query(Professor).filter(Professor.username == username).first()
+    if existing:
+        return {"error": "Professor já existe"}
+        
+    new_prof = Professor(username=username, password=password, name=name, department=department)
+    db.add(new_prof)
+    db.commit()
+    return {"message": "Professor criado com sucesso", "username": username}
+
+@app.delete("/api/professors/{prof_id}")
+async def delete_professor(prof_id: int, db: Session = Depends(get_db)):
+    """Deleta um professor via API."""
+    prof = db.query(Professor).filter(Professor.id == prof_id).first()
+    if not prof:
+        return {"error": "Professor não encontrado"}
+    
+    db.delete(prof)
+    db.commit()
+    return {"message": "Professor deletado com sucesso"}
 
 # --- ROTAS PARA TESTE DE ESTRESSE (MONITORAMENTO ZABBIX) ---
 
