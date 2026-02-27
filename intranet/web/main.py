@@ -17,9 +17,9 @@ DB_CONFIGURED = False
 class Student(Base):
     __tablename__ = "students"
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True)
-    registration = Column(String, unique=True, index=True)
-    course = Column(String)
+    name = Column(String(255), index=True)
+    registration = Column(String(50), unique=True, index=True)
+    course = Column(String(255))
 
 def init_db(db_url):
     global engine, SessionLocal, DB_CONFIGURED
