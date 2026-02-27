@@ -12,10 +12,14 @@ import json
 
 load_dotenv()
 
+# Tempo de início do servidor (usado para invalidar tokens antigos ao reiniciar)
+SERVER_START_TIME = datetime.utcnow().timestamp()
+
 # Configurações de Segurança
 SECRET_KEY = os.getenv("SECRET_KEY", "chave_fallback_insegura_apenas_para_dev")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+# Tempo de expiração do token (padrão 30 minutos, pode ser alterado no .env)
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("TOKEN_EXPIRE_MINUTES", 30))
 
 # Configurações de Brute Force
 MAX_LOGIN_ATTEMPTS = 5
@@ -103,22 +107,34 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    # Adiciona o tempo de expiração e o tempo de criação (iat)
+    to_encode.update({
+        "exp": expire,
+        "iat": datetime.utcnow().timestamp()
+    })
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Não foi possível validar as credenciais",
+        detail="Não foi possível validar as credenciais ou a sessão expirou",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
+        iat: float = payload.get("iat")
+        
         if username is None:
             raise credentials_exception
+            
+        # Se o token foi gerado antes do servidor iniciar, ele é inválido
+        if iat is None or iat < SERVER_START_TIME:
+            raise credentials_exception
+            
     except JWTError:
         raise credentials_exception
     user = get_user(USERS_DB, username)

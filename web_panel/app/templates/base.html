@@ -25,25 +25,36 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="/">Dashboard</a>
+                    <a class="nav-link" href="/"><i class="bi bi-house-door"></i> Dashboard</a>
+                </li>
+                
+                <!-- Menu Dropdown: Simulações -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="simulacoesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-controller"></i> Simulações
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="simulacoesDropdown">
+                        <li><a class="dropdown-item" href="/devices"><i class="bi bi-router"></i> Dispositivos SNMP</a></li>
+                        <li><a class="dropdown-item text-danger" href="/attacks"><i class="bi bi-crosshair"></i> Ataques (Red Team)</a></li>
+                    </ul>
+                </li>
+
+                <!-- Menu Dropdown: Sistema -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="sistemaDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-gear"></i> Sistema
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="sistemaDropdown">
+                        <li><a class="dropdown-item text-warning" href="/config"><i class="bi bi-sliders"></i> Configurações</a></li>
+                        <li><a class="dropdown-item text-info" href="/admin"><i class="bi bi-people"></i> Usuários</a></li>
+                    </ul>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="/docs" target="_blank"><i class="bi bi-file-earmark-code"></i> API Docs</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="/devices">Dispositivos (GNS3)</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-danger" href="/attacks"><i class="bi bi-crosshair"></i> Ataques (Red Team)</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-warning" href="/config"><i class="bi bi-gear-fill"></i> Configurações</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-info" href="/admin"><i class="bi bi-person-badge"></i> Admin</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/docs" target="_blank">API Docs</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-secondary" href="#" onclick="logout()">Sair</a>
+                    <a class="nav-link text-secondary" href="#" onclick="logout()"><i class="bi bi-box-arrow-right"></i> Sair</a>
                 </li>
             </ul>
         </div>
@@ -63,6 +74,30 @@
     if (!token && window.location.pathname !== '/login') {
         window.location.href = '/login';
     }
+
+    // Função para verificar a validade do token com o backend
+    async function checkAuth() {
+        if (window.location.pathname === '/login') return;
+        
+        try {
+            const response = await fetch('/api/auth/verify', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            
+            if (!response.ok) {
+                console.log("Sessão inválida ou expirada. Redirecionando para login.");
+                logout();
+            }
+        } catch (error) {
+            console.error("Erro ao verificar autenticação:", error);
+        }
+    }
+
+    // Verifica a autenticação assim que a página carrega
+    document.addEventListener('DOMContentLoaded', checkAuth);
 
     function logout() {
         localStorage.removeItem('token');

@@ -1,9 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
-from app.auth import authenticate_user, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, check_brute_force
+from app.auth import authenticate_user, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, check_brute_force, get_current_user
 
 router = APIRouter()
+
+@router.get("/verify")
+async def verify_token(current_user: dict = Depends(get_current_user)):
+    """
+    Endpoint simples para verificar se o token atual ainda é válido.
+    Se o token for inválido ou o servidor tiver reiniciado, o Depends(get_current_user)
+    vai lançar um erro 401 antes mesmo de chegar aqui.
+    """
+    return {"status": "ok", "user": current_user["username"]}
 
 @router.post("/token")
 async def login_for_access_token(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
