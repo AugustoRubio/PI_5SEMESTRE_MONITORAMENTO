@@ -4,11 +4,16 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from dotenv import load_dotenv
 import os
 import time
 import random
 
 import urllib.parse
+
+# Carrega as variáveis do .env no início para persistir após reinícios
+env_path = os.path.join(os.path.dirname(__file__), ".env")
+load_dotenv(dotenv_path=env_path)
 
 # Variáveis globais para o banco de dados
 engine = None
