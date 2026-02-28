@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intranet - Portal de Acesso</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .portal-card {
+            transition: transform 0.3s;
+            cursor: pointer;
+        }
+        .portal-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+        }
+        .header-logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+            <div class="header-logo">
+                <img src="/static/logo.png" alt="Logo Faculdade" width="250" style="background: white; padding: 10px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" onerror="this.style.display='none'">
+                <h2 class="mt-4 text-secondary">Portal da Intranet</h2>
+                <p class="text-muted">Selecione o seu ambiente de acesso abaixo</p>
+            </div>
+            
+            <div class="row mt-5">
+                <!-- Acesso Docente -->
+                <div class="col-md-6 mb-4">
+                    <a href="/login" class="text-decoration-none text-dark">
+                        <div class="card p-4 text-center portal-card border-primary h-100 shadow-sm">
+                            <div class="card-body">
+                                <i class="fas fa-chalkboard-teacher text-primary mb-3" style="font-size: 4rem;"></i>
+                                <h4 class="card-title mt-2">Ambiente Docente</h4>
+                                <p class="card-text text-muted mt-3">Acesso exclusivo para professores. Gerencie suas turmas e relacione faltas, e planeje os diários de classe.</p>
+                            </div>
+                            <div class="card-footer bg-white border-0">
+                                <span class="btn btn-outline-primary w-100">Acessar Painel <i class="fas fa-arrow-right ms-2"></i></span>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Acesso Admin -->
+                <div class="col-md-6 mb-4">
+                    <a href="/login" class="text-decoration-none text-dark">
+                        <div class="card p-4 text-center portal-card border-secondary h-100 shadow-sm">
+                            <div class="card-body">
+                                <i class="fas fa-cogs text-secondary mb-3" style="font-size: 4rem;"></i>
+                                <h4 class="card-title mt-2">Administração</h4>
+                                <p class="card-text text-muted mt-3">Acesso para a direção e coordenação. Gerencie os alunos, turmas, professores e configurações do sistema.</p>
+                            </div>
+                            <div class="card-footer bg-white border-0">
+                                <span class="btn btn-outline-secondary w-100">Acessar Admin <i class="fas fa-arrow-right ms-2"></i></span>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

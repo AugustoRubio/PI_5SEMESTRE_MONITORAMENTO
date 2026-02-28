@@ -166,10 +166,10 @@ async def setup_post(request: Request, db_host: str = Form(...), db_port: str = 
         return templates.TemplateResponse("setup.html", {"request": request, "error": f"Erro ao conectar: {msg}", "form_data": form_data})
 
 # --- ROTAS FRONTEND ---
-@app.get("/")
-async def root_redirect():
+@app.get("/", response_class=HTMLResponse)
+async def root_redirect(request: Request):
     if DB_CONFIGURED:
-        return RedirectResponse(url="/login", status_code=302)
+        return templates.TemplateResponse("index.html", {"request": request})
     return RedirectResponse(url="/setup", status_code=302)
 
 @app.get("/login", response_class=HTMLResponse)
