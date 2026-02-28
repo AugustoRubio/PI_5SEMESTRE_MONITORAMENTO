@@ -94,10 +94,14 @@ def init_db(db_url):
         # Seed account admin
         db = SessionLocal()
         admin = db.query(Admin).filter(Admin.username == "admin").first()
+        hashed_pwd = pwd_context.hash("admin")
         if not admin:
-            hashed_pwd = pwd_context.hash("admin")
             new_admin = Admin(username="admin", password=hashed_pwd)
             db.add(new_admin)
+            db.commit()
+        else:
+            # Forçar atualização da senha para garantir que está com hash (caso tenha vindo de versão anterior em clear text)
+            admin.password = hashed_pwd
             db.commit()
         db.close()
         
@@ -173,28 +177,29 @@ async def root_redirect(request: Request):
     return RedirectResponse(url="/setup", status_code=302)
 
 @app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+async def login_page(request: Request, type: str = "admin"):
+    return templates.TemplateResponse("login.html", {"request": request, "type": type})
 
 @app.post("/login")
-async def login(username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
-    admin = db.query(Admin).filter(Admin.username == username).first()
-    if admin and pwd_context.verify(password, admin.password):
-        response = RedirectResponse(url="/admin_dashboard", status_code=302)
-        response.set_cookie(key="session", value="authenticated")
-        response.set_cookie(key="role", value="admin")
-        response.set_cookie(key="user_id", value=str(admin.id))
-        return response
+async def login(username: str = Form(...), password: str = Form(...), login_type: str = Form(...), db: Session = Depends(get_db)):
+    if login_type == 'admin':
+        admin = db.query(Admin).filter(Admin.username == username).first()
+        if admin and pwd_context.verify(password, admin.password):
+            response = RedirectResponse(url="/admin_dashboard", status_code=302)
+            response.set_cookie(key="session", value="authenticated")
+            response.set_cookie(key="role", value="admin")
+            response.set_cookie(key="user_id", value=str(admin.id))
+            return response
+    elif login_type == 'professor':
+        professor = db.query(Professor).filter(Professor.username == username).first()
+        if professor and pwd_context.verify(password, professor.password):
+            response = RedirectResponse(url="/prof_dashboard", status_code=302)
+            response.set_cookie(key="session", value="authenticated")
+            response.set_cookie(key="role", value="professor")
+            response.set_cookie(key="user_id", value=str(professor.id))
+            return response
 
-    professor = db.query(Professor).filter(Professor.username == username).first()
-    if professor and pwd_context.verify(password, professor.password):
-        response = RedirectResponse(url="/prof_dashboard", status_code=302)
-        response.set_cookie(key="session", value="authenticated")
-        response.set_cookie(key="role", value="professor")
-        response.set_cookie(key="user_id", value=str(professor.id))
-        return response
-
-    return RedirectResponse(url="/login?error=1", status_code=302)
+    return RedirectResponse(url=f"/login?error=1&type={login_type}", status_code=302)
 
 @app.get("/logout")
 async def logout():

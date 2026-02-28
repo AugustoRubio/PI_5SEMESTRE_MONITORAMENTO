@@ -7,11 +7,11 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { 
+        body {
             background: linear-gradient(135deg, #1e3c5a 0%, #0d1b2a 100%);
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
             height: 100vh;
             margin: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -21,12 +21,12 @@
             max-width: 420px;
             padding: 15px;
         }
-        .login-card { 
-            padding: 40px 30px; 
-            border-radius: 12px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
-            background: rgba(255, 255, 255, 0.98); 
-            border-top: 5px solid #ff5722; /* Linha laranja estilo a logo */
+        .login-card {
+            padding: 40px 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: rgba(255, 255, 255, 0.98);
+            border-top: 5px solid #ff5722;
         }
         .logo-container {
             text-align: center;
@@ -69,17 +69,21 @@
 
 <div class="login-wrapper">
     <div class="login-card">
-        
+
         <div class="logo-container">
-            <!-- A imagem da logo será carregada da pasta static -->
-            <img src="/static/logo.png" alt="Logo CANES Centro Universitário" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x100.png?text=CANES+Centro+Universitário';">
+            <img src="/static/logo.png" alt="Logo" onerror="this.onerror=null; this.src='https://via.placeholder.com/300x100.png?text=CANES+Centro+Universitário';">
         </div>
-        
-        <h5 class="text-center mb-4 text-muted" style="font-weight: 400; font-size: 1rem;">Acesso Administrativo & Docente</h5>
-        
+
+        <h5 id="panel-title" class="text-center mb-4 text-muted" style="font-weight: 400; font-size: 1.2rem;">
+            Acesso ao Sistema
+        </h5>
+
         <script>
             const urlParams = new URLSearchParams(window.location.search);
+            
+            // Tratamento de erro
             if (urlParams.has('error')) {
+                const type = urlParams.get('type') || 'admin';
                 document.write(`
                     <div class="alert alert-danger d-flex align-items-center" role="alert">
                         <i class="fas fa-exclamation-triangle me-2"></i>
@@ -90,6 +94,25 @@
         </script>
 
         <form action="/login" method="POST">
+            <!-- Controle do Tipo de Painel para a API no backend separar a busca -->
+            <input type="hidden" name="login_type" id="login_type" value="admin">
+            
+            <script>
+                // Muda a cor e o título dependendo do portal clicado
+                if (urlParams.has('type')) {
+                    const type = urlParams.get('type');
+                    document.getElementById('login_type').value = type;
+                    
+                    if (type === 'professor') {
+                        document.getElementById('panel-title').innerHTML = '<i class="fas fa-chalkboard-teacher me-2 text-primary"></i>Acesso Docente';
+                        document.querySelector('.login-card').style.borderTop = '5px solid #0d6efd';
+                    } else if (type === 'admin') {
+                        document.getElementById('panel-title').innerHTML = '<i class="fas fa-cogs me-2 text-secondary"></i>Administração';
+                        document.querySelector('.login-card').style.borderTop = '5px solid #6c757d';
+                    }
+                }
+            </script>
+
             <div class="mb-3">
                 <label class="form-label text-muted small fw-bold text-uppercase">Usuário</label>
                 <div class="input-group">
@@ -97,7 +120,7 @@
                     <input type="text" name="username" class="form-control" required placeholder="Digite seu usuário">
                 </div>
             </div>
-            
+
             <div class="mb-4">
                 <label class="form-label text-muted small fw-bold text-uppercase">Senha</label>
                 <div class="input-group">
@@ -105,13 +128,29 @@
                     <input type="password" name="password" class="form-control" required placeholder="Digite sua senha">
                 </div>
             </div>
-            
-            <button type="submit" class="btn btn-custom w-100 mb-3">
+
+            <button type="submit" id="submit-btn" class="btn btn-custom w-100 mb-3">
                 <i class="fas fa-sign-in-alt me-2"></i> Acessar Painel
             </button>
             
-            <div class="text-center">
-                <small class="text-muted"><i class="fas fa-shield-alt me-1"></i> Ambiente Seguro e Monitorado</small>
+            <script>
+                if (urlParams.has('type')) {
+                    const type = urlParams.get('type');
+                    const btn = document.getElementById('submit-btn');
+                    if (type === 'professor') {
+                        btn.classList.add('btn-primary');
+                        btn.classList.remove('btn-custom');
+                    } else if (type === 'admin') {
+                        btn.classList.add('btn-secondary');
+                        btn.classList.remove('btn-custom');
+                    }
+                }
+            </script>
+
+            <div class="text-center mt-2">
+                <a href="/" class="text-decoration-none text-muted" style="font-size: 0.85rem;">
+                    <i class="fas fa-arrow-left me-1"></i>Voltar ao Portal de Escolha
+                </a>
             </div>
         </form>
     </div>
