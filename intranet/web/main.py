@@ -8,6 +8,8 @@ import os
 import time
 import random
 
+import urllib.parse
+
 # Variáveis globais para o banco de dados
 engine = None
 SessionLocal = None
@@ -72,7 +74,7 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "t
 # Middleware para redirecionar para a página de setup se o DB não estiver configurado
 @app.middleware("http")
 async def check_setup(request: Request, call_next):
-    if not DB_CONFIGURED and request.url.path not in ["/setup", "/docs", "/openapi.json"]:
+    if not DB_CONFIGURED and request.url.path not in ["/setup", "/docs", "/openapi.json"] and not request.url.path.startswith("/static"):
         return RedirectResponse(url="/setup")
     return await call_next(request)
 
@@ -91,13 +93,12 @@ def get_db():
 @app.get("/setup", response_class=HTMLResponse)
 async def setup_get(request: Request):
     if DB_CONFIGURED:
-        return RedirectResponse(url="/")
+        return RedirectResponse(url="/login")
     return templates.TemplateResponse("setup.html", {"request": request})
 
 @app.post("/setup")
 async def setup_post(request: Request, db_host: str = Form(...), db_port: str = Form(...), db_user: str = Form(...), db_pass: str = Form(...), db_name: str = Form(...)):
     # Trata o caso onde a senha pode conter caracteres especiais como '@' que quebram a URL do SQLAlchemy
-    import urllib.parse
     safe_pass = urllib.parse.quote_plus(db_pass)
     
     db_url = f"mysql+pymysql://{db_user}:{safe_pass}@{db_host}:{db_port}/{db_name}"
@@ -108,7 +109,7 @@ async def setup_post(request: Request, db_host: str = Form(...), db_port: str = 
         env_path = os.path.join(os.path.dirname(__file__), ".env")
         with open(env_path, "w") as f:
             f.write(f"DB_HOST={db_host}\nDB_PORT={db_port}\nDB_USER={db_user}\nDB_PASSWORD={db_pass}\nDB_NAME={db_name}\n")
-        return RedirectResponse(url="/", status_code=303)
+        return RedirectResponse(url="/login", status_code=303)
     else:
         # Retorna os dados preenchidos para não perder o que foi digitado
         form_data = {
@@ -122,7 +123,13 @@ async def setup_post(request: Request, db_host: str = Form(...), db_port: str = 
 
 # --- ROTAS FRONTEND ---
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
+async def root_redirect():
+    if DB_CONFIGURED:
+        return RedirectResponse(url="/login", status_code=302)
+    return RedirectResponse(url="/setup", status_code=302)
+
+@app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
@@ -139,11 +146,11 @@ async def login(username: str = Form(...), password: str = Form(...), db: Sessio
         is_admin = "true" if (username == "professor" and password == "senha123") or (professor and professor.department == "Admin") else "false"
         response.set_cookie(key="is_admin", value=is_admin)
         return response
-    return RedirectResponse(url="/?error=1", status_code=302)
+    return RedirectResponse(url="/login?error=1", status_code=302)
 
 @app.get("/logout")
 async def logout():
-    response = RedirectResponse(url="/", status_code=302)
+    response = RedirectResponse(url="/login", status_code=302)
     response.delete_cookie("session")
     response.delete_cookie("is_admin")
     return response
@@ -151,7 +158,7 @@ async def logout():
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated":
-        return RedirectResponse(url="/", status_code=302)
+        return RedirectResponse(url="/login", status_code=302)
     
     is_admin = request.cookies.get("is_admin") == "true"
     students = db.query(Student).all()
@@ -167,7 +174,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
 @app.post("/students")
 async def create_student(request: Request, name: str = Form(...), registration: str = Form(...), course: str = Form(...), db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated":
-        return RedirectResponse(url="/", status_code=302)
+        return RedirectResponse(url="/login", status_code=302)
     
     new_student = Student(name=name, registration=registration, course=course)
     db.add(new_student)
