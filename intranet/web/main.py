@@ -1,19 +1,23 @@
-from fastapi import FastAPI, Request, Form, Depends
+from fastapi import FastAPI, Request, Form, Depends, Cookie
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import create_engine, Column, Integer, String
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Table
+from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 from dotenv import load_dotenv
 import os
 import time
 import random
+import datetime
 
 import urllib.parse
+from passlib.context import CryptContext
 
 # Carrega as variáveis do .env no início para persistir após reinícios
 env_path = os.path.join(os.path.dirname(__file__), ".env")
 load_dotenv(dotenv_path=env_path)
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Variáveis globais para o banco de dados
 engine = None
@@ -21,15 +25,27 @@ SessionLocal = None
 Base = declarative_base()
 DB_CONFIGURED = False
 
-# Modelo de Aluno
+# Association table for students and classes
+student_class = Table('student_class', Base.metadata,
+    Column('student_id', Integer, ForeignKey('students.id')),
+    Column('class_id', Integer, ForeignKey('classes.id'))
+)
+
+class Admin(Base):
+    __tablename__ = "admins"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True)
+    password = Column(String(255))
+
 class Student(Base):
     __tablename__ = "students"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), index=True)
     registration = Column(String(50), unique=True, index=True)
     course = Column(String(255))
+    
+    classes = relationship("Class", secondary=student_class, back_populates="students")
 
-# Modelo de Professor
 class Professor(Base):
     __tablename__ = "professors"
     id = Column(Integer, primary_key=True, index=True)
@@ -37,6 +53,29 @@ class Professor(Base):
     password = Column(String(255))
     name = Column(String(255))
     department = Column(String(255))
+    
+    classes = relationship("Class", back_populates="professor", cascade="all, delete-orphan")
+
+class Class(Base):
+    __tablename__ = "classes"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), index=True)
+    professor_id = Column(Integer, ForeignKey('professors.id'))
+    
+    professor = relationship("Professor", back_populates="classes")
+    students = relationship("Student", secondary=student_class, back_populates="classes")
+    attendances = relationship("Attendance", back_populates="course_class", cascade="all, delete-orphan")
+
+class Attendance(Base):
+    __tablename__ = "attendances"
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey('students.id'))
+    class_id = Column(Integer, ForeignKey('classes.id'))
+    date = Column(String(50))
+    absent = Column(Integer, default=1) # 1 for absent
+    
+    student = relationship("Student")
+    course_class = relationship("Class", back_populates="attendances")
 
 def init_db(db_url):
     global engine, SessionLocal, DB_CONFIGURED
@@ -51,6 +90,17 @@ def init_db(db_url):
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         Base.metadata.create_all(bind=engine)
         DB_CONFIGURED = True
+        
+        # Seed account admin
+        db = SessionLocal()
+        admin = db.query(Admin).filter(Admin.username == "admin").first()
+        if not admin:
+            hashed_pwd = pwd_context.hash("admin")
+            new_admin = Admin(username="admin", password=hashed_pwd)
+            db.add(new_admin)
+            db.commit()
+        db.close()
+        
         return True, "Conectado com sucesso!"
     except Exception as e:
         return False, str(e)
@@ -69,7 +119,6 @@ if DB_USER and DB_PASSWORD:
 
 app = FastAPI(title="Intranet Faculdade")
 
-# Monta a pasta de arquivos estáticos (para a logo e css)
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if not os.path.exists(static_dir):
     os.makedirs(static_dir)
@@ -77,7 +126,7 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "templates"))
 
-# Middleware para redirecionar para a página de setup se o DB não estiver configurado
+# Middleware para redirecionar para a página de setup
 @app.middleware("http")
 async def check_setup(request: Request, call_next):
     if not DB_CONFIGURED and request.url.path not in ["/setup", "/docs", "/openapi.json"] and not request.url.path.startswith("/static"):
@@ -95,7 +144,6 @@ def get_db():
         db.close()
 
 # --- ROTAS DE SETUP ---
-
 @app.get("/setup", response_class=HTMLResponse)
 async def setup_get(request: Request):
     if DB_CONFIGURED:
@@ -104,31 +152,20 @@ async def setup_get(request: Request):
 
 @app.post("/setup")
 async def setup_post(request: Request, db_host: str = Form(...), db_port: str = Form(...), db_user: str = Form(...), db_pass: str = Form(...), db_name: str = Form(...)):
-    # Trata o caso onde a senha pode conter caracteres especiais como '@' que quebram a URL do SQLAlchemy
     safe_pass = urllib.parse.quote_plus(db_pass)
-    
     db_url = f"mysql+pymysql://{db_user}:{safe_pass}@{db_host}:{db_port}/{db_name}"
     success, msg = init_db(db_url)
     
     if success:
-        # Salva as configurações no arquivo .env
         env_path = os.path.join(os.path.dirname(__file__), ".env")
         with open(env_path, "w") as f:
             f.write(f"DB_HOST={db_host}\nDB_PORT={db_port}\nDB_USER={db_user}\nDB_PASSWORD={db_pass}\nDB_NAME={db_name}\n")
         return RedirectResponse(url="/login", status_code=303)
     else:
-        # Retorna os dados preenchidos para não perder o que foi digitado
-        form_data = {
-            "db_host": db_host,
-            "db_port": db_port,
-            "db_user": db_user,
-            "db_name": db_name,
-            "db_pass": db_pass
-        }
+        form_data = {"db_host": db_host, "db_port": db_port, "db_user": db_user, "db_name": db_name, "db_pass": db_pass}
         return templates.TemplateResponse("setup.html", {"request": request, "error": f"Erro ao conectar: {msg}", "form_data": form_data})
 
 # --- ROTAS FRONTEND ---
-
 @app.get("/")
 async def root_redirect():
     if DB_CONFIGURED:
@@ -141,51 +178,87 @@ async def login_page(request: Request):
 
 @app.post("/login")
 async def login(username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
-    # Verifica se o professor existe no banco de dados
-    professor = db.query(Professor).filter(Professor.username == username, Professor.password == password).first()
-    
-    # Fallback para o admin padrão caso o banco esteja vazio
-    if professor or (username == "professor" and password == "senha123"):
-        response = RedirectResponse(url="/dashboard", status_code=302)
+    admin = db.query(Admin).filter(Admin.username == username).first()
+    if admin and pwd_context.verify(password, admin.password):
+        response = RedirectResponse(url="/admin_dashboard", status_code=302)
         response.set_cookie(key="session", value="authenticated")
-        # Define se é admin (o admin padrão ou alguém do departamento "Admin")
-        is_admin = "true" if (username == "professor" and password == "senha123") or (professor and professor.department == "Admin") else "false"
-        response.set_cookie(key="is_admin", value=is_admin)
+        response.set_cookie(key="role", value="admin")
+        response.set_cookie(key="user_id", value=str(admin.id))
         return response
+
+    professor = db.query(Professor).filter(Professor.username == username).first()
+    if professor and pwd_context.verify(password, professor.password):
+        response = RedirectResponse(url="/prof_dashboard", status_code=302)
+        response.set_cookie(key="session", value="authenticated")
+        response.set_cookie(key="role", value="professor")
+        response.set_cookie(key="user_id", value=str(professor.id))
+        return response
+
     return RedirectResponse(url="/login?error=1", status_code=302)
 
 @app.get("/logout")
 async def logout():
     response = RedirectResponse(url="/login", status_code=302)
     response.delete_cookie("session")
-    response.delete_cookie("is_admin")
+    response.delete_cookie("role")
+    response.delete_cookie("user_id")
     return response
 
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request, db: Session = Depends(get_db)):
-    if request.cookies.get("session") != "authenticated":
+# --- ADMIN DASHBOARD ---
+@app.get("/admin_dashboard", response_class=HTMLResponse)
+async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
     
-    is_admin = request.cookies.get("is_admin") == "true"
     students = db.query(Student).all()
-    professors = db.query(Professor).all() if is_admin else []
+    professors = db.query(Professor).all()
+    classes = db.query(Class).all()
+    admins = db.query(Admin).all()
+    admin_id = request.cookies.get("user_id")
+    current_admin = db.query(Admin).filter(Admin.id == admin_id).first()
     
-    return templates.TemplateResponse("dashboard.html", {
+    return templates.TemplateResponse("admin_dashboard.html", {
         "request": request, 
         "students": students, 
         "professors": professors,
-        "is_admin": is_admin
+        "classes": classes,
+        "admins": admins,
+        "current_admin": current_admin
     })
+
+@app.post("/admin/change_password")
+async def change_admin_password(request: Request, new_password: str = Form(...), db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login", status_code=302)
+    
+    admin_id = request.cookies.get("user_id")
+    admin = db.query(Admin).filter(Admin.id == admin_id).first()
+    if admin:
+        admin.password = pwd_context.hash(new_password)
+        db.commit()
+    return RedirectResponse(url="/admin_dashboard", status_code=302)
 
 @app.post("/students")
 async def create_student(request: Request, name: str = Form(...), registration: str = Form(...), course: str = Form(...), db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated":
         return RedirectResponse(url="/login", status_code=302)
     
-    new_student = Student(name=name, registration=registration, course=course)
-    db.add(new_student)
-    db.commit()
-    return RedirectResponse(url="/dashboard", status_code=302)
+    if not db.query(Student).filter(Student.registration == registration).first():
+        new_student = Student(name=name, registration=registration, course=course)
+        db.add(new_student)
+        db.commit()
+    return RedirectResponse(url="/admin_dashboard", status_code=302)
+
+@app.post("/students/delete/{student_id}")
+async def delete_student(request: Request, student_id: int, db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login", status_code=302)
+    
+    st = db.query(Student).filter(Student.id == student_id).first()
+    if st:
+        db.delete(st)
+        db.commit()
+    return RedirectResponse(url="/admin_dashboard", status_code=302)
 
 @app.post("/professors")
 async def create_professor_web(
@@ -196,85 +269,105 @@ async def create_professor_web(
     department: str = Form(...), 
     db: Session = Depends(get_db)
 ):
-    if request.cookies.get("session") != "authenticated" or request.cookies.get("is_admin") != "true":
-        return RedirectResponse(url="/dashboard", status_code=302)
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login", status_code=302)
     
-    # Verifica se já existe
-    existing = db.query(Professor).filter(Professor.username == username).first()
-    if not existing:
-        new_prof = Professor(username=username, password=password, name=name, department=department)
+    if not db.query(Professor).filter(Professor.username == username).first():
+        new_prof = Professor(username=username, password=pwd_context.hash(password), name=name, department=department)
         db.add(new_prof)
         db.commit()
         
-    return RedirectResponse(url="/dashboard", status_code=302)
+    return RedirectResponse(url="/admin_dashboard", status_code=302)
 
 @app.post("/professors/delete/{prof_id}")
 async def delete_professor_web(request: Request, prof_id: int, db: Session = Depends(get_db)):
-    if request.cookies.get("session") != "authenticated" or request.cookies.get("is_admin") != "true":
-        return RedirectResponse(url="/dashboard", status_code=302)
-        
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login", status_code=302)
+    
     prof = db.query(Professor).filter(Professor.id == prof_id).first()
     if prof:
         db.delete(prof)
         db.commit()
         
-    return RedirectResponse(url="/dashboard", status_code=302)
+    return RedirectResponse(url="/admin_dashboard", status_code=302)
 
-# --- ROTAS DE ADMINISTRAÇÃO (API PARA ZABBIX/PAINEL) ---
-
-@app.get("/api/professors")
-async def get_professors(db: Session = Depends(get_db)):
-    """Retorna a lista de professores (útil para monitoramento/painel)."""
-    professors = db.query(Professor).all()
-    return [{"id": p.id, "username": p.username, "name": p.name, "department": p.department} for p in professors]
-
-@app.post("/api/professors")
-async def create_professor(username: str = Form(...), password: str = Form(...), name: str = Form(...), department: str = Form(...), db: Session = Depends(get_db)):
-    """Cria um novo professor via API."""
-    # Verifica se já existe
-    existing = db.query(Professor).filter(Professor.username == username).first()
-    if existing:
-        return {"error": "Professor já existe"}
-        
-    new_prof = Professor(username=username, password=password, name=name, department=department)
-    db.add(new_prof)
-    db.commit()
-    return {"message": "Professor criado com sucesso", "username": username}
-
-@app.delete("/api/professors/{prof_id}")
-async def delete_professor(prof_id: int, db: Session = Depends(get_db)):
-    """Deleta um professor via API."""
-    prof = db.query(Professor).filter(Professor.id == prof_id).first()
-    if not prof:
-        return {"error": "Professor não encontrado"}
+@app.post("/classes")
+async def create_class(request: Request, name: str = Form(...), professor_id: int = Form(...), student_ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login", status_code=302)
     
-    db.delete(prof)
+    new_class = Class(name=name, professor_id=professor_id)
+    students = db.query(Student).filter(Student.id.in_(student_ids)).all()
+    new_class.students = students
+    db.add(new_class)
     db.commit()
-    return {"message": "Professor deletado com sucesso"}
+    return RedirectResponse(url="/admin_dashboard", status_code=302)
 
-# --- ROTAS PARA TESTE DE ESTRESSE (MONITORAMENTO ZABBIX) ---
+@app.post("/classes/delete/{class_id}")
+async def delete_class(request: Request, class_id: int, db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login", status_code=302)
+    
+    cls = db.query(Class).filter(Class.id == class_id).first()
+    if cls:
+        db.delete(cls)
+        db.commit()
+    return RedirectResponse(url="/admin_dashboard", status_code=302)
 
-@app.get("/api/stress/read")
-async def stress_read(db: Session = Depends(get_db)):
-    """Simula uma carga pesada de leitura no banco de dados."""
-    results = []
-    # Faz múltiplas queries pesadas para forçar uso de CPU e I/O de disco
-    for _ in range(50):
-        students = db.query(Student).order_by(Student.name.desc()).all()
-        results.extend(students)
-    return {"message": "Leitura pesada concluída", "records_processed": len(results)}
+# --- PROFESSOR DASHBOARD ---
+@app.get("/prof_dashboard", response_class=HTMLResponse)
+async def prof_dashboard(request: Request, db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "professor":
+        return RedirectResponse(url="/login", status_code=302)
+    
+    prof_id = int(request.cookies.get("user_id"))
+    professor = db.query(Professor).filter(Professor.id == prof_id).first()
+    classes = db.query(Class).filter(Class.professor_id == prof_id).all()
+    
+    return templates.TemplateResponse("prof_dashboard.html", {
+        "request": request, 
+        "professor": professor,
+        "classes": classes
+    })
 
-@app.post("/api/stress/write")
-async def stress_write(db: Session = Depends(get_db)):
-    """Simula uma carga pesada de escrita no banco de dados."""
-    batch_size = 100
-    # Insere múltiplos registros de uma vez para forçar I/O de disco
-    for i in range(batch_size):
-        dummy = Student(
-            name=f"Aluno Teste {random.randint(1000,9999)}",
-            registration=f"RA{int(time.time())}{i}{random.randint(10,99)}",
-            course="Engenharia de Software"
-        )
-        db.add(dummy)
+@app.get("/prof_dashboard/class/{class_id}", response_class=HTMLResponse)
+async def prof_class_view(request: Request, class_id: int, date: str = "", db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "professor":
+        return RedirectResponse(url="/login", status_code=302)
+    
+    prof_id = int(request.cookies.get("user_id"))
+    cls = db.query(Class).filter(Class.id == class_id, Class.professor_id == prof_id).first()
+    if not cls:
+        return RedirectResponse(url="/prof_dashboard", status_code=302)
+
+    today = date if date else datetime.datetime.now().strftime("%Y-%m-%d")
+    attendances_today = db.query(Attendance).filter(Attendance.class_id == class_id, Attendance.date == today).all()
+    absent_student_ids = [a.student_id for a in attendances_today]
+
+    return templates.TemplateResponse("prof_class.html", {
+        "request": request, 
+        "cls": cls,
+        "today": today,
+        "absent_student_ids": absent_student_ids
+    })
+
+@app.post("/prof_dashboard/class/{class_id}/attendance")
+async def mark_attendance(request: Request, class_id: int, date: str = Form(...), absent_students: list[int] = Form(default=[]), db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "professor":
+        return RedirectResponse(url="/login", status_code=302)
+    
+    prof_id = int(request.cookies.get("user_id"))
+    cls = db.query(Class).filter(Class.id == class_id, Class.professor_id == prof_id).first()
+    if not cls:
+        return RedirectResponse(url="/prof_dashboard", status_code=302)
+    
+    # Remove old attendance
+    db.query(Attendance).filter(Attendance.class_id == class_id, Attendance.date == date).delete()
+    
+    # Insert new absences
+    for s_id in absent_students:
+        att = Attendance(student_id=s_id, class_id=class_id, date=date, absent=1)
+        db.add(att)
+        
     db.commit()
-    return {"message": f"{batch_size} registros inseridos com sucesso"}
+    return RedirectResponse(url=f"/prof_dashboard/class/{class_id}?date={date}", status_code=302)

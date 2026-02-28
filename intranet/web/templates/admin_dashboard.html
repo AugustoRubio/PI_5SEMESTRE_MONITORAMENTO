@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Painel Admin - Intranet Faculdade</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-dark mb-4 shadow-sm" style="background-color: #1e3c5a;">
+    <div class="container">
+        <a class="navbar-brand d-flex align-items-center" href="#">
+            <img src="/static/logo.png" alt="Logo" width="120" class="me-3" style="background: white; padding: 5px; border-radius: 5px;" onerror="this.style.display='none'">
+            Painel Intranet - Admin
+        </a>
+        <div>
+            <span class="text-white me-3"><i class="fas fa-user-circle me-1"></i> {{ current_admin.username }}</span>
+            <a href="/logout" class="btn btn-outline-light btn-sm"><i class="fas fa-sign-out-alt"></i> Sair</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="students-tab" data-bs-toggle="tab" data-bs-target="#students" type="button" role="tab">Alunos</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="professors-tab" data-bs-toggle="tab" data-bs-target="#professors" type="button" role="tab">Professores</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="classes-tab" data-bs-toggle="tab" data-bs-target="#classes" type="button" role="tab">Turmas</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">Configurações</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="myTabContent">
+        <!-- TAB ALUNOS -->
+        <div class="tab-pane fade show active" id="students" role="tabpanel">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card shadow-sm mb-4 border-success">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-user-plus me-2"></i>Cadastrar Aluno</h5>
+                        </div>
+                        <div class="card-body">
+                            <form action="/students" method="POST">
+                                <div class="mb-3">
+                                    <label class="form-label mb-0">Nome Completo</label>
+                                    <input type="text" name="name" class="form-control form-control-sm" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label mb-0">RA</label>
+                                    <input type="text" name="registration" class="form-control form-control-sm" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label mb-0">Curso</label>
+                                    <select name="course" class="form-select form-select-sm" required>
+                                        <option value="Engenharia de Software">Engenharia de Software</option>
+                                        <option value="Ciência da Computação">Ciência da Computação</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-success btn-sm w-100">Salvar Aluno</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <table class="table table-striped table-hover font-sm bg-white shadow-sm">
+                        <thead class="table-light"><tr><th>ID</th><th>RA</th><th>Nome</th><th>Ações</th></tr></thead>
+                        <tbody>
+                            {% for student in students %}
+                            <tr>
+                                <td>{{ student.id }}</td><td>{{ student.registration }}</td><td>{{ student.name }}</td>
+                                <td>
+                                    <form action="/students/delete/{{ student.id }}" method="POST" class="d-inline" onsubmit="return confirm('Remover aluno?');">
+                                        <button class="btn btn-sm btn-outline-danger p-1"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB PROFESSORES -->
+        <div class="tab-pane fade" id="professors" role="tabpanel">
+             <div class="row">
+                <div class="col-md-4">
+                     <div class="card shadow-sm border-warning mb-4">
+                         <div class="card-header bg-warning text-dark"><h5 class="mb-0"><i class="fas fa-chalkboard-teacher me-2"></i>Cadastrar Professor</h5></div>
+                         <div class="card-body">
+                             <form action="/professors" method="POST">
+                                 <div class="mb-2"><label class="form-label mb-0">Nome</label><input type="text" name="name" class="form-control form-control-sm" required></div>
+                                 <div class="mb-2"><label class="form-label mb-0">Depto.</label><input type="text" name="department" class="form-control form-control-sm" required></div>
+                                 <div class="row">
+                                     <div class="col-6 mb-2"><label class="form-label mb-0">User</label><input type="text" name="username" class="form-control form-control-sm" required></div>
+                                     <div class="col-6 mb-2"><label class="form-label mb-0">Senha</label><input type="password" name="password" class="form-control form-control-sm" required></div>
+                                 </div>
+                                 <button type="submit" class="btn btn-warning btn-sm w-100">Salvar Professor</button>
+                             </form>
+                         </div>
+                     </div>
+                </div>
+                <div class="col-md-8">
+                     <table class="table table-striped font-sm bg-white shadow-sm">
+                        <thead class="table-light"><tr><th>ID</th><th>User</th><th>Nome</th><th>Depto</th><th>Ações</th></tr></thead>
+                        <tbody>
+                            {% for prof in professors %}
+                            <tr>
+                                <td>{{ prof.id }}</td><td>{{ prof.username }}</td><td>{{ prof.name }}</td><td>{{ prof.department }}</td>
+                                <td>
+                                    <form action="/professors/delete/{{ prof.id }}" method="POST" class="d-inline" onsubmit="return confirm('Remover professor?');">
+                                        <button class="btn btn-sm btn-outline-danger p-1"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                     </table>
+                </div>
+             </div>
+        </div>
+
+        <!-- TAB TURMAS/AULAS -->
+        <div class="tab-pane fade" id="classes" role="tabpanel">
+             <div class="row">
+                <div class="col-md-5 mb-4">
+                     <div class="card shadow-sm border-info">
+                         <div class="card-header bg-info text-white"><h5 class="mb-0"><i class="fas fa-users-class me-2"></i>Criar Turma</h5></div>
+                         <div class="card-body">
+                             <form action="/classes" method="POST">
+                                 <div class="mb-2">
+                                     <label class="form-label mb-0">Nome da Turma</label>
+                                     <input type="text" name="name" class="form-control form-control-sm" required placeholder="Ex: Cálculo I - Manhã">
+                                 </div>
+                                 <div class="mb-2">
+                                     <label class="form-label mb-0">Professor Responsável</label>
+                                     <select name="professor_id" class="form-select form-select-sm" required>
+                                        {% for prof in professors %}
+                                            <option value="{{ prof.id }}">{{ prof.name }}</option>
+                                        {% endfor %}
+                                     </select>
+                                 </div>
+                                 <div class="mb-3">
+                                     <label class="form-label mb-0">Vincular Alunos (Segure CTRL)</label>
+                                     <select name="student_ids" class="form-select form-select-sm" multiple style="height: 150px;">
+                                        {% for st in students %}
+                                            <option value="{{ st.id }}">{{ st.name }} ({{ st.registration }})</option>
+                                        {% endfor %}
+                                     </select>
+                                 </div>
+                                 <button type="submit" class="btn btn-info text-white btn-sm w-100">Criar Turma e Vincular</button>
+                             </form>
+                         </div>
+                     </div>
+                </div>
+                <div class="col-md-7">
+                     <table class="table table-striped font-sm bg-white shadow-sm">
+                        <thead class="table-light"><tr><th>ID</th><th>Turma</th><th>Professor</th><th>Alunos</th><th>Ações</th></tr></thead>
+                        <tbody>
+                            {% for cls in classes %}
+                            <tr>
+                                <td>{{ cls.id }}</td><td><strong>{{ cls.name }}</strong></td><td>{{ cls.professor.name }}</td><td>{{ cls.students|length }}</td>
+                                <td>
+                                    <form action="/classes/delete/{{ cls.id }}" method="POST" class="d-inline" onsubmit="return confirm('Remover turma permanentemente?');">
+                                        <button class="btn btn-sm btn-outline-danger p-1"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                     </table>
+                </div>
+             </div>
+        </div>
+
+        <!-- TAB CONFIG -->
+        <div class="tab-pane fade" id="settings" role="tabpanel">
+             <div class="card shadow-sm w-50" style="margin: 0 auto;">
+                 <div class="card-header bg-dark text-white"><i class="fas fa-key me-2"></i>Alterar Senha Admin</div>
+                 <div class="card-body">
+                     <form action="/admin/change_password" method="POST">
+                         <div class="mb-3">
+                             <label>Nova Senha</label>
+                             <input type="password" name="new_password" class="form-control" required>
+                         </div>
+                         <button type="submit" class="btn btn-dark w-100">Atualizar Senha</button>
+                     </form>
+                 </div>
+             </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<style>.font-sm { font-size: 0.9em; }</style>
+</body>
+</html>
