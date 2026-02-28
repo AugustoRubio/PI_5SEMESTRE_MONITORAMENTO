@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from app.routers import snmp, attacks, auth, admin, stress
+from app.routers import snmp, attacks, auth, admin, stress, simulation
 from app.auth import get_current_user
 import os
 
@@ -23,6 +23,7 @@ app.include_router(snmp.router, prefix="/api/snmp", tags=["SNMP"], dependencies=
 app.include_router(attacks.router, prefix="/api/attacks", tags=["Ataques"], dependencies=[Depends(get_current_user)])
 app.include_router(admin.router, prefix="/api/admin", tags=["Administração"], dependencies=[Depends(get_current_user)])
 app.include_router(stress.router, prefix="/api/stress", tags=["Estresse"], dependencies=[Depends(get_current_user)])
+app.include_router(simulation.router, prefix="/api/simulation", tags=["Simulação"], dependencies=[Depends(get_current_user)])
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -51,3 +52,8 @@ async def admin_page(request: Request):
 @app.get("/stress", response_class=HTMLResponse)
 async def stress_page(request: Request):
     return templates.TemplateResponse("stress.html", {"request": request, "title": "Testes de Estresse"})
+
+@app.get("/simulation", response_class=HTMLResponse)
+async def simulation_page(request: Request):
+    return templates.TemplateResponse("simulation.html", {"request": request, "title": "Simulação de Uso"})
+
