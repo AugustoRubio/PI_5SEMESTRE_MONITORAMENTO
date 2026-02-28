@@ -70,7 +70,7 @@ After=network.target mariadb.service
 User=$USER
 WorkingDirectory=$WEB_DIR
 Environment="PATH=$WEB_DIR/venv/bin"
-EnvironmentFile=$WEB_DIR/.env
+EnvironmentFile=-$WEB_DIR/.env
 ExecStart=$WEB_DIR/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
 
 [Install]
