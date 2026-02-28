@@ -63,7 +63,8 @@ DB_PORT = os.getenv("DB_PORT", "3306")
 DB_NAME = os.getenv("DB_NAME", "intranet_db")
 
 if DB_USER and DB_PASSWORD:
-    SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    safe_pass = urllib.parse.quote_plus(DB_PASSWORD)
+    SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{DB_USER}:{safe_pass}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     init_db(SQLALCHEMY_DATABASE_URL)
 
 app = FastAPI(title="Intranet Faculdade")
