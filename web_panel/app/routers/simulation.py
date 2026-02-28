@@ -64,7 +64,7 @@ async def perform_simulation(config: SimConfig):
                 if action == "create":
                     name = f"Simulado_{random_string(4)}"
                     reg = f"SIM-{random.randint(1000, 9999)}"
-                    course = "SimulaÃ§Ã£o"
+                    course = "Simulação"
                     cursor.execute("INSERT INTO students (name, registration, course) VALUES (%s, %s, %s)", (name, reg, course))
                     conn.commit()
                     log_msg = f"Criou aluno: {name}"
@@ -96,28 +96,28 @@ async def perform_simulation(config: SimConfig):
                 if len(simulation_status["logs"]) > 15:
                     simulation_status["logs"].pop()
         except Exception as e:
-            simulation_status["logs"].insert(0, f"Erro na aÃ§Ã£o {action}: {str(e)}")
+            simulation_status["logs"].insert(0, f"Erro na ação {action}: {str(e)}")
 
         await asyncio.sleep(delay)
 
     conn.close()
     simulation_status["is_running"] = False
-    simulation_status["logs"].insert(0, "SimulaÃ§Ã£o finalizada.")
+    simulation_status["logs"].insert(0, "Simulação finalizada.")
 
 @router.post("/start")
 async def start_sim(config: SimConfig, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     global simulation_status
     if simulation_status["is_running"]:
-        raise HTTPException(status_code=400, detail="SimulaÃ§Ã£o jÃ¡ em execuÃ§Ã£o.")
+        raise HTTPException(status_code=400, detail="Simulação jÃ¡ em execuÃ§Ã£o.")
     
     background_tasks.add_task(perform_simulation, config)
-    return {"message": "SimulaÃ§Ã£o de Uso iniciada no background."}
+    return {"message": "Simulação de Uso iniciada no background."}
 
 @router.post("/stop")
 async def stop_sim(current_user: dict = Depends(get_current_user)):
     global simulation_status
     if not simulation_status["is_running"]:
-        return {"message": "Nenhuma simulaÃ§Ã£o rodando."}
+        return {"message": "Nenhuma simulação rodando."}
     simulation_status["is_running"] = False
     return {"message": "Sinal de parada enviado."}
 
