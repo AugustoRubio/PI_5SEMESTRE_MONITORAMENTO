@@ -98,8 +98,8 @@
                     <button class="btn btn-success flex-fill" id="btnStartSim">
                         <i class="bi bi-play-circle"></i> Iniciar Comportamento Humano
                     </button>
-                    <button class="btn btn-outline-secondary flex-fill" id="btnClearSim">
-                        <i class="bi bi-trash"></i> Limpar Registros
+                    <button class="btn btn-outline-danger flex-fill" id="btnClearSim">
+                        <i class="bi bi-arrow-counterclockwise"></i> Desfazer Dados Simulados
                     </button>
                 </div>
 
@@ -128,18 +128,18 @@
                 </div>
             </div>
             <div class="card-body p-0">
-                <div class="d-flex text-center border-bottom border-secondary bg-black" style="font-size: 0.9em;">
+                <div class="d-flex text-center border-bottom border-secondary" style="font-size: 1.1em; background-color: #1a1e29;">
                     <div class="col-6 p-2 border-end border-secondary">
-                        <span class="text-muted">Requisições Stress:</span>
-                        <strong id="stressReqCount" class="text-warning ms-2">0</strong>
+                        <span class="text-light fw-bold">Requisições Stress:</span>
+                        <strong id="stressReqCount" class="ms-2" style="color: #ffc107;">0</strong>
                     </div>
                     <div class="col-6 p-2">
-                        <span class="text-muted">Ações Simulação:</span>
-                        <strong id="simActionsCount" class="text-success ms-2">0</strong>
+                        <span class="text-light fw-bold">Ações Simulação:</span>
+                        <strong id="simActionsCount" class="ms-2" style="color: #28a745;">0</strong>
                     </div>
                 </div>
                 <div id="logsContainer" class="p-3" style="height: 350px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9em; background-color: #0b0f19;">
-                    <div class="text-secondary">[Ready] Aguardando início dos testes...</div>
+                    <div class="text-info">[Ready] Aguardando início dos testes...</div>
                 </div>
             </div>
         </div>
@@ -247,13 +247,32 @@
 
     document.getElementById('btnClearSim').addEventListener('click', async () => {
         if(!confirm('Atenção: Deseja apagar remotamente os registros GERADOS PELA SIMULAÇÃO no Banco de Dados?')) return;
+        
+        const rawTarget = document.getElementById('targetUrl').value.replace('http://','').replace('https://','');
+        const payload = {
+            db_host: rawTarget,
+            db_port: parseInt(document.getElementById('dbPort').value, 10),
+            db_user: document.getElementById('dbUser').value,
+            db_pass: document.getElementById('dbPass').value,
+            db_name: document.getElementById('dbName').value,
+            profile: document.getElementById('dbProfile').value,
+            duration: parseInt(document.getElementById('duration').value, 10)
+        };
+
         try {
-            const res = await fetch('/api/simulation/clear', { method: 'POST', headers });
+            const res = await fetch('/api/simulation/clear_simulated_data', { 
+                method: 'POST', 
+                headers,
+                body: JSON.stringify(payload)
+            });
             if(res.ok) {
-                addLogMessage('Registros de Simulação Limpos com sucesso no BD!', 'text-primary fw-bold');
+                addLogMessage('Registros de Simulação Limpos com sucesso no BD!', 'text-info fw-bold');
+            } else {
+                const data = await res.json();
+                addLogMessage('Erro ao limpar. O servidor retornou: ' + (data.detail || 'Falha'), 'text-warning');
             }
         } catch(err) {
-            addLogMessage('Erro ao limpar registros.', 'text-danger');
+            addLogMessage('Erro de conexão ao limpar registros.', 'text-danger');
         }
     });
 
@@ -300,11 +319,11 @@
                     logsContainer.innerHTML = ''; 
                     data.logs.forEach(log => {
                         const div = document.createElement('div');
-                        let classColors = 'text-secondary';
+                        let classColors = 'text-light';
                         if(log.toLowerCase().includes('erro') || log.toLowerCase().includes('falha') || log.toLowerCase().includes('except')) {
                             classColors = 'text-danger fw-bold';
                         } else if(log.toLowerCase().includes('finalizada') || log.toLowerCase().includes('parada')) {
-                            classColors = 'text-primary fw-bold';
+                            classColors = 'text-info fw-bold';
                         } else {
                             classColors = 'text-success fw-bold';
                         }
