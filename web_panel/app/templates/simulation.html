@@ -19,22 +19,22 @@
                 <form id="simForm" onsubmit="event.preventDefault(); return false;">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Host do Banco de Dados (IP)</label>
-                        <input type="text" class="form-control" id="dbTarget" value="10.10.100.4" >
+                        <input type="text" class="form-control" id="dbTarget" value="10.10.100.4">
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Porta</label>
-                        <input type="number" class="form-control" id="dbPort" value="3306" >
+                        <input type="number" class="form-control" id="dbPort" value="3306">
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">User e Password</label>
                         <div class="input-group">
-                            <input type="text" class="form-control" id="dbUser" value="intranet_user" placeholder="User" >
-                            <input type="password" class="form-control" id="dbPass" value="bcd127" placeholder="Pass" maxlength="64" >
+                            <input type="text" class="form-control" id="dbUser" value="intranet_user" placeholder="User">
+                            <input type="password" class="form-control" id="dbPass" value="bcd127" placeholder="Pass" maxlength="64">
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Nome do Banco (Database)</label>
-                        <input type="text" class="form-control" id="dbName" value="intranet_db" >
+                        <input type="text" class="form-control" id="dbName" value="intranet_db">
                     </div>
 
                     <div class="mb-3">
@@ -47,7 +47,7 @@
 
                     <div class="mb-4">
                         <label class="form-label fw-bold">Duração da Simulação (segundos)</label>
-                        <input type="number" class="form-control" id="simDuration" value="60" >
+                        <input type="number" class="form-control" id="simDuration" value="60">
                     </div>
 
                     <div class="d-grid gap-2">
@@ -97,7 +97,7 @@
 
     const headers = {
         'Content-Type': 'application/json',
-        'Authorization': \Bearer \\
+        'Authorization': 'Bearer ' + token
     };
 
     let statusInterval;
@@ -112,7 +112,8 @@
             const div = document.createElement('div');
             div.className = 'mb-1 ' + typeClass;
             const timeStr = new Date().toLocaleTimeString();
-            div.innerHTML = \[\] &gt; \\;
+            let templateStr = '[' + timeStr + '] > ' + msg;
+            div.innerText = templateStr;
             logsContainer.prepend(div);
         }
     }
@@ -180,7 +181,7 @@
             const data = await res.json();
 
             if (res.ok) {
-                addLogMessage('&lt;&lt; LIMPEZA CONCLUÍDA &gt;&gt; ' + data.message, 'text-warning fw-bold');
+                addLogMessage('<< LIMPEZA CONCLUÍDA >> ' + data.message, 'text-warning fw-bold');
             } else {
                 addLogMessage('Erro ao limpar dados: ' + (data.detail || "Resposta inválida"), 'text-danger fw-bold');
             }
@@ -235,7 +236,7 @@
 
                         div.className = 'mb-1 ' + classColors;
                         const timeStr = new Date().toLocaleTimeString();
-                        div.innerHTML = \[\] &gt; \\;
+                        div.innerText = '[' + timeStr + '] > ' + log;
                         logsContainer.appendChild(div);
                     });
                 }
