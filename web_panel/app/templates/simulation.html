@@ -347,8 +347,16 @@
                 // Processar logs da simulacao
                 const logsContainer = document.getElementById('logsContainer');
                 if(data.logs && data.logs.length > 0) {
-                    logsContainer.innerHTML = ''; 
-                    data.logs.forEach(log => {
+                    
+                    // Em vez de limpar e sobrescrever todo o contâiner de logs misturado, a gente só vai injetar os logs novos que vêm do dict simulado
+                    // Primeiro, verificamos qual é o último log processado pra não repetir
+                    if(!window.lastSimLogCount || window.lastSimLogCount > data.logs.length || !isAnyRunning) {
+                        window.lastSimLogCount = 0; 
+                    }
+                    
+                    // Adiciona apenas os logs novos a partir do índice anterior
+                    for(let i = window.lastSimLogCount; i < data.logs.length; i++) {
+                        const log = data.logs[i];
                         const div = document.createElement('div');
                         let classColors = 'text-light';
                         if(log.toLowerCase().includes('erro') || log.toLowerCase().includes('falha') || log.toLowerCase().includes('except')) {
@@ -362,8 +370,16 @@
                         div.className = 'mb-1 ' + classColors;
                         const timeStr = new Date().toLocaleTimeString();
                         div.innerText = '[' + timeStr + '] > ' + log;
-                        logsContainer.appendChild(div);
-                    });
+                        
+                        // Remover mensagem de Ready se existir
+                        if(logsContainer.children.length === 1 && logsContainer.children[0].innerText.includes('[Ready]')) {
+                            logsContainer.innerHTML = '';
+                        }
+                        
+                        // Prepender pro log mais novo ficar no topo, idêntico aos botões locais
+                        logsContainer.prepend(div);
+                    }
+                    window.lastSimLogCount = data.logs.length;
                 }
             }
         } catch (e) {}
