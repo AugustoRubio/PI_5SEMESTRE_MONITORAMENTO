@@ -120,7 +120,9 @@ async def perform_simulation(config: SimConfig):
                 if len(simulation_status["logs"]) > 15:
                     simulation_status["logs"].pop()
         except Exception as e:
-            pass
+            simulation_status["logs"].insert(0, f"Falha na ação: {str(e)}")
+            if len(simulation_status["logs"]) > 15:
+                simulation_status["logs"].pop()
             
         await asyncio.sleep(delay)
 
