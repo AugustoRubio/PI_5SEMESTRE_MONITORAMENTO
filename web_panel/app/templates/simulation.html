@@ -341,6 +341,10 @@
                 } else {
                     badge.className = 'badge bg-secondary';
                     badge.childNodes[0].nodeValue = 'Simulação: Parada';
+                    document.getElementById('simTime').textContent = "";
+                }
+
+                // Processar logs da simulacao
                 const logsContainer = document.getElementById('logsContainer');
                 if(data.logs && data.logs.length > 0) {
                     
