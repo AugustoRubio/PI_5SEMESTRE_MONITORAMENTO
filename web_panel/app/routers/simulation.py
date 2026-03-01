@@ -27,6 +27,8 @@ class SimConfig(BaseModel):
     profile: str
     duration: int
 
+SIM_MARKER = "[SIM]"
+
 def random_string(length=8):
     return ''.join(random.choices(string.ascii_letters, k=length))
 
@@ -37,7 +39,7 @@ async def perform_simulation(config: SimConfig):
     simulation_status["target"] = config.db_host
     simulation_status["profile"] = config.profile
     simulation_status["start_time"] = time.time()
-    simulation_status["logs"] = []
+    simulation_status["logs"] = ["Iniciando simulação completaa..."]
 
     try:
         conn = pymysql.connect(
@@ -50,68 +52,98 @@ async def perform_simulation(config: SimConfig):
         )
     except Exception as e:
         simulation_status["is_running"] = False
-        simulation_status["logs"].append(f"Erro ao conectar no banco: {str(e)}")
+        simulation_status["logs"].append(f"Erro ao conectar: {str(e)}")
         return
 
     delay = 5.0 if config.profile == "calm" else 0.5
     end_time = time.time() + config.duration
 
     while time.time() < end_time and simulation_status["is_running"]:
-        action = random.choice(["create", "edit", "delete"])
-        
+        action = random.choice(["create_student", "create_professor", "create_class", "edit", "delete"])
+
         try:
             with conn.cursor() as cursor:
-                if action == "create":
-                    name = f"Simulado_{random_string(4)}"
-                    reg = f"SIM-{random.randint(1000, 9999)}"
-                    course = "Simulação"
-                    cursor.execute("INSERT INTO students (name, registration, course) VALUES (%s, %s, %s)", (name, reg, course))
+                if action == "create_student":
+                    name = f"{SIM_MARKER} Aluno_{random_string(4)}"
+                    reg = f"SIM-{random.randint(1000, 99999)}"
+                    cursor.execute("INSERT INTO students (name, registration, course) VALUES (%s, %s, 'Simulação')", (name, reg))
                     conn.commit()
                     log_msg = f"Criou aluno: {name}"
 
+                elif action == "create_professor":
+                    name = f"{SIM_MARKER} Prof_{random_string(4)}"
+                    usr = f"sim_pr_{random_string(3)}"
+                    cursor.execute("INSERT INTO professors (username, password, name, department) VALUES (%s, 'sim', %s, 'Simulação')", (usr, name))
+                    conn.commit()
+                    log_msg = f"Criou professor: {name}"
+
+                elif action == "create_class":
+                    cursor.execute("SELECT id FROM professors WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
+                    prof = cursor.fetchone()
+                    prof_id = prof['id'] if prof else None
+                    name = f"{SIM_MARKER} Turma_{random_string(3)}"
+                    cursor.execute("INSERT INTO classes (name, professor_id) VALUES (%s, %s)", (name, prof_id))
+                    conn.commit()
+                    log_msg = f"Criou turma: {name}"
+
                 elif action == "edit":
-                    cursor.execute("SELECT id FROM students WHERE name LIKE 'Simulado_%' ORDER BY RAND() LIMIT 1")
+                    table = random.choice(['students', 'professors', 'classes'])
+                    col_name = "username" if table == "professors" else "name"
+                    cursor.execute(f"SELECT id, {col_name} FROM {table} WHERE {col_name} LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
                     result = cursor.fetchone()
                     if result:
-                        new_course = f"Curso {random_string(3)}"
-                        cursor.execute("UPDATE students SET course = %s WHERE id = %s", (new_course, result['id']))
+                        new_name = f"{SIM_MARKER} Edit_{random_string(3)}"
+                        cursor.execute(f"UPDATE {table} SET {col_name} = %s WHERE id = %s", (new_name, result['id']))
                         conn.commit()
-                        log_msg = f"Editou aluno ID {result['id']} -> novo curso: {new_course}"
+                        log_msg = f"Editou {table} ID {result['id']} -> {new_name}"
                     else:
-                        log_msg = "Tentou editar, mas nenhum aluno simulado foi encontrado."
+                        log_msg = f"Tentou editar {table}, mas nada encontrado."
 
                 elif action == "delete":
-                    cursor.execute("SELECT id FROM students WHERE name LIKE 'Simulado_%' ORDER BY RAND() LIMIT 1")
+                    table = random.choice(['students', 'professors', 'classes'])
+                    col_name = "username" if table == "professors" else "name"
+                    cursor.execute(f"SELECT id FROM {table} WHERE {col_name} LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
                     result = cursor.fetchone()
                     if result:
-                        cursor.execute("DELETE FROM students WHERE id = %s", (result['id'],))
-                        conn.commit()
-                        log_msg = f"Deletou aluno ID {result['id']}"
+                        try:
+                            cursor.execute(f"DELETE FROM {table} WHERE id = %s", (result['id'],))
+                            conn.commit()
+                            log_msg = f"Deletou de {table} ID {result['id']}"
+                        except:
+                            log_msg = f"Ignorado erro de FK ao deletar {table} ID {result['id']}"
                     else:
-                        log_msg = "Tentou deletar, mas nenhum aluno simulado foi encontrado."
+                        log_msg = f"Tentou deletar {table}, mas nada encontrado."
 
                 simulation_status["actions_performed"] += 1
                 simulation_status["logs"].insert(0, log_msg)
-                
+
                 if len(simulation_status["logs"]) > 15:
                     simulation_status["logs"].pop()
         except Exception as e:
-            simulation_status["logs"].insert(0, f"Erro na ação {action}: {str(e)}")
-
+            pass
+            
         await asyncio.sleep(delay)
 
-    conn.close()
+    if conn and conn.open:
+        conn.close()
+    
     simulation_status["is_running"] = False
     simulation_status["logs"].insert(0, "Simulação finalizada.")
 
 @router.post("/start")
 async def start_sim(config: SimConfig, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     global simulation_status
-    if simulation_status["is_running"]:
-        raise HTTPException(status_code=400, detail="Simulação jÃ¡ em execuÃ§Ã£o.")
     
+    if simulation_status["is_running"]:
+        if time.time() > (simulation_status["start_time"] + simulation_status.get("duration", 3600)):
+            simulation_status["is_running"] = False
+        else:
+            raise HTTPException(status_code=400, detail="Simulação já em execução.")
+            
+    # Guarda o tempo exato para destrancar timeout
+    simulation_status["duration"] = config.duration        
     background_tasks.add_task(perform_simulation, config)
-    return {"message": "Simulação de Uso iniciada no background."}
+    return {"message": "Simulação iniciada."}
 
 @router.post("/stop")
 async def stop_sim(current_user: dict = Depends(get_current_user)):
@@ -121,6 +153,39 @@ async def stop_sim(current_user: dict = Depends(get_current_user)):
     simulation_status["is_running"] = False
     return {"message": "Sinal de parada enviado."}
 
+@router.post("/clear_simulated_data")
+async def clear_simulated_data(config: SimConfig, current_user: dict = Depends(get_current_user)):
+    try:
+        conn = pymysql.connect(
+            host=config.db_host,
+            user=config.db_user,
+            password=config.db_pass,
+            database=config.db_name,
+            port=config.db_port
+        )
+        
+        with conn.cursor() as cursor:
+            # Apaga primeiro turmas pq têm chave pros professores
+            cursor.execute("DELETE FROM classes WHERE name LIKE %s", (f"{SIM_MARKER}%",))
+            d_classes = cursor.rowcount
+            
+            cursor.execute("DELETE FROM professors WHERE username LIKE %s OR name LIKE %s", (f"{SIM_MARKER}%", f"{SIM_MARKER}%"))
+            d_prof = cursor.rowcount
+            
+            cursor.execute("DELETE FROM students WHERE name LIKE %s", (f"{SIM_MARKER}%",))
+            d_stud = cursor.rowcount
+            
+            conn.commit()
+            
+        conn.close()
+        return {"message": f"Limpeza feita: {d_classes} Turmas, {d_prof} Professores e {d_stud} Estudantes."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/status")
 async def get_sim_status(current_user: dict = Depends(get_current_user)):
+    global simulation_status
+    if simulation_status["is_running"] and simulation_status["start_time"] > 0:
+        if len(simulation_status["logs"]) > 0 and "finalizada" in simulation_status["logs"][0]:
+            simulation_status["is_running"] = False
     return simulation_status
