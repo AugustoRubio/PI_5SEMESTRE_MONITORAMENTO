@@ -1,4 +1,6 @@
-{% extends "base.html" %}
+﻿import os
+
+html_content = r'''{% extends "base.html" %}
 
 {% block content %}
 <div class="row mb-4">
@@ -336,4 +338,9 @@
         startUnifiedPolling();
     });
 </script>
-{% endblock %}
+{% endblock %}'''
+
+with open('web_panel/app/templates/simulation.html', 'w', encoding='utf-8') as f:
+    f.write(html_content)
+
+print('File replaced successfully')

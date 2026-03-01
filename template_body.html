@@ -1,0 +1,145 @@
+﻿{% extends ""base.html"" %}
+
+{% block content %}
+<div class=""row mb-4"">
+    <div class=""col-12"">
+        <h2 class=""text-primary""><i class=""bi bi-tools""></i> Dashboard de Simulação & Estresse</h2>
+        <p class=""text-muted"">Painel unificado para gerar carga de rede (Nginx), carga direta (Leitura/Escrita) e simulação de uso realista do Banco de Dados MariaDB.</p>
+    </div>
+</div>
+
+<div class=""row"">
+    <!-- Configuração do Alvo -->
+    <div class=""col-md-6 mb-4"">
+        <div class=""card shadow-sm h-100 border-primary"">
+            <div class=""card-header bg-primary text-white"">
+                <h5 class=""mb-0""><i class=""bi bi-gear""></i> Parâmetros e Credenciais</h5>
+            </div>
+            <div class=""card-body bg-light"">
+                <form id=""mainForm"" onsubmit=""event.preventDefault(); return false;"">
+                    
+                    <h6 class=""text-secondary pb-2 border-bottom"">Geral</h6>
+                    <div class=""mb-3 row"">
+                        <div class=""col"">
+                            <label class=""form-label fw-bold"">IP/URL Alvo</label>
+                            <input type=""text"" id=""targetUrl"" class=""form-control"" value=""10.10.100.4"" placeholder=""10.10.100.4"">
+                        </div>
+                        <div class=""col"">
+                            <label class=""form-label fw-bold"">Duração (Seg)</label>
+                            <input type=""number"" id=""duration"" class=""form-control"" value=""60"" min=""10"" max=""600"">
+                        </div>
+                    </div>
+
+                    <div class=""mb-3 row"">
+                        <div class=""col"">
+                            <label class=""form-label fw-bold"">Concorrência (Stress)</label>
+                            <input type=""number"" id=""concurrency"" class=""form-control"" value=""50"">
+                        </div>
+                        <div class=""col"">
+                            <label class=""form-label fw-bold"">Perfil (Simulação)</label>
+                            <select class=""form-select"" id=""dbProfile"">
+                                <option value=""calm"">Calmo</option>
+                                <option value=""aggressive"">Agressivo</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <h6 class=""text-secondary pb-2 mt-4 border-bottom"">Banco de Dados (Para Carga e Simulação)</h6>
+                    <div class=""mb-3 row"">
+                        <div class=""col"">
+                            <label class=""form-label fw-bold"">DB User</label>
+                            <input type=""text"" class=""form-control"" id=""dbUser"" value=""intranet_user"">
+                        </div>
+                        <div class=""col"">
+                            <label class=""form-label fw-bold"">DB Pass</label>
+                            <input type=""password"" class=""form-control"" id=""dbPass"" value=""bcd127"">
+                        </div>
+                    </div>
+                    <div class=""mb-3 row"">
+                        <div class=""col"">
+                            <label class=""form-label fw-bold"">DB Name</label>
+                            <input type=""text"" class=""form-control"" id=""dbName"" value=""intranet_db"">
+                        </div>
+                        <div class=""col"">
+                            <label class=""form-label fw-bold"">DB Port</label>
+                            <input type=""number"" class=""form-control"" id=""dbPort"" value=""3306"">
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controle de Execução -->
+    <div class=""col-md-6 mb-4"">
+        <div class=""card shadow-sm h-100 border-dark"">
+            <div class=""card-header bg-dark text-white"">
+                <h5 class=""mb-0""><i class=""bi bi-lightning-charge""></i> Rotinas de Disparo</h5>
+            </div>
+            <div class=""card-body"">
+                
+                <h6 class=""text-secondary"">1. Ataques de Força Bruta (Stress)</h6>
+                <div class=""d-flex gap-2 mb-4"">
+                    <button class=""btn btn-outline-primary flex-fill"" onclick=""startStress('/api/stress/frontend')"">
+                        <i class=""bi bi-browser-chrome""></i> HTTP Flood (Nginx)
+                    </button>
+                    <button class=""btn btn-outline-warning flex-fill text-dark"" onclick=""startStress('/api/stress/backend/read')"">
+                        <i class=""bi bi-database-down""></i> DB Read Stress
+                    </button>
+                    <button class=""btn btn-outline-danger flex-fill"" onclick=""startStress('/api/stress/backend/write')"">
+                        <i class=""bi bi-database-up""></i> DB Write Stress
+                    </button>
+                </div>
+
+                <h6 class=""text-secondary mt-3"">2. Simulação de Uso Realista</h6>
+                <div class=""d-flex gap-2 mb-4"">
+                    <button class=""btn btn-success flex-fill"" id=""btnStartSim"">
+                        <i class=""bi bi-play-circle""></i> Iniciar Comportamento Humano
+                    </button>
+                    <button class=""btn btn-outline-secondary flex-fill"" id=""btnClearSim"">
+                        <i class=""bi bi-trash""></i> Limpar Registros (Simulação)
+                    </button>
+                </div>
+
+                <hr class=""my-4"">
+                
+                <div class=""text-center"">
+                    <button class=""btn btn-danger btn-lg px-5"" onclick=""stopAllTasks()"">
+                        <i class=""bi bi-stop-circle""></i> PARAR TODAS AS CARGAS
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Logs e Status Unificado -->
+<div class=""row"">
+    <div class=""col-12"">
+        <div class=""card bg-dark text-light border-secondary"">
+            <div class=""card-header border-secondary d-flex justify-content-between align-items-center"">
+                <span><i class=""bi bi-terminal""></i> Console de Monitoramento</span>
+                <div class=""d-flex gap-3"">
+                    <span id=""stressBadge"" class=""badge bg-secondary"">Stress: Parad.</span>
+                    <span id=""simBadge"" class=""badge bg-secondary"">Simulação: Parad.</span>
+                </div>
+            </div>
+            <div class=""card-body p-0"">
+                <div class=""d-flex text-center border-bottom border-secondary bg-black"">
+                    <div class=""col-6 p-2 border-end border-secondary"">
+                        <span class=""text-muted small"">Requisições Stress:</span>
+                        <strong id=""stressReqCount"" class=""text-warning"">0</strong>
+                    </div>
+                    <div class=""col-6 p-2"">
+                        <span class=""text-muted small"">Ações Simulação:</span>
+                        <strong id=""simActionsCount"" class=""text-success"">0</strong>
+                    </div>
+                </div>
+                <div id=""logsContainer"" class=""p-3"" style=""height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.9em; background-color: #0b0f19;"">
+                    <div class=""text-secondary"">Aguardando início dos testes...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

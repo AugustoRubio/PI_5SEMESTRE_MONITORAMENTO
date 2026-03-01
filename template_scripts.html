@@ -1,0 +1,183 @@
+﻿<script>
+    const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + localStorage.getItem('token')
+    };
+
+    let pollingInterval = null;
+
+    function addLogMessage(msg, typeClass) {
+        const logsContainer = document.getElementById('logsContainer');
+        if (logsContainer) {
+            if(logsContainer.children.length === 1 && logsContainer.children[0].className.includes('text-secondary')) {
+                logsContainer.innerHTML = '';
+            }
+            const div = document.createElement('div');
+            div.className = 'mb-1 ' + typeClass;
+            const timeStr = new Date().toLocaleTimeString();
+            let templateStr = '[' + timeStr + '] > ' + msg;
+            div.innerText = templateStr;
+            logsContainer.prepend(div);
+        }
+    }
+
+    function formatUrl(rawUrl) {
+        if (!rawUrl.startsWith('http')) {
+            return 'http://' + rawUrl;
+        }
+        return rawUrl;
+    }
+
+    async function startStress(endpoint) {
+        const rawTarget = document.getElementById('targetUrl').value;
+        if (!rawTarget) { alert('Insira a URL ou IP alvo'); return; }
+        
+        const target_url = formatUrl(rawTarget);
+        const duration_seconds = parseInt(document.getElementById('duration').value);
+        const concurrency = parseInt(document.getElementById('concurrency').value);
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ target_url, duration_seconds, concurrency })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                addLogMessage('Stress Request [' + endpoint + '] Iniciado com sucesso!', 'text-warning fw-bold');
+                startUnifiedPolling();
+            } else {
+                addLogMessage('Erro ao iniciar Stress: ' + (data.detail || 'Falha'), 'text-danger fw-bold');
+            }
+        } catch (error) {
+            addLogMessage('Erro de conexão ao Iniciar Stress: ' + error, 'text-danger fw-bold');
+        }
+    }
+
+    document.getElementById('btnStartSim').addEventListener('click', async () => {
+        const payload = {
+            db_host: document.getElementById('targetUrl').value.replace('http://','').replace('https://',''),
+            db_port: parseInt(document.getElementById('dbPort').value, 10),
+            db_user: document.getElementById('dbUser').value,
+            db_pass: document.getElementById('dbPass').value,
+            db_name: document.getElementById('dbName').value,
+            profile: document.getElementById('dbProfile').value,
+            duration: parseInt(document.getElementById('duration').value, 10)
+        };
+
+        try {
+            const res = await fetch('/api/simulation/start', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                addLogMessage('Simulação de Banco Iniciada com sucesso!', 'text-success fw-bold');
+                startUnifiedPolling();
+            } else {
+                const data = await res.json();
+                addLogMessage('Erro ao iniciar Simulação: ' + (data.detail || 'Falha'), 'text-danger fw-bold');
+            }
+        } catch(err) {
+            addLogMessage('Erro de conexão ao iniciar Simulação.', 'text-danger fw-bold');
+        }
+    });
+
+    async function stopAllTasks() {
+        try {
+            let resStopSim = await fetch('/api/simulation/stop', { method: 'POST', headers });
+            let resStopStress = await fetch('/api/stress/stop', { method: 'POST', headers });
+            if(resStopSim.ok && resStopStress.ok) {
+                addLogMessage('Sinal de Parada enviado para todas as rotinas!', 'text-danger fw-bold');
+            }
+        } catch(err) {
+            addLogMessage('Erro ao enviar sinal de parada.', 'text-danger fw-bold');
+        }
+    }
+
+    document.getElementById('btnClearSim').addEventListener('click', async () => {
+        if(!confirm('Deseja apagar os registros da simulação do Banco?')) return;
+        try {
+            const res = await fetch('/api/simulation/clear', { method: 'POST', headers });
+            if(res.ok) {
+                addLogMessage('Registros de Simulação Limpos com sucesso!', 'text-primary fw-bold');
+            }
+        } catch(err) {
+            addLogMessage('Erro ao limpar registros.', 'text-danger');
+        }
+    });
+
+    async function fetchStatus() {
+        let isAnyRunning = false;
+        
+        // 1. Fetch Stress Status
+        try {
+            const resStress = await fetch('/api/stress/status', { headers });
+            if (resStress.ok) {
+                const data = await resStress.json();
+                const badge = document.getElementById('stressBadge');
+                if (data.is_running) {
+                    isAnyRunning = true;
+                    badge.className = 'badge bg-warning text-dark blink';
+                    badge.textContent = 'STRESS RODANDO';
+                    document.getElementById('stressReqCount').textContent = data.requests_sent;
+                } else {
+                    badge.className = 'badge bg-secondary';
+                    badge.textContent = 'Stress: Parado';
+                }
+            }
+        } catch (e) {}
+
+        // 2. Fetch Sim Status
+        try {
+            const resSim = await fetch('/api/simulation/status', { headers });
+            if (resSim.ok) {
+                const data = await resSim.json();
+                const badge = document.getElementById('simBadge');
+                if (data.is_running) {
+                    isAnyRunning = true;
+                    badge.className = 'badge bg-success blink';
+                    badge.textContent = 'SIMULAÇÃO RODANDO';
+                    document.getElementById('simActionsCount').textContent = data.actions_performed;
+                } else {
+                    badge.className = 'badge bg-secondary';
+                    badge.textContent = 'Simulação: Parada';
+                }
+
+                // Processar logs
+                const logsContainer = document.getElementById('logsContainer');
+                if(data.logs && data.logs.length > 0) {
+                    logsContainer.innerHTML = ''; 
+                    data.logs.forEach(log => {
+                        const div = document.createElement('div');
+                        let classColors = 'text-secondary';
+                        if(log.toLowerCase().includes('erro') || log.toLowerCase().includes('falha')) classColors = 'text-danger fw-bold';
+                        else if(log.toLowerCase().includes('finalizada') || log.toLowerCase().includes('parada')) classColors = 'text-primary fw-bold';
+                        else classColors = 'text-success fw-bold';
+
+                        div.className = 'mb-1 ' + classColors;
+                        const timeStr = new Date().toLocaleTimeString();
+                        div.innerText = '[' + timeStr + '] > ' + log;
+                        logsContainer.appendChild(div);
+                    });
+                }
+            }
+        } catch (e) {}
+
+        if (!isAnyRunning && pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
+    }
+
+    function startUnifiedPolling() {
+        if (!pollingInterval) {
+            pollingInterval = setInterval(fetchStatus, 1000);
+            fetchStatus();
+        }
+    }
+
+    // Inicializa ao carregar
+    document.addEventListener('DOMContentLoaded', startUnifiedPolling);
+</script>
+{% endblock %}
