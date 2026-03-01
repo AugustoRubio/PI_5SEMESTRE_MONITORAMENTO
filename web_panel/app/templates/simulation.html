@@ -122,7 +122,7 @@
 
         fetch('/api/simulation/clear_simulated_data', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
             body: JSON.stringify(config)
         })
         .then(res => res.json())
@@ -145,7 +145,7 @@
 
         fetch('/api/simulation/start', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
             body: JSON.stringify(config)
         })
         .then(res => res.json())
@@ -163,7 +163,7 @@
     }
 
     function stopSimulation() {
-        fetch('/api/simulation/stop', { method: 'POST' })
+        fetch('/api/simulation/stop', { method: 'POST', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } })
         .then(res => res.json())
         .then(data => {
             showSimToast(data.message, "warning");
@@ -205,7 +205,7 @@
     }
 
     function fetchStatus() {
-        fetch('/api/simulation/status')
+        fetch('/api/simulation/status', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } })
         .then(res => res.json())
         .then(data => {
             updateSimUI(data);
