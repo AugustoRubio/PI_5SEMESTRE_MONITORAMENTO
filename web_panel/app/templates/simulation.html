@@ -123,9 +123,17 @@
             <div class="card-header border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
                 <span><i class="bi bi-terminal"></i> Console de Monitoramento Unificado</span>
                 <div class="d-flex gap-3">
-                    <span id="stressBadge" class="badge bg-secondary fs-6">Stress: Parado</span>
-                    <span id="simBadge" class="badge bg-secondary fs-6">Simulação: Parada</span>
+                    <span id="stressBadge" class="badge bg-secondary fs-6">Stress: Parado <small id="stressTime" class="fw-normal"></small></span>
+                    <span id="simBadge" class="badge bg-secondary fs-6">Simulação: Parada <small id="simTime" class="fw-normal"></small></span>
                 </div>
+            </div>
+            <!-- Painel de Resumo do Alvo Corrente -->
+            <div id="targetSummary" class="bg-black text-light p-2 border-bottom border-secondary" style="font-size: 0.9em; display: none;">
+                <strong><i class="bi bi-bullseye"></i> Alvo Ativo:</strong> 
+                <span id="activeTargetsInfo" class="ms-1 text-info">Nenhum</span>
+                <span class="mx-2 text-secondary">|</span>
+                <strong><i class="bi bi-lightning"></i> Cargas Ativas:</strong>
+                <span id="activeTypesInfo" class="ms-1 text-warning">Nenhuma</span>
             </div>
             <div class="card-body p-0">
                 <div class="d-flex text-center border-bottom border-secondary" style="font-size: 1.1em; background-color: #1a1e29;">
@@ -278,21 +286,33 @@
 
     async function fetchStatus() {
         let isAnyRunning = false;
-        
+        let statusData = { stress: null, sim: null };
+
         // 1. Fetch Stress Status
         try {
             const resStress = await fetch('/api/stress/status', { headers });
             if (resStress.ok) {
                 const data = await resStress.json();
+                statusData.stress = data;
                 const badge = document.getElementById('stressBadge');
                 if (data.is_running) {
                     isAnyRunning = true;
                     badge.className = 'badge bg-warning text-dark blink';
                     badge.textContent = 'STRESS RODANDO';
+                    
+                    let timeRemaining = "N/A";
+                    if(data.start_time && data.duration) {
+                        const now = Date.now() / 1000;
+                        const elapsed = now - data.start_time;
+                        let left = Math.max(0, data.duration - elapsed);
+                        timeRemaining = left.toFixed(0) + "s";
+                    }
+                    document.getElementById('stressTime').textContent = " (" + timeRemaining + ")";
                     document.getElementById('stressReqCount').textContent = data.requests_sent;
                 } else {
                     badge.className = 'badge bg-secondary';
                     badge.textContent = 'Stress: Parado';
+                    document.getElementById('stressTime').textContent = "";
                 }
             }
         } catch (e) {}
@@ -302,15 +322,26 @@
             const resSim = await fetch('/api/simulation/status', { headers });
             if (resSim.ok) {
                 const data = await resSim.json();
+                statusData.sim = data;
                 const badge = document.getElementById('simBadge');
                 if (data.is_running) {
                     isAnyRunning = true;
                     badge.className = 'badge bg-success blink';
                     badge.textContent = 'SIMULAÇÃO RODANDO';
+                    
+                    let timeRemaining = "N/A";
+                    if(data.start_time && data.duration) {
+                        const now = Date.now() / 1000;
+                        const elapsed = now - data.start_time;
+                        let left = Math.max(0, data.duration - elapsed);
+                        timeRemaining = left.toFixed(0) + "s";
+                    }
+                    document.getElementById('simTime').textContent = " (" + timeRemaining + ")";
                     document.getElementById('simActionsCount').textContent = data.actions_performed;
                 } else {
                     badge.className = 'badge bg-secondary';
                     badge.textContent = 'Simulação: Parada';
+                    document.getElementById('simTime').textContent = "";
                 }
 
                 // Processar logs da simulacao
@@ -336,6 +367,29 @@
                 }
             }
         } catch (e) {}
+
+        // 3. Atualizar painel de resumo de Alvo Ativo
+        let types = [];
+        let targets = [];
+        if(statusData.stress && statusData.stress.is_running) {
+            targets.push(statusData.stress.target);
+            types.push(statusData.stress.type || 'STRESS HTTP');
+        }
+        if(statusData.sim && statusData.sim.is_running) {
+            targets.push(statusData.sim.target);
+            types.push('COMPORTAMENTO DB (' + (statusData.sim.profile || 'N/A').toUpperCase() + ')');
+        }
+        
+        const summaryPanel = document.getElementById('targetSummary');
+        if(isAnyRunning && (targets.length > 0)) {
+            // Remove duplicatas de metas apontando pro mesmo Ip/host
+            let uniqueTargets = [...new Set(targets)];
+            document.getElementById('activeTargetsInfo').textContent = uniqueTargets.join(', ');
+            document.getElementById('activeTypesInfo').textContent = types.join(' + ');
+            summaryPanel.style.display = 'block';
+        } else {
+            summaryPanel.style.display = 'none';
+        }
 
         if (!isAnyRunning && pollingInterval) {
             clearInterval(pollingInterval);
