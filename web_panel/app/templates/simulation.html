@@ -83,8 +83,8 @@
                 </div>
 
                 <h6 class="fw-bold border-bottom pb-2 mt-4"><i class="bi bi-journal-text"></i> Console de Execução MySQL</h6>
-                <div class="bg-dark text-light p-3 rounded" style="height: 350px; overflow-y: auto; font-family: monospace; font-size: 0.85rem;" id="logsContainer">
-                    <span class="text-muted">Aguardando início...</span>
+                <div class="bg-light border text-dark shadow-sm p-3 rounded" style="height: 350px; overflow-y: auto; font-family: monospace; font-size: 0.85rem;" id="logsContainer">
+                    <span class="text-secondary fw-bold">Aguardando início...</span>
                 </div>
             </div>
         </div>
@@ -174,7 +174,7 @@
                     const timeStr = new Date().toLocaleTimeString();
                     div.innerHTML = `[${timeStr}] &gt; &lt;&lt; LIMPEZA CONCLUÄDA &gt;&gt; ${data.message}`;
                     
-                    if(logsContainer.children.length === 1 && logsContainer.children[0].className.includes('text-muted')) {
+                    if(logsContainer.children.length === 1 && logsContainer.children[0].className.includes('text-secondary')) {
                         logsContainer.innerHTML = '';
                     }
                     logsContainer.prepend(div);
@@ -222,13 +222,13 @@
                         const div = document.createElement('div');
                         
                         // Decide a cor do log no fundo escuro
-                        let classColors = "html-text-success"; 
+                        let classColors = "text-secondary"; 
                         if(log.toLowerCase().includes("erro") || log.toLowerCase().includes("falha")) {
-                            classColors = "text-danger"; 
+                            classColors = "text-danger fw-bold"; 
                         } else if(log.toLowerCase().includes("finalizada") || log.toLowerCase().includes("parada")) {
-                            classColors = "text-info"; 
+                            classColors = "text-primary fw-bold"; 
                         } else {
-                            classColors = "text-success";
+                            classColors = "text-success fw-bold";
                         }
 
                         div.className = 'mb-1 ' + classColors;
@@ -238,7 +238,7 @@
                     });
                 }
             }
-        } aatch (error) {
+        } catch (error) {
             console.error(error);
         }
     }
