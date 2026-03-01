@@ -16,25 +16,25 @@
                 Controle da Simulação
             </div>
             <div class="card-body bg-light">
-                <form id="simForm">
+                <form id="simForm" onsubmit="event.preventDefault(); return false;">
                     <div class="mb-3">
                         <label class="form-label fw-bold">Host do Banco de Dados (IP)</label>
-                        <input type="text" class="form-control" id="dbTarget" value="10.10.100.4" required>
+                        <input type="text" class="form-control" id="dbTarget" value="10.10.100.4" >
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Porta</label>
-                        <input type="number" class="form-control" id="dbPort" value="3306" required>
+                        <input type="number" class="form-control" id="dbPort" value="3306" >
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">User e Password</label>
                         <div class="input-group">
-                            <input type="text" class="form-control" id="dbUser" value="intranet_user" placeholder="User" required>
-                            <input type="password" class="form-control" id="dbPass" value="bcd127" placeholder="Pass" maxlength="64" required>
+                            <input type="text" class="form-control" id="dbUser" value="intranet_user" placeholder="User" >
+                            <input type="password" class="form-control" id="dbPass" value="bcd127" placeholder="Pass" maxlength="64" >
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Nome do Banco (Database)</label>
-                        <input type="text" class="form-control" id="dbName" value="intranet_db" required>
+                        <input type="text" class="form-control" id="dbName" value="intranet_db" >
                     </div>
 
                     <div class="mb-3">
@@ -47,11 +47,11 @@
 
                     <div class="mb-4">
                         <label class="form-label fw-bold">Duração da Simulação (segundos)</label>
-                        <input type="number" class="form-control" id="simDuration" value="60" required>
+                        <input type="number" class="form-control" id="simDuration" value="60" >
                     </div>
 
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-success" id="btnStart"><i class="bi bi-play-fill"></i> Iniciar Simulação</button>
+                        <button type="button" class="btn btn-success" id="btnStart"><i class="bi bi-play-fill"></i> Iniciar Simulação</button>
                         <button type="button" class="btn btn-danger" id="btnStop"><i class="bi bi-stop-fill"></i> Parar Simulação</button>
                         <button type="button" class="btn btn-warning mt-2 fw-bold text-dark" id="btnClear"><i class="bi bi-trash-fill"></i> Limpar Dados [SIM]</button>
                     </div>
@@ -129,7 +129,7 @@
         };
     }
 
-    document.getElementById('simForm').addEventListener('submit', async (e) => {
+    document.getElementById('btnStart').addEventListener('click', async (e) => {
         e.preventDefault();
 
         const payload = getSimConfig();
