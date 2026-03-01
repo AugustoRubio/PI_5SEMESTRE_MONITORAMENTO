@@ -298,8 +298,8 @@
                 if (data.is_running) {
                     isAnyRunning = true;
                     badge.className = 'badge bg-warning text-dark blink';
-                    badge.textContent = 'STRESS RODANDO';
-                    
+                    badge.childNodes[0].nodeValue = 'STRESS RODANDO';
+
                     let timeRemaining = "N/A";
                     if(data.start_time && data.duration) {
                         const now = Date.now() / 1000;
@@ -307,11 +307,11 @@
                         let left = Math.max(0, data.duration - elapsed);
                         timeRemaining = left.toFixed(0) + "s";
                     }
-                    document.getElementById('stressTime').textContent = " (" + timeRemaining + ")";
+                    document.getElementById('stressTime').textContent = " (" + timeRemaining + " restantes)";
                     document.getElementById('stressReqCount').textContent = data.requests_sent;
                 } else {
                     badge.className = 'badge bg-secondary';
-                    badge.textContent = 'Stress: Parado';
+                    badge.childNodes[0].nodeValue = 'Stress: Parado';
                     document.getElementById('stressTime').textContent = "";
                 }
             }
@@ -327,8 +327,8 @@
                 if (data.is_running) {
                     isAnyRunning = true;
                     badge.className = 'badge bg-success blink';
-                    badge.textContent = 'SIMULAÇÃO RODANDO';
-                    
+                    badge.childNodes[0].nodeValue = 'SIMULAÇÃO RODANDO';
+
                     let timeRemaining = "N/A";
                     if(data.start_time && data.duration) {
                         const now = Date.now() / 1000;
@@ -336,15 +336,11 @@
                         let left = Math.max(0, data.duration - elapsed);
                         timeRemaining = left.toFixed(0) + "s";
                     }
-                    document.getElementById('simTime').textContent = " (" + timeRemaining + ")";
+                    document.getElementById('simTime').textContent = " (" + timeRemaining + " restantes)";
                     document.getElementById('simActionsCount').textContent = data.actions_performed;
                 } else {
                     badge.className = 'badge bg-secondary';
-                    badge.textContent = 'Simulação: Parada';
-                    document.getElementById('simTime').textContent = "";
-                }
-
-                // Processar logs da simulacao
+                    badge.childNodes[0].nodeValue = 'Simulação: Parada';
                 const logsContainer = document.getElementById('logsContainer');
                 if(data.logs && data.logs.length > 0) {
                     
