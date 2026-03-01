@@ -1,10 +1,10 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-12 mb-4">
         <h2 class="text-primary"><i class="bi bi-robot"></i> Simulação de Uso - Banco de Dados (Intranet)</h2>
-        <p class="text-muted">Simula as ações normais dos usuários (Criação, Edi)ão e Exclusão de alunos, turmas e professores) diretamente no banco MariaDB.</p>
+        <p class="text-muted">Simula as ações normais dos usuários (Criação, Edição e Exclusão de alunos, turmas e professores) diretamente no banco MariaDB.</p>
     </div>
 </div>
 
@@ -40,7 +40,7 @@
                     <div class="mb-3">
                         <label class="form-label fw-bold">Perfil de Tráfego</label>
                         <select class="form-select" id="simProfile">
-                            <option value="calm">Calmo (AΟão a cada 5 segundos)</option>
+                            <option value="calm">Calmo (Ação a cada 5 segundos)</option>
                             <option value="aggressive">Agressivo (Ação a cada 0.5 segundos)</option>
                         </select>
                     </div>
@@ -97,10 +97,25 @@
 
     const headers = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': \Bearer \\
     };
 
     let statusInterval;
+
+    function addLogMessage(msg, typeClass) {
+        const logsContainer = document.getElementById('logsContainer');
+        if (logsContainer) {
+            // Remove waiting msg if needed
+            if(logsContainer.children.length === 1 && logsContainer.children[0].className.includes('text-secondary')) {
+                logsContainer.innerHTML = '';
+            }
+            const div = document.createElement('div');
+            div.className = 'mb-1 ' + typeClass;
+            const timeStr = new Date().toLocaleTimeString();
+            div.innerHTML = \[\] &gt; \\;
+            logsContainer.prepend(div);
+        }
+    }
 
     function getSimConfig() {
         return {
@@ -126,15 +141,15 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                alert('Simulação iniciada com sucesso!');
+                addLogMessage('Simulação iniciada com sucesso!', 'text-success fw-bold');
                 startStatusPolling();
             } else {
                 const data = await res.json();
-                alert('Erro: ' + (data.detail || 'Falha ao iniciar'));
+                addLogMessage('Erro ao iniciar: ' + (data.detail || 'Falha ao iniciar'), 'text-danger fw-bold');
             }
         } catch(err) {
             console.error(err);
-            alert("Erro de comunicação.");
+            addLogMessage('Erro de comunicação ao iniciar.', 'text-danger fw-bold');
         }
     });
 
@@ -142,49 +157,36 @@
         try {
             const res = await fetch('/api/simulation/stop', { method: 'POST', headers });
             if(res.ok) {
-                alert('Comando de parada enviado!');
+                addLogMessage('Comando de parada enviado!', 'text-primary fw-bold');
             }
         } catch(err) {
             console.error(err);
+            addLogMessage('Erro de comunicação ao parar.', 'text-danger fw-bold');
         }
     });
 
     document.getElementById('btnClear').addEventListener('click', async () => {
         if(!confirm("Atenção: Isso apagará apenas os registros gerados pela simulação (que possuem a tag [SIM]). Deseja continuar?")) return;
-        
         try {
             const payload = getSimConfig();
             payload.duration = 0;
-            
+
             const res = await fetch('/api/simulation/clear_simulated_data', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(payload)
             });
-            
+
             const data = await res.json();
-            
+
             if (res.ok) {
-                alert("Limpeza concluOda com sucesso:\n" + data.message);
-                
-                const logsContainer = document.getElementById('logsContainer');
-                if (logsContainer) {
-                    const div = document.createElement('div');
-                    div.className = 'mb-1 text-warning fw-bold';
-                    const timeStr = new Date().toLocaleTimeString();
-                    div.innerHTML = `[${timeStr}] &gt; &lt;&lt; LIMPEZA CONCLUÄDA &gt;&gt; ${data.message}`;
-                    
-                    if(logsContainer.children.length === 1 && logsContainer.children[0].className.includes('text-secondary')) {
-                        logsContainer.innerHTML = '';
-                    }
-                    logsContainer.prepend(div);
-                }
+                addLogMessage('&lt;&lt; LIMPEZA CONCLUÍDA &gt;&gt; ' + data.message, 'text-warning fw-bold');
             } else {
-                alert("Erro ao limpar dados: " + (data.detail || "Resposta inválida"));
+                addLogMessage('Erro ao limpar dados: ' + (data.detail || "Resposta inválida"), 'text-danger fw-bold');
             }
         } catch(err) {
             console.error(err);
-            alert("Erro de comunicação ao acionar a rota de limpeza no servidor.");
+            addLogMessage('Erro de comunicação ao acionar a rota de limpeza.', 'text-danger fw-bold');
         }
     });
 
@@ -212,28 +214,28 @@
 
                 document.getElementById('statusProfile').textContent = data.profile ? (data.profile === 'calm' ? 'Calmo' : 'Agressivo') : '-';
                 document.getElementById('statusActions').textContent = data.actions_performed;
-
-                const logsContainer = document.getElementById('logsContainer');
                 
+                const logsContainer = document.getElementById('logsContainer');
+
                 // Se houver algum log recebido do backend
                 if(data.logs && data.logs.length > 0) {
                     logsContainer.innerHTML = ''; // Limpa pra renderizar a stack fresca
                     data.logs.forEach(log => {
                         const div = document.createElement('div');
-                        
+
                         // Decide a cor do log no fundo escuro
-                        let classColors = "text-secondary"; 
+                        let classColors = "text-secondary";
                         if(log.toLowerCase().includes("erro") || log.toLowerCase().includes("falha")) {
-                            classColors = "text-danger fw-bold"; 
+                            classColors = "text-danger fw-bold";
                         } else if(log.toLowerCase().includes("finalizada") || log.toLowerCase().includes("parada")) {
-                            classColors = "text-primary fw-bold"; 
+                            classColors = "text-primary fw-bold";
                         } else {
                             classColors = "text-success fw-bold";
                         }
 
                         div.className = 'mb-1 ' + classColors;
                         const timeStr = new Date().toLocaleTimeString();
-                        div.innerHTML = `[${timeStr}] &gt; ${log}`;
+                        div.innerHTML = \[\] &gt; \\;
                         logsContainer.appendChild(div);
                     });
                 }
