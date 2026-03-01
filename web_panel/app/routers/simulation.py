@@ -39,7 +39,7 @@ async def perform_simulation(config: SimConfig):
     simulation_status["target"] = config.db_host
     simulation_status["profile"] = config.profile
     simulation_status["start_time"] = time.time()
-    simulation_status["logs"] = ["Iniciando simulação completaa..."]
+    simulation_status["logs"] = ["Iniciando simulação completa..."]
 
     try:
         conn = pymysql.connect(
