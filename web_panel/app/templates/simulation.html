@@ -1,13 +1,15 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-12 mb-4">
-        <h2 class="text-primary"><i class="bi bi-robot"></i> Simulação de Uso - Banco de Dados (Intranet)</h2>
-        <p class="text-muted">Simula as ações normais dos usuários (Criação, Edição e Exclusão de alunos, turmas e professores) diretamente no banco MariaDB.</p>
+        <h2 class="text-primary"><i class="bi bi-tools"></i> Dashboard de Testes de Estresse e Simulação</h2>
+        <p class="text-muted">Acesso unificado às ferramentas de carga (Estresse HTTP/Nginx) e de Uso em Banco de Dados (Simulação MariaDB).</p>
     </div>
 </div>
 
+<h4 class="mt-3 text-info border-bottom pb-2"><i class="bi bi-robot"></i> 1. Simulação Direta no Banco de Dados</h4>
+<p class="text-muted small">Cria, edita e deleta registros diretamente no MySQL/MariaDB para simular o uso contínuo do sistema de intranet.</p>
 <div class="row">
     <!-- Bloco de Controle -->
     <div class="col-md-5">
@@ -91,7 +93,193 @@
     </div>
 </div>
 
+
+
+<h4 class="mt-5 text-danger border-bottom pb-2"><i class="bi bi-activity"></i> 2. Testes de Estresse HTTP (Nginx / API)</h4>
+<p class="text-muted small">Múltiplas threads disparando milhares de requisições simultâneas para estourar alertas de CPU, Memória e Conexões no Zabbix.</p>
+<div class="row">
+    <!-- Configuração do Alvo -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> Configuração do Alvo</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">URL da Intranet (Nginx)</label>
+                    <input type="text" id="stressTargetUrl" class="form-control" value="http://192.168.1.100" placeholder="http://IP_DA_INTRANET">
+                    <small class="text-muted">IP da VM onde a intranet está rodando no GNS3.</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Duração (Segundos)</label>
+                    <input type="number" id="stressDuration" class="form-control" value="60" min="10" max="300">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Concorrência (Threads)</label>
+                    <input type="number" id="concurrency" class="form-control" value="50" min="1" max="500">
+                    <small class="text-muted">Número de conexões simultâneas.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controles de Estresse -->
+    <div class="col-md-8 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-lightning-charge"></i> Disparar Testes</h5>
+                <span id="stressStatusBadge" class="badge bg-secondary">Status: Parado</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="p-3 border rounded text-center">
+                            <h6>Estresse de Frontend</h6>
+                            <p class="small text-muted">Inunda o Nginx com requisições GET na página inicial.</p>
+                            <button class="btn btn-outline-primary w-100" onclick="startStress('/api/stress/frontend')">
+                                <i class="bi bi-play-fill"></i> Iniciar HTTP Flood
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 border rounded text-center">
+                            <h6>Estresse de Leitura (DB)</h6>
+                            <p class="small text-muted">Força o banco de dados a realizar queries complexas repetidas vezes.</p>
+                            <button class="btn btn-outline-warning w-100 text-dark" onclick="startStress('/api/stress/backend/read')">
+                                <i class="bi bi-database-down"></i> Iniciar DB Read
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 border rounded text-center">
+                            <h6>Estresse de Escrita (DB)</h6>
+                            <p class="small text-muted">Força o banco de dados a inserir milhares de registros simultaneamente.</p>
+                            <button class="btn btn-outline-danger w-100" onclick="startStress('/api/stress/backend/write')">
+                                <i class="bi bi-database-up"></i> Iniciar DB Write
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+                
+                <div class="text-center">
+                    <button class="btn btn-dark btn-lg px-5" onclick="stopStress()">
+                        <i class="bi bi-stop-circle"></i> Parar Teste em Execução
+                    </button>
+                </div>
+
+                <div class="mt-4 text-center" id="liveStats" style="display: none;">
+                    <h4 class="text-danger blink">Teste em Execução!</h4>
+                    <p>Requisições enviadas: <strong id="reqCount" class="fs-4">0</strong></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<style>
+    .blink { animation: blinker 1.5s linear infinite; }
+    @keyframes blinker { 50% { opacity: 0; } }
+</style>
+
+
+
+<h4 class="mt-5 text-danger border-bottom pb-2"><i class="bi bi-activity"></i> 2. Testes de Estresse HTTP (Nginx / API)</h4>
+<p class="text-muted small">Múltiplas threads disparando milhares de requisições simultâneas para estourar alertas de CPU, Memória e Conexões no Zabbix.</p>
+<div class="row">
+    <!-- Configuração do Alvo -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0"><i class="bi bi-gear"></i> Configuração do Alvo</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">URL da Intranet (Nginx)</label>
+                    <input type="text" id="stressTargetUrl" class="form-control" value="http://192.168.1.100" placeholder="http://IP_DA_INTRANET">
+                    <small class="text-muted">IP da VM onde a intranet está rodando no GNS3.</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Duração (Segundos)</label>
+                    <input type="number" id="stressDuration" class="form-control" value="60" min="10" max="300">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Concorrência (Threads)</label>
+                    <input type="number" id="concurrency" class="form-control" value="50" min="1" max="500">
+                    <small class="text-muted">Número de conexões simultâneas.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controles de Estresse -->
+    <div class="col-md-8 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-lightning-charge"></i> Disparar Testes</h5>
+                <span id="stressStatusBadge" class="badge bg-secondary">Status: Parado</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="p-3 border rounded text-center">
+                            <h6>Estresse de Frontend</h6>
+                            <p class="small text-muted">Inunda o Nginx com requisições GET na página inicial.</p>
+                            <button class="btn btn-outline-primary w-100" onclick="startStress('/api/stress/frontend')">
+                                <i class="bi bi-play-fill"></i> Iniciar HTTP Flood
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 border rounded text-center">
+                            <h6>Estresse de Leitura (DB)</h6>
+                            <p class="small text-muted">Força o banco de dados a realizar queries complexas repetidas vezes.</p>
+                            <button class="btn btn-outline-warning w-100 text-dark" onclick="startStress('/api/stress/backend/read')">
+                                <i class="bi bi-database-down"></i> Iniciar DB Read
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 border rounded text-center">
+                            <h6>Estresse de Escrita (DB)</h6>
+                            <p class="small text-muted">Força o banco de dados a inserir milhares de registros simultaneamente.</p>
+                            <button class="btn btn-outline-danger w-100" onclick="startStress('/api/stress/backend/write')">
+                                <i class="bi bi-database-up"></i> Iniciar DB Write
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+                
+                <div class="text-center">
+                    <button class="btn btn-dark btn-lg px-5" onclick="stopStress()">
+                        <i class="bi bi-stop-circle"></i> Parar Teste em Execução
+                    </button>
+                </div>
+
+                <div class="mt-4 text-center" id="liveStats" style="display: none;">
+                    <h4 class="text-danger blink">Teste em Execução!</h4>
+                    <p>Requisições enviadas: <strong id="reqCount" class="fs-4">0</strong></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<style>
+    .blink { animation: blinker 1.5s linear infinite; }
+    @keyframes blinker { 50% { opacity: 0; } }
+</style>
+
 <script>
+
+
     const token = localStorage.getItem('token');
     if (!token) { window.location.href = '/login'; }
 
@@ -248,5 +436,185 @@
 
     // Inicializa polling caso já tenha algo rodando após refresh
     startStatusPolling();
+
+
+// --- STRESS SCRIPTS ---
+
+    let stressStatusInterval;
+
+    async function startStress(endpoint) {
+        const target_url = document.getElementById('stressTargetUrl').value;
+        const duration_seconds = parseInt(document.getElementById('stressDuration').value);
+        const concurrency = parseInt(document.getElementById('concurrency').value);
+
+        if (!target_url) {
+            alert("Por favor, insira a URL alvo.");
+            return;
+        }
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ target_url, duration_seconds, concurrency })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                startStressMonitoring();
+            } else {
+                alert(data.detail || "Erro ao iniciar o teste.");
+            }
+        } catch (error) {
+            alert("Erro de conexão: " + error);
+        }
+    }
+
+    async function stopStress() {
+        try {
+            const response = await fetch('/api/stress/stop', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await response.json();
+            alert(data.message);
+        } catch (error) {
+            alert("Erro ao parar o teste.");
+        }
+    }
+
+    async function checkStressStatus() {
+        try {
+            const response = await fetch('/api/stress/status', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await response.json();
+            
+            const badge = document.getElementById('stressStatusBadge');
+            const statsDiv = document.getElementById('liveStats');
+            const reqCount = document.getElementById('reqCount');
+
+            if (data.is_running) {
+                badge.className = 'badge bg-danger blink';
+                badge.textContent = 'Status: EM EXECUÇÃO';
+                statsDiv.style.display = 'block';
+                reqCount.textContent = data.requests_sent;
+            } else {
+                badge.className = 'badge bg-secondary';
+                badge.textContent = 'Status: Parado';
+                statsDiv.style.display = 'none';
+                if (stressStatusInterval) {
+                    clearInterval(stressStatusInterval);
+                    stressStatusInterval = null;
+                }
+            }
+        } catch (error) {
+            console.error("Erro ao checar status", error);
+        }
+    }
+
+    function startStressMonitoring() {
+        if (!stressStatusInterval) {
+            stressStatusInterval = setInterval(checkStressStatus, 1000);
+        }
+    }
+
+    // Checa o status ao carregar a página
+    document.addEventListener('DOMContentLoaded', checkStatus);
+
+
+
+// --- STRESS SCRIPTS ---
+
+    let stressStatusInterval;
+
+    async function startStress(endpoint) {
+        const target_url = document.getElementById('stressTargetUrl').value;
+        const duration_seconds = parseInt(document.getElementById('stressDuration').value);
+        const concurrency = parseInt(document.getElementById('concurrency').value);
+
+        if (!target_url) {
+            alert("Por favor, insira a URL alvo.");
+            return;
+        }
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ target_url, duration_seconds, concurrency })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+                startStressMonitoring();
+            } else {
+                alert(data.detail || "Erro ao iniciar o teste.");
+            }
+        } catch (error) {
+            alert("Erro de conexão: " + error);
+        }
+    }
+
+    async function stopStress() {
+        try {
+            const response = await fetch('/api/stress/stop', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await response.json();
+            alert(data.message);
+        } catch (error) {
+            alert("Erro ao parar o teste.");
+        }
+    }
+
+    async function checkStressStatus() {
+        try {
+            const response = await fetch('/api/stress/status', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await response.json();
+            
+            const badge = document.getElementById('stressStatusBadge');
+            const statsDiv = document.getElementById('liveStats');
+            const reqCount = document.getElementById('reqCount');
+
+            if (data.is_running) {
+                badge.className = 'badge bg-danger blink';
+                badge.textContent = 'Status: EM EXECUÇÃO';
+                statsDiv.style.display = 'block';
+                reqCount.textContent = data.requests_sent;
+            } else {
+                badge.className = 'badge bg-secondary';
+                badge.textContent = 'Status: Parado';
+                statsDiv.style.display = 'none';
+                if (stressStatusInterval) {
+                    clearInterval(stressStatusInterval);
+                    stressStatusInterval = null;
+                }
+            }
+        } catch (error) {
+            console.error("Erro ao checar status", error);
+        }
+    }
+
+    function startStressMonitoring() {
+        if (!stressStatusInterval) {
+            stressStatusInterval = setInterval(checkStressStatus, 1000);
+        }
+    }
+
+    // Checa o status ao carregar a página
+    document.addEventListener('DOMContentLoaded', checkStatus);
+
 </script>
 {% endblock %}
