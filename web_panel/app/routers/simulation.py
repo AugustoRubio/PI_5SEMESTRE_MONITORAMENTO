@@ -39,7 +39,7 @@ async def perform_simulation(config: SimConfig):
     simulation_status["target"] = config.db_host
     simulation_status["profile"] = config.profile
     simulation_status["start_time"] = time.time()
-    simulation_status["logs"] = ["Iniciando simulação completa..."]
+    simulation_status["logs"] = ["Tentando conexão com o banco de dados..."]
 
     try:
         conn = pymysql.connect(
@@ -52,8 +52,11 @@ async def perform_simulation(config: SimConfig):
         )
     except Exception as e:
         simulation_status["is_running"] = False
-        simulation_status["logs"].append(f"Erro ao conectar: {str(e)}")
+        simulation_status["logs"].insert(0, f"Erro ao conectar: {str(e)}")
+        simulation_status["logs"].insert(0, "Simulação abortada.")
         return
+        
+    simulation_status["logs"].insert(0, "Iniciando simulação completa...")
 
     delay = 5.0 if config.profile == "calm" else 0.5
     end_time = time.time() + config.duration
