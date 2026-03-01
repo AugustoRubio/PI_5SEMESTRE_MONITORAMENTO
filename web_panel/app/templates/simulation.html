@@ -348,21 +348,34 @@
                 const logsContainer = document.getElementById('logsContainer');
                 if(data.logs && data.logs.length > 0) {
                     
-                    // Em vez de limpar e sobrescrever todo o contâiner de logs misturado, a gente só vai injetar os logs novos que vêm do dict simulado
-                    // Primeiro, verificamos qual é o último log processado pra não repetir
-                    if(!window.lastSimLogCount || window.lastSimLogCount > data.logs.length || !isAnyRunning) {
-                        window.lastSimLogCount = 0; 
+                    // Como o backend adiciona os logs mais recentes no início do array, 
+                    // precisaremos ler a diferença entre a última vez para não duplicar.
+                    
+                    if(!window.lastSimLogStr) {
+                        window.lastSimLogStr = []; 
                     }
                     
-                    // Adiciona apenas os logs novos a partir do índice anterior
-                    for(let i = window.lastSimLogCount; i < data.logs.length; i++) {
+                    // Adiciona apenas os logs novos iterando de trás para frente do array de logs recém chegado
+                    for(let i = data.logs.length - 1; i >= 0; i--) {
                         const log = data.logs[i];
+                        
+                        // Checagem se o log já foi impresso na tela pra evitar spam
+                        if (window.lastSimLogStr.includes(log)) {
+                            continue;
+                        }
+                        
+                        // Grava no estado que processamos isso
+                        window.lastSimLogStr.push(log);
+                        if(window.lastSimLogStr.length > 100) window.lastSimLogStr.shift(); // Limite de memoria
+                        
                         const div = document.createElement('div');
                         let classColors = 'text-light';
-                        if(log.toLowerCase().includes('erro') || log.toLowerCase().includes('falha') || log.toLowerCase().includes('except')) {
+                        if(log.toLowerCase().includes('erro') || log.toLowerCase().includes('falha') || log.toLowerCase().includes('except') || log.toLowerCase().includes('nenhuma')) {
                             classColors = 'text-danger fw-bold';
                         } else if(log.toLowerCase().includes('finalizada') || log.toLowerCase().includes('parada')) {
                             classColors = 'text-info fw-bold';
+                        } else if(log.toLowerCase().includes('iniciando')) {
+                            classColors = 'text-warning fw-bold';
                         } else {
                             classColors = 'text-success fw-bold';
                         }
@@ -379,7 +392,10 @@
                         // Prepender pro log mais novo ficar no topo, idêntico aos botões locais
                         logsContainer.prepend(div);
                     }
-                    window.lastSimLogCount = data.logs.length;
+                    
+                    if(!isAnyRunning) {
+                        window.lastSimLogStr = [];
+                    }
                 }
             }
         } catch (e) {}
