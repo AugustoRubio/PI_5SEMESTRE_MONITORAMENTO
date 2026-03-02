@@ -29,8 +29,9 @@ DOCKER_COMPOSE_PATH = os.path.join(BASE_DIR, "botnet_agent", "docker-compose.yml
 async def stop_docker_botnet():
     try:
         print("Derrubando botnet via docker compose...")
+        docker_cmd = os.name == 'nt' and 'docker.exe' or 'docker'
         proc = await asyncio.create_subprocess_exec(
-            "docker", "compose", "-f", DOCKER_COMPOSE_PATH, "down",
+            docker_cmd, "compose", "-f", DOCKER_COMPOSE_PATH, "down",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
@@ -89,8 +90,9 @@ async def _run_stress_preset(target_url: str, preset_name: str):
     try:
         await stop_docker_botnet()
 
-        cmd = ["docker", "compose", "-f", DOCKER_COMPOSE_PATH, "up", "-d", "--scale", f"{config['service']}={config['scale']}"]
-        
+        docker_cmd = os.name == 'nt' and 'docker.exe' or 'docker'
+        cmd = [docker_cmd, "compose", "-f", DOCKER_COMPOSE_PATH, "up", "-d", "--scale", f"{config['service']}={config['scale']}"]
+
         proc = await asyncio.create_subprocess_exec(
             *cmd,
             env=env_vars,
@@ -116,6 +118,10 @@ async def _run_stress_preset(target_url: str, preset_name: str):
                 if len(stress_status["logs"]) > 15:
                     stress_status["logs"].pop()
 
+    except FileNotFoundError as e:
+        msg = "O executável do Docker não foi encontrado na sua máquina. O Docker Desktop está instalado e adicionado ao PATH?"
+        stress_status["logs"].insert(0, f"Exceção interna: {msg}")
+        print(f"Erro: {msg} | {str(e)}")
     except Exception as e:
         stress_status["logs"].insert(0, f"Exceção interna: {str(e)}")
         print(f"Erro: {str(e)}")
