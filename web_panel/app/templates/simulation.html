@@ -105,18 +105,15 @@
 
                 <hr class="my-4">
                 
-                <div class="text-center">
-                    <button class="btn btn-danger btn-lg px-5" onclick="stopAllTasks()">
-                        <i class="bi bi-stop-circle"></i> PARAR TODAS AS CARGAS
+                <h6 class="text-secondary mt-3"><i class="bi bi-exclamation-triangle-fill"></i> 3. Teste Consolidado e Misto</h6>
+                <div class="d-flex gap-2 mb-4">
+                    <button class="btn btn-warning text-dark flex-fill fw-bold" onclick="startAllAtOnce()">
+                        <i class="bi bi-lightning-charge-fill"></i> DETONAR TUDO (Nginx + Uso Real)
                     </button>
                 </div>
 
-            </div>
-        </div>
-    </div>
-</div>
+                <hr class="my-4">
 
-<!-- Logs e Status Unificado -->
 <div class="row">
     <div class="col-12">
         <div class="card bg-dark text-light border-secondary">
@@ -283,6 +280,20 @@
             addLogMessage('Erro de conexão ao limpar registros.', 'text-danger');
         }
     });
+
+    async function startAllAtOnce() {
+        const rawTarget = document.getElementById('targetUrl').value;
+        if (!rawTarget) { alert('Insira a URL ou IP alvo'); return; }
+        
+        // 1. Aciona o botão de Stress Nginx passando null para não ter conflito de form event e já puxa o /api/stress/frontend
+        addLogMessage('Iniciando Carga Consolidada...', 'text-warning fw-bold');
+        startStress('/api/stress/frontend');
+        
+        // 2. Aciona programaticamente o clique físico do Botão de Simulação (que já lê credenciais e dispara JSON pro endpoint correto)
+        setTimeout(() => {
+            document.getElementById('btnStartSim').click();
+        }, 1000);
+    }
 
     async function fetchStatus() {
         let isAnyRunning = false;
