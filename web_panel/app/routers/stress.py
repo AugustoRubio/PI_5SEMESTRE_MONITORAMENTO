@@ -40,7 +40,7 @@ async def perform_stress_test(url: str, duration: int, concurrency: int, method:
 
     timeout = httpx.Timeout(10.0)
     # Usamos limites altos para permitir concorrência real
-    limits = httpx.Limits(max_connections=concurrency, max_keepalive_connections=concurrency)
+    limits = httpx.Limits(max_connections=concurrency * 10, max_keepalive_connections=concurrency * 10)
     
     async with httpx.AsyncClient(timeout=timeout, limits=limits, verify=False) as client:
         end_time = asyncio.get_event_loop().time() + duration
@@ -74,7 +74,7 @@ async def perform_stress_test(url: str, duration: int, concurrency: int, method:
                     if method == "GET":
                         await client.get(url, headers=headers)
                     else:
-                        payload = {"data": "".join(random.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=1024))} # 1KB dummy load
+                        payload = {"data": "".join(random.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=20480))} # 20KB dummy load
                         await client.post(url, headers=headers, json=payload)
                         
                     req_count += 1

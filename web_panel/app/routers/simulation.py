@@ -58,7 +58,7 @@ async def perform_simulation(config: SimConfig):
         
     simulation_status["logs"].insert(0, "Iniciando simulação completa...")
 
-    delay = 5.0 if config.profile == "calm" else 0.5
+    delay = 5.0 if config.profile == "calm" else 0.05
     end_time = time.time() + config.duration
 
     while time.time() < end_time and simulation_status["is_running"]:
