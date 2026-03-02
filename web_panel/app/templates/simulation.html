@@ -121,6 +121,15 @@
     </div>
 </div>
 
+<!-- Logs e Status Unificado -->
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card bg-dark text-light border-secondary">
+            <div class="card-header border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+                <span><i class="bi bi-terminal"></i> Console de Monitoramento Unificado</span>
+                <div class="d-flex gap-3">
+                    <span id="stressBadge" class="badge bg-secondary fs-6">Stress: Parado <small id="stressTime" class="fw-normal"></small></span>
+                    <span id="simBadge" class="badge bg-secondary fs-6">Simulação: Parada <small id="simTime" class="fw-normal"></small></span>
                 </div>
             </div>
             <!-- Painel de Resumo do Alvo Corrente -->
@@ -308,8 +317,10 @@
                 const badge = document.getElementById('stressBadge');
                 if (data.is_running) {
                     isAnyRunning = true;
-                    badge.className = 'badge bg-warning text-dark blink';
-                    badge.childNodes[0].nodeValue = 'STRESS RODANDO';
+                    if(badge) {
+                        badge.className = 'badge bg-warning text-dark blink';
+                        badge.childNodes[0].nodeValue = 'STRESS RODANDO';
+                    }
 
                     let timeRemaining = "N/A";
                     if(data.start_time && data.duration) {
@@ -318,17 +329,19 @@
                         let left = Math.max(0, data.duration - elapsed);
                         timeRemaining = left.toFixed(0) + "s";
                     }
-                    document.getElementById('stressTime').textContent = " (" + timeRemaining + " restantes)";
-                    document.getElementById('stressReqCount').textContent = data.requests_sent;
+                    if(document.getElementById('stressTime')) document.getElementById('stressTime').textContent = " (" + timeRemaining + " restantes)";
+                    if(document.getElementById('stressReqCount')) document.getElementById('stressReqCount').textContent = data.requests_sent;
                 } else {
-                    badge.className = 'badge bg-secondary';
-                    badge.childNodes[0].nodeValue = 'Stress: Parado';
-                    document.getElementById('stressTime').textContent = "";
+                    if(badge) {
+                        badge.className = 'badge bg-secondary';
+                        badge.childNodes[0].nodeValue = 'Stress: Parado';
+                    }
+                    if(document.getElementById('stressTime')) document.getElementById('stressTime').textContent = "";
                 }
 
                 // Processar logs do Estresse WEB
                 const strLogsContainer = document.getElementById('logsContainer');
-                if(data.logs && data.logs.length > 0) {
+                if(data.logs && data.logs.length > 0 && strLogsContainer) {
                     if(!window.lastStressLogStr) window.lastStressLogStr = [];
                     for(let i = data.logs.length - 1; i >= 0; i--) {
                         const log = data.logs[i];
@@ -353,15 +366,16 @@
                         const timeStr = new Date().toLocaleTimeString();
                         div.innerText = '[' + timeStr + '] > [WEB STRESS] ' + log;
 
-                        if(strLogsContainer.children.length === 1 && strLogsContainer.children[0].innerText.includes('[Ready]')) {
+                        if(strLogsContainer.children.length > 0 && strLogsContainer.children[0].innerText.includes('[Ready]')) {
                             strLogsContainer.innerHTML = '';
                         }
                         strLogsContainer.prepend(div);
                     }
                 }
             }
-        } catch (e) {}
-    } catch (e) { console.error('Erro no fetchStatus Stress:', e); }
+        } catch (e) {
+            console.error('Erro no fetchStatus Stress:', e);
+        }
 
         // 2. Fetch Sim Status
         try {
@@ -372,8 +386,10 @@
                 const badge = document.getElementById('simBadge');
                 if (data.is_running) {
                     isAnyRunning = true;
-                    badge.className = 'badge bg-success blink';
-                    badge.childNodes[0].nodeValue = 'SIMULAÇÃO RODANDO';
+                    if(badge) {
+                        badge.className = 'badge bg-success blink';
+                        badge.childNodes[0].nodeValue = 'SIMULAÇÃO RODANDO';
+                    }
 
                     let timeRemaining = "N/A";
                     if(data.start_time && data.duration) {
@@ -382,37 +398,32 @@
                         let left = Math.max(0, data.duration - elapsed);
                         timeRemaining = left.toFixed(0) + "s";
                     }
-                    document.getElementById('simTime').textContent = " (" + timeRemaining + " restantes)";
-                    document.getElementById('simActionsCount').textContent = data.actions_performed;
+                    if(document.getElementById('simTime')) document.getElementById('simTime').textContent = " (" + timeRemaining + " restantes)";
+                    if(document.getElementById('simActionsCount')) document.getElementById('simActionsCount').textContent = data.actions_performed;
                 } else {
-                    badge.className = 'badge bg-secondary';
-                    badge.childNodes[0].nodeValue = 'Simulação: Parada';
-                    document.getElementById('simTime').textContent = "";
+                    if(badge) {
+                        badge.className = 'badge bg-secondary';
+                        badge.childNodes[0].nodeValue = 'Simulação: Parada';
+                    }
+                    if(document.getElementById('simTime')) document.getElementById('simTime').textContent = "";
                 }
 
                 // Processar logs da simulacao
                 const logsContainer = document.getElementById('logsContainer');
-                if(data.logs && data.logs.length > 0) {
-                    
-                    // Como o backend adiciona os logs mais recentes no início do array, 
-                    // precisaremos ler a diferença entre a última vez para não duplicar.
-                    
+                if(data.logs && data.logs.length > 0 && logsContainer) {
                     if(!window.lastSimLogStr) {
                         window.lastSimLogStr = []; 
                     }
                     
-                    // Adiciona apenas os logs novos iterando de trás para frente do array de logs recém chegado
                     for(let i = data.logs.length - 1; i >= 0; i--) {
                         const log = data.logs[i];
                         
-                        // Checagem se o log já foi impresso na tela pra evitar spam
                         if (window.lastSimLogStr.includes(log)) {
                             continue;
                         }
                         
-                        // Grava no estado que processamos isso
                         window.lastSimLogStr.push(log);
-                        if(window.lastSimLogStr.length > 100) window.lastSimLogStr.shift(); // Limite de memoria
+                        if(window.lastSimLogStr.length > 100) window.lastSimLogStr.shift(); 
                         
                         const div = document.createElement('div');
                         let classColors = 'text-light';
@@ -430,19 +441,17 @@
                         const timeStr = new Date().toLocaleTimeString();
                         div.innerText = '[' + timeStr + '] > ' + log;
                         
-                        // Remover mensagem de Ready se existir
-                        if(logsContainer.children.length === 1 && logsContainer.children[0].innerText.includes('[Ready]')) {
+                        if(logsContainer.children.length > 0 && logsContainer.children[0].innerText.includes('[Ready]')) {
                             logsContainer.innerHTML = '';
                         }
                         
-                        // Prepender pro log mais novo ficar no topo, idêntico aos botões locais
                         logsContainer.prepend(div);
                     }
-                    
-                    } catch (e) { console.error('Erro no fetchStatus Sim:', e); }
                 }
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('Erro no fetchStatus Sim:', e);
+        }
 
         // 3. Atualizar painel de resumo de Alvo Ativo
         let types = [];
@@ -458,13 +467,12 @@
         
         const summaryPanel = document.getElementById('targetSummary');
         if(isAnyRunning && (targets.length > 0)) {
-            // Remove duplicatas de metas apontando pro mesmo Ip/host
             let uniqueTargets = [...new Set(targets)];
-            document.getElementById('activeTargetsInfo').textContent = uniqueTargets.join(', ');
-            document.getElementById('activeTypesInfo').textContent = types.join(' + ');
-            summaryPanel.style.display = 'block';
+            if(document.getElementById('activeTargetsInfo')) document.getElementById('activeTargetsInfo').textContent = uniqueTargets.join(', ');
+            if(document.getElementById('activeTypesInfo')) document.getElementById('activeTypesInfo').textContent = types.join(' + ');
+            if(summaryPanel) summaryPanel.style.display = 'block';
         } else {
-            summaryPanel.style.display = 'none';
+            if(summaryPanel) summaryPanel.style.display = 'none';
         }
 
         if (!isAnyRunning && pollingInterval) {
@@ -472,7 +480,6 @@
             pollingInterval = null;
         }
     }
-
     function startUnifiedPolling() {
         if (!pollingInterval) {
             pollingInterval = setInterval(fetchStatus, 1000);
