@@ -272,11 +272,13 @@
         }
     }
 
-    async function fetchUnifiedStatus() {
+        async function fetchUnifiedStatus() {
         let isStressRunning = false;
         let isSimRunning = false;
         let activeTargets = new Set();
         let activeTypes = new Set();
+
+        let allLogs = [];
 
         // 1. Stress Status
         try {
@@ -289,23 +291,15 @@
                     activeTypes.add('Stress (' + data.type + ')');
                     document.getElementById('stressReqCount').innerText = data.requests_sent;
                     
-                    const elTime = Math.floor(Date.now()/1000) - data.start_time;
-                    const rem = data.duration - elTime;
-                    document.getElementById('stressTime').innerText = "(~" + (rem>0?rem:0) + "s)";
+                    const elTime = Math.floor(Date.now()/1000) - Math.floor(data.start_time);
+                    const rem = Math.max(0, Math.floor(data.duration - elTime));
+                    document.getElementById('stressTime').innerText = "(~" + rem + "s)";
                     
                     document.getElementById('stressBadge').className = 'badge bg-warning text-dark fs-6';
-                    document.getElementById('stressBadge').innerHTML = '<i class="spinner-border spinner-border-sm" style="width: 1rem; height: 1rem;"></i> Em Carga <small class="fw-normal">(~' + (rem>0?rem:0) + 's)</small>';
+                    document.getElementById('stressBadge').innerHTML = '<i class="spinner-border spinner-border-sm" style="width: 1rem; height: 1rem;"></i> Em Carga <small class="fw-normal">(~' + rem + 's)</small>';
                     
-                    // Add new logs
                     if(data.logs && data.logs.length > 0) {
-                        const logsContainer = document.getElementById('logsContainer');
-                        logsContainer.innerHTML = '';
-                        data.logs.forEach(msg => {
-                            const div = document.createElement('div');
-                            div.className = 'mb-1 text-warning';
-                            div.innerText = '> ' + msg;
-                            logsContainer.appendChild(div);
-                        });
+                        data.logs.forEach(msg => allLogs.push({msg: msg, src: 'stress', color: 'text-warning'}));
                     }
                 } else {
                     document.getElementById('stressBadge').className = 'badge bg-secondary fs-6';
@@ -325,17 +319,33 @@
                     activeTypes.add('Simulação DB');
                     document.getElementById('simActionsCount').innerText = data2.actions_performed;
                     
-                    const elTime = Math.floor(Date.now()/1000) - data2.start_time;
-                    const rem = data2.duration - elTime;
+                    const elTime = Math.floor(Date.now()/1000) - Math.floor(data2.start_time);
+                    const rem = Math.max(0, Math.floor(data2.duration - elTime));
                     
                     document.getElementById('simBadge').className = 'badge bg-success fs-6';
-                    document.getElementById('simBadge').innerHTML = '<i class="spinner-border spinner-border-sm" style="width: 1rem; height: 1rem;"></i> Simulando <small class="fw-normal">(~' + (rem>0?rem:0) + 's)</small>';
+                    document.getElementById('simBadge').innerHTML = '<i class="spinner-border spinner-border-sm" style="width: 1rem; height: 1rem;"></i> Simulando <small class="fw-normal">(~' + rem + 's)</small>';
+                    
+                    if(data2.logs && data2.logs.length > 0) {
+                        data2.logs.forEach(msg => allLogs.push({msg: msg, src: 'sim', color: 'text-success'}));
+                    }
                 } else {
                     document.getElementById('simBadge').className = 'badge bg-secondary fs-6';
                     document.getElementById('simBadge').innerText = 'Simulação: Parada';
                 }
             }
         } catch(e) {}
+
+        if (allLogs.length > 0) {
+            const logsContainer = document.getElementById('logsContainer');
+            logsContainer.innerHTML = '';
+            
+            allLogs.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'mb-1 ' + item.color;
+                div.innerText = '[' + item.src.toUpperCase() + '] > ' + item.msg;
+                logsContainer.appendChild(div);
+            });
+        }
 
         // Update Summary
         const summaryDiv = document.getElementById('targetSummary');
@@ -345,7 +355,7 @@
             document.getElementById('activeTypesInfo').innerText = Array.from(activeTypes).join(', ') || 'N/A';
         } else {
             summaryDiv.style.display = 'none';
-            if (pollingInterval) {
+            if (!isStressRunning && !isSimRunning && pollingInterval) {
                 clearInterval(pollingInterval);
                 pollingInterval = null;
             }
@@ -356,3 +366,5 @@
     fetchUnifiedStatus();
 </script>
 {% endblock %}
+
+
