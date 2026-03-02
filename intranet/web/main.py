@@ -42,9 +42,22 @@ class Student(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(255), index=True)
     registration = Column(String(50), unique=True, index=True)
+    password = Column(String(255), nullable=True)
     course = Column(String(255))
     
     classes = relationship("Class", secondary=student_class, back_populates="students")
+    grades = relationship("Grade", back_populates="student", cascade="all, delete-orphan")
+
+class Grade(Base):
+    __tablename__ = "grades"
+    id = Column(Integer, primary_key=True, index=True)
+    student_id = Column(Integer, ForeignKey('students.id'))
+    class_id = Column(Integer, ForeignKey('classes.id'))
+    value = Column(String(10)) # Podem ser notas com decimais ou conceitos
+    description = Column(String(255))
+    
+    student = relationship("Student", back_populates="grades")
+    course_class = relationship("Class")
 
 class Professor(Base):
     __tablename__ = "professors"
@@ -197,6 +210,14 @@ async def login(username: str = Form(...), password: str = Form(...), login_type
             response.set_cookie(key="session", value="authenticated")
             response.set_cookie(key="role", value="professor")
             response.set_cookie(key="user_id", value=str(professor.id))
+            return response
+    elif login_type == 'student':
+        student = db.query(Student).filter(Student.registration == username).first()
+        if student and student.password and pwd_context.verify(password, student.password):
+            response = RedirectResponse(url="/student_dashboard", status_code=302)
+            response.set_cookie(key="session", value="authenticated")
+            response.set_cookie(key="role", value="student")
+            response.set_cookie(key="user_id", value=str(student.id))
             return response
 
     return RedirectResponse(url=f"/login?error=1&type={login_type}", status_code=302)
@@ -376,3 +397,42 @@ async def mark_attendance(request: Request, class_id: int, date: str = Form(...)
         
     db.commit()
     return RedirectResponse(url=f"/prof_dashboard/class/{class_id}?date={date}", status_code=302)
+#   - - -   S T U D E N T   D A S H B O A R D   - - -  
+ @ a p p . g e t ( " / s t u d e n t _ d a s h b o a r d " ,   r e s p o n s e _ c l a s s = H T M L R e s p o n s e )  
+ a s y n c   d e f   s t u d e n t _ d a s h b o a r d ( r e q u e s t :   R e q u e s t ,   d b :   S e s s i o n   =   D e p e n d s ( g e t _ d b ) ) :  
+         i f   r e q u e s t . c o o k i e s . g e t ( " s e s s i o n " )   ! =   " a u t h e n t i c a t e d "   o r   r e q u e s t . c o o k i e s . g e t ( " r o l e " )   ! =   " s t u d e n t " :  
+                 r e t u r n   R e d i r e c t R e s p o n s e ( u r l = " / l o g i n " ,   s t a t u s _ c o d e = 3 0 2 )  
+         s t u d e n t _ i d   =   i n t ( r e q u e s t . c o o k i e s . g e t ( " u s e r _ i d " ) )  
+         s t u d e n t   =   d b . q u e r y ( S t u d e n t ) . f i l t e r ( S t u d e n t . i d   = =   s t u d e n t _ i d ) . f i r s t ( )  
+         i f   n o t   s t u d e n t :  
+                 r e t u r n   R e d i r e c t R e s p o n s e ( u r l = " / l o g i n " ,   s t a t u s _ c o d e = 3 0 2 )  
+         r e t u r n   t e m p l a t e s . T e m p l a t e R e s p o n s e ( " s t u d e n t _ d a s h b o a r d . h t m l " ,   { " r e q u e s t " :   r e q u e s t ,   " s t u d e n t " :   s t u d e n t } )  
+  
+ #   - - -   G R A D E S   ( P r o f e s s o r   s i d e )   - - -  
+ @ a p p . p o s t ( " / p r o f _ d a s h b o a r d / c l a s s / { c l a s s _ i d } / g r a d e " )  
+ a s y n c   d e f   g i v e _ g r a d e ( r e q u e s t :   R e q u e s t ,   c l a s s _ i d :   i n t ,   s t u d e n t _ i d :   i n t   =   F o r m ( . . . ) ,   v a l u e :   s t r   =   F o r m ( . . . ) ,   d e s c r i p t i o n :   s t r   =   F o r m ( . . . ) ,   d b :   S e s s i o n   =   D e p e n d s ( g e t _ d b ) ) :  
+         i f   r e q u e s t . c o o k i e s . g e t ( " s e s s i o n " )   ! =   " a u t h e n t i c a t e d "   o r   r e q u e s t . c o o k i e s . g e t ( " r o l e " )   ! =   " p r o f e s s o r " :  
+                 r e t u r n   R e d i r e c t R e s p o n s e ( u r l = " / l o g i n " ,   s t a t u s _ c o d e = 3 0 2 )  
+         p r o f _ i d   =   i n t ( r e q u e s t . c o o k i e s . g e t ( " u s e r _ i d " ) )  
+         c l s   =   d b . q u e r y ( C l a s s ) . f i l t e r ( C l a s s . i d   = =   c l a s s _ i d ,   C l a s s . p r o f e s s o r _ i d   = =   p r o f _ i d ) . f i r s t ( )  
+         i f   n o t   c l s :  
+                 r e t u r n   R e d i r e c t R e s p o n s e ( u r l = " / p r o f _ d a s h b o a r d " ,   s t a t u s _ c o d e = 3 0 2 )  
+         g r a d e   =   G r a d e ( s t u d e n t _ i d = s t u d e n t _ i d ,   c l a s s _ i d = c l a s s _ i d ,   v a l u e = v a l u e ,   d e s c r i p t i o n = d e s c r i p t i o n )  
+         d b . a d d ( g r a d e )  
+         d b . c o m m i t ( )  
+         r e t u r n   R e d i r e c t R e s p o n s e ( u r l = f " / p r o f _ d a s h b o a r d / c l a s s / { c l a s s _ i d } " ,   s t a t u s _ c o d e = 3 0 2 )  
+  
+ @ a p p . p o s t ( " / p r o f _ d a s h b o a r d / c l a s s / { c l a s s _ i d } / g r a d e / d e l e t e / { g r a d e _ i d } " )  
+ a s y n c   d e f   d e l e t e _ g r a d e ( r e q u e s t :   R e q u e s t ,   c l a s s _ i d :   i n t ,   g r a d e _ i d :   i n t ,   d b :   S e s s i o n   =   D e p e n d s ( g e t _ d b ) ) :  
+         i f   r e q u e s t . c o o k i e s . g e t ( " s e s s i o n " )   ! =   " a u t h e n t i c a t e d "   o r   r e q u e s t . c o o k i e s . g e t ( " r o l e " )   ! =   " p r o f e s s o r " :  
+                 r e t u r n   R e d i r e c t R e s p o n s e ( u r l = " / l o g i n " ,   s t a t u s _ c o d e = 3 0 2 )  
+         p r o f _ i d   =   i n t ( r e q u e s t . c o o k i e s . g e t ( " u s e r _ i d " ) )  
+         c l s   =   d b . q u e r y ( C l a s s ) . f i l t e r ( C l a s s . i d   = =   c l a s s _ i d ,   C l a s s . p r o f e s s o r _ i d   = =   p r o f _ i d ) . f i r s t ( )  
+         i f   n o t   c l s :  
+                 r e t u r n   R e d i r e c t R e s p o n s e ( u r l = " / p r o f _ d a s h b o a r d " ,   s t a t u s _ c o d e = 3 0 2 )  
+         g r a d e   =   d b . q u e r y ( G r a d e ) . f i l t e r ( G r a d e . i d   = =   g r a d e _ i d ,   G r a d e . c l a s s _ i d   = =   c l a s s _ i d ) . f i r s t ( )  
+         i f   g r a d e :  
+                 d b . d e l e t e ( g r a d e )  
+                 d b . c o m m i t ( )  
+         r e t u r n   R e d i r e c t R e s p o n s e ( u r l = f " / p r o f _ d a s h b o a r d / c l a s s / { c l a s s _ i d } " ,   s t a t u s _ c o d e = 3 0 2 )  
+ 

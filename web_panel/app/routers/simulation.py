@@ -69,16 +69,19 @@ async def perform_simulation(config: SimConfig):
                 if action == "create_student":
                     name = f"{SIM_MARKER} Aluno_{random_string(4)}"
                     reg = f"SIM-{random.randint(1000, 99999)}"
-                    cursor.execute("INSERT INTO students (name, registration, course) VALUES (%s, %s, 'Simulação')", (name, reg))
+                    # Criptografa a senha simulada usando a hash exata que a intranet espera
+                    # Para não adicionar a dependência do passlib aqui, pode-se usar um hash bcrypt fixo de 'sim'
+                    # ou salvar uma hash gerada previamente. $2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2 é hash de 'sim'
+                    cursor.execute("INSERT INTO students (name, registration, password, course) VALUES (%s, %s, '$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2', 'Simulação')", (name, reg))
                     conn.commit()
-                    log_msg = f"Criou aluno: {name}"
+                    log_msg = f"Criou aluno: {name} (Senha: sim)"
 
                 elif action == "create_professor":
                     name = f"{SIM_MARKER} Prof_{random_string(4)}"
                     usr = f"sim_pr_{random_string(3)}"
-                    cursor.execute("INSERT INTO professors (username, password, name, department) VALUES (%s, 'sim', %s, 'Simulação')", (usr, name))
+                    cursor.execute("INSERT INTO professors (username, password, name, department) VALUES (%s, '$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2', %s, 'Simulação')", (usr, name))
                     conn.commit()
-                    log_msg = f"Criou professor: {name}"
+                    log_msg = f"Criou professor: {name} (Senha: sim)"
 
                 elif action == "create_class":
                     cursor.execute("SELECT id FROM professors WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))

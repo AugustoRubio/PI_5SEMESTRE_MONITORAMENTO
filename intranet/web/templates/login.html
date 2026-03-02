@@ -109,6 +109,9 @@
                     } else if (type === 'admin') {
                         document.getElementById('panel-title').innerHTML = '<i class="fas fa-cogs me-2 text-secondary"></i>Administração';
                         document.querySelector('.login-card').style.borderTop = '5px solid #6c757d';
+                    } else if (type === 'student') {
+                        document.getElementById('panel-title').innerHTML = '<i class="fas fa-user-graduate me-2 text-success"></i>Acesso Aluno';
+                        document.querySelector('.login-card').style.borderTop = '5px solid #198754';
                     }
                 }
             </script>
@@ -142,6 +145,9 @@
                         btn.classList.remove('btn-custom');
                     } else if (type === 'admin') {
                         btn.classList.add('btn-secondary');
+                        btn.classList.remove('btn-custom');
+                    } else if (type === 'student') {
+                        btn.classList.add('btn-success');
                         btn.classList.remove('btn-custom');
                     }
                 }
