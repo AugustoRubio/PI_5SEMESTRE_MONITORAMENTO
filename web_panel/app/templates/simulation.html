@@ -361,6 +361,7 @@
                 }
             }
         } catch (e) {}
+    } catch (e) { console.error('Erro no fetchStatus Stress:', e); }
 
         // 2. Fetch Sim Status
         try {
@@ -438,9 +439,7 @@
                         logsContainer.prepend(div);
                     }
                     
-                    if(!isAnyRunning) {
-                        window.lastSimLogStr = [];
-                    }
+                    } catch (e) { console.error('Erro no fetchStatus Sim:', e); }
                 }
             }
         } catch (e) {}
