@@ -291,7 +291,7 @@
                     
                     const elTime = Math.floor(Date.now()/1000) - data.start_time;
                     const rem = data.duration - elTime;
-                    document.getElementById('stressTime').innerText = \(~ + (rem>0?rem:0) + s)\;
+                    document.getElementById('stressTime').innerText = "(~" + (rem>0?rem:0) + "s)";
                     
                     document.getElementById('stressBadge').className = 'badge bg-warning text-dark fs-6';
                     document.getElementById('stressBadge').innerHTML = '<i class="spinner-border spinner-border-sm" style="width: 1rem; height: 1rem;"></i> Em Carga <small class="fw-normal">(~' + (rem>0?rem:0) + 's)</small>';

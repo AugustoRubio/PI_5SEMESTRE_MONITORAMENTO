@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import os
 import time
 import httpx
@@ -46,6 +46,7 @@ async def worker(target_url: str, stop_event: asyncio.Event, payload_size: int, 
             await asyncio.sleep(0.01)
 
 async def _run_stress_preset(target_url: str, preset_name: str):
+    print(f"==== [STRESS] INICIANDO PRESET: {preset_name} ALVO: {target_url} ====")
     global stress_status
     stress_status["is_running"] = True
     stress_status["target"] = target_url
@@ -60,7 +61,7 @@ async def _run_stress_preset(target_url: str, preset_name: str):
             "concurrency": 20, "duration": 30, "payload": 0, "is_post": False
         },
         "surto_notas": {
-            "name": "Surto de Notas DB (Médio)",
+            "name": "Surto de Notas DB (Medio)",
             "concurrency": 50, "duration": 45, "payload": 1024 * 50, "is_post": True # 50 KB
         },
         "acesso_constante": {
@@ -68,11 +69,11 @@ async def _run_stress_preset(target_url: str, preset_name: str):
             "concurrency": 100, "duration": 60, "payload": 1024 * 10, "is_post": True # 10 KB
         },
         "pico_matriculas": {
-            "name": "Pico de Matrículas (Pesado)",
+            "name": "Pico de Matriculas (Pesado)",
             "concurrency": 200, "duration": 60, "payload": 1024 * 500, "is_post": True # 500 KB
         },
         "ddos_extremo": {
-            "name": "Ataque Volumétrico DDoS (Extremo)",
+            "name": "Ataque Volumetrico DDoS (Extremo)",
             "concurrency": 400, "duration": 120, "payload": 1024 * 1024 * 5, "is_post": True # 5 MB
         }
     }
@@ -84,7 +85,7 @@ async def _run_stress_preset(target_url: str, preset_name: str):
     
     stress_status["duration"] = config["duration"]
     stress_status["logs"] = [
-        f"Iniciando cenário: {config['name']}...",
+        f"Iniciando cenario: {config['name']}...",
         f"Alvo: {target_url} | Requisições Paralelas: {config['concurrency']} | Duração base: {config['duration']}s",
         "Disparando carga assíncrona com httpx nativo..."
     ]
@@ -116,7 +117,8 @@ async def _run_stress_preset(target_url: str, preset_name: str):
         pass
     
     stress_status["is_running"] = False
-    stress_status["logs"].insert(0, f"Simulação de estresse '{config['name']}' concluída!")
+    stress_status["logs"].insert(0, f"Simulacao de estresse '{config['name']}' concluida!")
+    print(f"==== [STRESS] CONCLUIDO/PARADO ====")
 
 @router.get("/status")
 async def get_stress_status(current_user: dict = Depends(get_current_user)):
@@ -127,6 +129,7 @@ async def stop_stress_test(current_user: dict = Depends(get_current_user)):
     global stress_status
     if stress_status["is_running"]:
         stress_status["is_running"] = False
+        print("==== [STRESS] SINAL DE ABORTO RECEBIDO ====")
         stress_status["logs"].insert(0, "Sinal manual de aborto recebido! Cortando repasses HTTP...")
         return {"message": "Sinal de parada enviado."}
     return {"message": "Nenhum teste de estresse em execução."}
