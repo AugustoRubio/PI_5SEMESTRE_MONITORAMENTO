@@ -142,7 +142,7 @@
                         <strong id="simActionsCount" class="ms-2" style="color: #28a745;">0</strong>
                     </div>
                 </div>
-                <div id="logsContainer" class="p-3" style="height: 60vh; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9em; background-color: #0b0f19;">
+                <div id="logsContainer" class="p-3" style="height: 35vh; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9em; background-color: #0b0f19;">
                     <div class="text-info">[Ready] Aguardando início dos testes...</div>
                 </div>
             </div>
@@ -151,11 +151,6 @@
 </div>
 
 <script>
-    // Initialize tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
-    })
 
     const headers = {
         'Content-Type': 'application/json',
@@ -489,6 +484,12 @@
     // Inicializa ao carregar
     document.addEventListener('DOMContentLoaded', () => {
         startUnifiedPolling();
+        
+        // Initialize tooltips after bootstrap is loaded
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
     });
 </script>
 {% endblock %}
