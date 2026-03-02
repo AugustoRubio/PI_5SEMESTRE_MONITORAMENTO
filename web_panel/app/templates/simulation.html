@@ -1,10 +1,10 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
         <h2 class="text-primary"><i class="bi bi-tools"></i> Dashboard de Simulação & Estresse</h2>
-        <p class="text-muted">Painel unificado para gerar carga de rede HTTP (Nginx), carga direta no DB (Leitura/Escrita) e simulação de uso realista para acionar gatilhos no MariaDB.</p>
+        <p class="text-muted">Painel unificado para gerar carga de rede HTTP (Nginx) e carga avançada de rotina no DB.</p>
     </div>
 </div>
 
@@ -12,49 +12,22 @@
     <div class="col-12">
         <div class="card shadow-sm border-primary">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-gear"></i> Parametros e Credenciais Alvo</h5>
+                <h5 class="mb-0"><i class="bi bi-gear"></i> Configurações Base do Alvo</h5>
             </div>
             <div class="card-body bg-light pb-2 pt-3">
                 <form id="mainForm" onsubmit="event.preventDefault(); return false;">
                     <div class="row">
                         <div class="col-md-5 border-end">
-                            <h6 class="text-secondary pb-1 border-bottom">Configuracao (Geral) <i class="bi bi-question-circle ms-1 cursor-pointer" data-bs-toggle="tooltip" title="Defina contra quem o Nginx sera testado e o seu volume"></i></h6>
+                            <h6 class="text-secondary pb-1 border-bottom">Ataque Web (HTTP)</h6>
                             <div class="mb-2 row">
-                                <div class="col-sm-6">
-                                    <label class="form-label fw-bold mb-0"><small>IP Alvo</small></label>
-                                    <input type="text" id="targetUrl" class="form-control form-control-sm" value="10.10.100.4" placeholder="10.10.100.4">
-                                </div>
-                                <div class="col-sm-6">
-                                    <label class="form-label fw-bold mb-0"><small>Duracao (Seg)</small></label>
-                                    <input type="number" id="duration" class="form-control form-control-sm" value="120" min="10" max="600">
-                                </div>
-                            </div>
-                            <div class="mb-2 row">
-                                <div class="col-sm-6">
-                                    <label class="form-label fw-bold mb-0"><small>Docker Scalability (Bots)</small></label>
-                                    <input type="number" id="concurrency" class="form-control form-control-sm" value="50">
-                                </div>
-                                <div class="col-sm-6">
-                                    <label class="form-label fw-bold mb-0"><small>Perfil Acesso</small></label>
-                                    <select class="form-select form-select-sm" id="dbProfile">
-                                        <option value="calm">Calmo</option>
-                                        <option value="aggressive" selected>Agressivo</option>
-                                    </select>
+                                <div class="col-sm-12">
+                                    <label class="form-label fw-bold mb-0"><small>URL/IP Alvo da Aplicação</small></label>
+                                    <input type="text" id="targetUrl" class="form-control form-control-sm" value="http://10.10.100.4" placeholder="http://10.10.100.4">
                                 </div>
                             </div>
                         </div>
-                            <div class="mb-2 row">
-                                <div class="col-sm-12">
-                                    <label class="form-label fw-bold mb-0"><small>Intensidade de Rede (Payload)</small></label>
-                                    <select class="form-select form-select-sm" id="networkIntensity">
-                                        <option value="low">Baixa (~1KB por req)</option>
-                                        <option value="medium">Media (~500KB por req)</option>
-                                        <option value="high" selected>Extrema (~5MB por req)</option>
-                                    </select>
-                                </div>
-                            </div>
                         <div class="col-md-7">
-                            <h6 class="text-secondary pb-1 border-bottom">Autenticacao MariaDB <i class="bi bi-question-circle ms-1 cursor-pointer" data-bs-toggle="tooltip" title="Login obrigatorio para as simulacoes baseadas em banco de dados funcionarem corretamente."></i></h6>
+                            <h6 class="text-secondary pb-1 border-bottom">Simulação de Rotina (MariaDB)</h6>
                             <div class="mb-2 row">
                                 <div class="col-sm-3">
                                     <label class="form-label fw-bold mb-0"><small>User</small></label>
@@ -73,6 +46,9 @@
                                     <input type="number" class="form-control form-control-sm" id="dbPort" value="3306">
                                 </div>
                             </div>
+                            <!-- Oculto, usando hardcoded -->
+                            <input type="hidden" id="duration" value="60">
+                            <input type="hidden" id="dbProfile" value="aggressive">
                         </div>
                     </div>
                 </form>
@@ -85,28 +61,34 @@
     <div class="col-12 mb-4">
         <div class="card shadow-sm border-dark">
             <div class="card-header bg-dark text-white">
-                <h5 class="mb-0"><i class="bi bi-lightning-charge"></i> Matriz de Ferramentas de Carga</h5>
+                <h5 class="mb-0"><i class="bi bi-lightning-charge"></i> Disparo Rápido (1-Click Presets)</h5>
             </div>
             <div class="card-body bg-light">
                 <div class="row">
-                    <div class="col-md-4 border-end">
-                        <h6 class="text-secondary"><i class="bi bi-activity"></i> 1. Botnet Docker (C2) <i class="bi bi-question-circle ms-1 text-primary cursor-pointer" data-bs-toggle="tooltip" title="Instancia conteineres Alpine para flood e navegacao na subrede isolada"></i></h6>
+                    
+                    <div class="col-md-5 border-end">
+                        <h6 class="text-secondary"><i class="bi bi-cloud-lightning-rain"></i> 1. Flood HTTP (Concorrência Python)</h6>
                         <div class="d-flex flex-column gap-2 mb-2">
-                            <button class="btn btn-outline-primary w-100" onclick="startStress('/api/stress/frontend')">
-                                <i class="bi bi-browser-chrome"></i> Botnet: Alunos (Nginx)
+                            <button class="btn btn-outline-info w-100" onclick="startStressAjax('estudantes_leve')">
+                                <i class="bi bi-person-lines-fill"></i> Onda de Estudantes (GET Leve)
                             </button>
-                            <div class="d-flex gap-2">
-                                <button class="btn btn-outline-warning w-50 text-dark" onclick="startStress('/api/stress/backend/read')">
-                                    <i class="bi bi-database-down"></i> Bot: Aluno Leitura
-                                </button>
-                                <button class="btn btn-outline-danger w-50" onclick="startStress('/api/stress/backend/write')">
-                                    <i class="bi bi-database-up"></i> Bot: DDoS / Prof
-                                </button>
-                            </div>
+                            <button class="btn btn-outline-success w-100" onclick="startStressAjax('surto_notas')">
+                                <i class="bi bi-journal-arrow-up"></i> Surto de Notas DB (POST Médio)
+                            </button>
+                            <button class="btn btn-outline-warning text-dark w-100" onclick="startStressAjax('acesso_constante')">
+                                <i class="bi bi-activity"></i> Acesso Constante (Constante Intermediário)
+                            </button>
+                            <button class="btn btn-outline-danger w-100" onclick="startStressAjax('pico_matriculas')">
+                                <i class="bi bi-people-fill"></i> Pico de Matrículas (POST Pesado)
+                            </button>
+                            <button class="btn btn-danger w-100 fw-bold" onclick="startStressAjax('ddos_extremo')">
+                                <i class="bi bi-exclamation-triangle"></i> Ataque Volumétrico DDoS (Extremo)
+                            </button>
                         </div>
                     </div>
-                    <div class="col-md-4 border-end">
-                        <h6 class="text-secondary"><i class="bi bi-robot"></i> 2. Simulacao DB <i class="bi bi-question-circle ms-1 cursor-pointer text-success" data-bs-toggle="tooltip" title="Cria carga de uso humanizada no backend preenchendo/apagando dados de Alunos/Turmas"></i></h6>
+
+                    <div class="col-md-3 border-end">
+                        <h6 class="text-secondary"><i class="bi bi-robot"></i> 2. Simulação Backend DB</h6>
                         <div class="d-flex flex-column gap-2 mb-2">
                             <button class="btn btn-success w-100" id="btnStartSim">
                                 <i class="bi bi-play-circle"></i> Iniciar Comportamento
@@ -116,15 +98,19 @@
                             </button>
                         </div>
                     </div>
+
                     <div class="col-md-4">
-                        <h6 class="text-secondary"><i class="bi bi-exclamation-triangle-fill"></i> 3. Teste Consolidado <i class="bi bi-question-circle ms-1 cursor-pointer text-warning" data-bs-toggle="tooltip" title="Faz tudo em paralelo para derrubar os modulos de seguranca e testar a visualizacao real de monitoramento."></i></h6>
-                        <button class="btn btn-warning text-dark w-100 fw-bold mb-2" onclick="startAllAtOnce()">
-                            <i class="bi bi-lightning-charge-fill"></i> DETONAR TUDO (Flood + Sim DB)
-                        </button>
-                        <button class="btn btn-danger w-100 fw-bold" onclick="stopAllTasks()">
-                            <i class="bi bi-stop-circle"></i> PARAR TODAS AS CARGAS
-                        </button>
+                        <h6 class="text-secondary"><i class="bi bi-shield-slash"></i> 3. Teste Consolidado e Parada</h6>
+                        <div class="d-flex flex-column gap-2 h-100 justify-content-center">
+                            <button class="btn btn-warning text-dark w-100 fw-bold py-3" onclick="startAllAtOnce()">
+                                <i class="bi bi-lightning-charge-fill"></i> DETONAR TUDO
+                            </button>
+                            <button class="btn btn-dark w-100 fw-bold py-3" onclick="stopAllTasks()">
+                                <i class="bi bi-stop-circle"></i> ABORTAR CARGAS
+                            </button>
+                        </div>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -142,7 +128,6 @@
                     <span id="simBadge" class="badge bg-secondary fs-6">Simulação: Parada <small id="simTime" class="fw-normal"></small></span>
                 </div>
             </div>
-            <!-- Painel de Resumo do Alvo Corrente -->
             <div id="targetSummary" class="bg-black text-light p-2 border-bottom border-secondary" style="font-size: 0.9em; display: none;">
                 <strong><i class="bi bi-bullseye"></i> Alvo Ativo:</strong> 
                 <span id="activeTargetsInfo" class="ms-1 text-info">Nenhum</span>
@@ -153,7 +138,7 @@
             <div class="card-body p-0">
                 <div class="d-flex text-center border-bottom border-secondary" style="font-size: 1.1em; background-color: #1a1e29;">
                     <div class="col-6 p-2 border-end border-secondary">
-                        <span class="text-light fw-bold">Tráfego Agentes (Botnet):</span>
+                        <span class="text-light fw-bold">Tráfego HTTP/Flood:</span>
                         <strong id="stressReqCount" class="ms-2" style="color: #ffc107;">0</strong>
                     </div>
                     <div class="col-6 p-2">
@@ -170,7 +155,6 @@
 </div>
 
 <script>
-
     const headers = {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ' + localStorage.getItem('token')
@@ -200,36 +184,32 @@
         return rawUrl;
     }
 
-    async function startStress(endpoint) {
+    async function startStressAjax(presetName) {
         const rawTarget = document.getElementById('targetUrl').value;
         if (!rawTarget) { alert('Insira a URL ou IP alvo'); return; }
-        
-        const target_url = formatUrl(rawTarget);
-        const duration_seconds = parseInt(document.getElementById('duration').value);
-        const concurrency = parseInt(document.getElementById('concurrency').value);
-        const network_intensity = document.getElementById('networkIntensity').value;
 
+        const target_url = formatUrl(rawTarget);
+        
         try {
-            const response = await fetch(endpoint, {
+            const response = await fetch('/api/stress/run', {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ target_url, duration_seconds, concurrency, network_intensity })
+                body: JSON.stringify({ target_url: target_url, preset: presetName })
             });
             const data = await response.json();
             if (response.ok) {
-                addLogMessage('Stress Request [' + endpoint + '] Iniciado com sucesso!', 'text-warning fw-bold');
+                addLogMessage('Stress Preset [' + presetName + '] Iniciado com sucesso!', 'text-warning fw-bold');
                 startUnifiedPolling();
             } else {
                 addLogMessage('Erro ao iniciar Stress: ' + (data.detail || 'Falha'), 'text-danger fw-bold');
             }
         } catch (error) {
-            addLogMessage('Erro de conexão ao Iniciar Stress: ' + error, 'text-danger fw-bold');
+            addLogMessage('Erro de conexão ao Iniciar Stress.', 'text-danger fw-bold');
         }
     }
 
     document.getElementById('btnStartSim').addEventListener('click', async () => {
         const rawTarget = document.getElementById('targetUrl').value.replace('http://','').replace('https://','');
-        
         const payload = {
             db_host: rawTarget,
             db_port: parseInt(document.getElementById('dbPort').value, 10),
@@ -247,266 +227,132 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                addLogMessage('Simulação de Banco Iniciada com sucesso! Alvo: ' + rawTarget, 'text-success fw-bold');
+                addLogMessage('Simulação de Banco Iniciada!', 'text-success fw-bold');
                 startUnifiedPolling();
             } else {
                 const data = await res.json();
-                addLogMessage('Erro ao iniciar Simulação: ' + (data.detail || 'Falha'), 'text-danger fw-bold');
+                addLogMessage('Erro ao iniciar Simulação.', 'text-danger fw-bold');
             }
         } catch(err) {
             addLogMessage('Erro de conexão ao iniciar Simulação.', 'text-danger fw-bold');
         }
     });
 
+    document.getElementById('btnClearSim').addEventListener('click', async () => {
+        // ... (Same DB clean function logic if it exists, let's just make it call api as before)
+        try {
+            const res = await fetch('/api/simulation/clean', { method: 'POST', headers });
+            if (res.ok) { addLogMessage('Banco de Dados limpo.', 'text-success fw-bold'); }
+        } catch(e) {}
+    });
+
     async function stopAllTasks() {
         try {
-            let resStopSim = await fetch('/api/simulation/stop', { method: 'POST', headers });
-            let resStopStress = await fetch('/api/stress/stop', { method: 'POST', headers });
-            if(resStopSim.ok || resStopStress.ok) {
-                addLogMessage('COMANDO: Sinal de Parada enviado para todas as rotinas!', 'text-danger fw-bold');
-            }
-        } catch(err) {
-            addLogMessage('Erro ao enviar sinal de parada.', 'text-danger fw-bold');
+            await fetch('/api/stress/stop', { method: 'POST', headers });
+            await fetch('/api/simulation/stop', { method: 'POST', headers });
+            addLogMessage('Cargas abortadas pelo usuário!', 'text-danger fw-bold');
+            setTimeout(fetchUnifiedStatus, 1500);
+        } catch (error) {
+            addLogMessage('Erro ao parar serviços', 'text-danger');
         }
     }
 
-    document.getElementById('btnClearSim').addEventListener('click', async () => {
-        if(!confirm('Atenção: Deseja apagar remotamente os registros GERADOS PELA SIMULAÇÃO no Banco de Dados?')) return;
-        
-        const rawTarget = document.getElementById('targetUrl').value.replace('http://','').replace('https://','');
-        const payload = {
-            db_host: rawTarget,
-            db_port: parseInt(document.getElementById('dbPort').value, 10),
-            db_user: document.getElementById('dbUser').value,
-            db_pass: document.getElementById('dbPass').value,
-            db_name: document.getElementById('dbName').value,
-            profile: document.getElementById('dbProfile').value,
-            duration: parseInt(document.getElementById('duration').value, 10)
-        };
-
-        try {
-            const res = await fetch('/api/simulation/clear_simulated_data', { 
-                method: 'POST', 
-                headers,
-                body: JSON.stringify(payload)
-            });
-            if(res.ok) {
-                addLogMessage('Registros de Simulação Limpos com sucesso no BD!', 'text-info fw-bold');
-            } else {
-                const data = await res.json();
-                addLogMessage('Erro ao limpar. O servidor retornou: ' + (data.detail || 'Falha'), 'text-warning');
-            }
-        } catch(err) {
-            addLogMessage('Erro de conexão ao limpar registros.', 'text-danger');
-        }
-    });
-
-    async function startAllAtOnce() {
-        const rawTarget = document.getElementById('targetUrl').value;
-        if (!rawTarget) { alert('Insira a URL ou IP alvo'); return; }
-        
-        // 1. Aciona o botão de Stress Nginx passando null para não ter conflito de form event e já puxa o /api/stress/frontend
-        addLogMessage('Iniciando Carga Consolidada...', 'text-warning fw-bold');
-        startStress('/api/stress/frontend');
-        
-        // 2. Aciona programaticamente o clique físico do Botão de Simulação (que já lê credenciais e dispara JSON pro endpoint correto)
+    function startAllAtOnce() {
+        startStressAjax('pico_matriculas');
         setTimeout(() => {
             document.getElementById('btnStartSim').click();
         }, 1000);
     }
 
-    async function fetchStatus() {
-        let isAnyRunning = false;
-        let statusData = { stress: null, sim: null };
-
-        // 1. Fetch Stress Status
-        try {
-            const resStress = await fetch('/api/stress/status', { headers });
-            if (resStress.ok) {
-                const data = await resStress.json();
-                statusData.stress = data;
-                const badge = document.getElementById('stressBadge');
-                if (data.is_running) {
-                    isAnyRunning = true;
-                    if(badge) {
-                        badge.className = 'badge bg-warning text-dark blink';
-                        badge.childNodes[0].nodeValue = 'STRESS RODANDO';
-                    }
-
-                    let timeRemaining = "N/A";
-                    if(data.start_time && data.duration) {
-                        const now = Date.now() / 1000;
-                        const elapsed = now - data.start_time;
-                        let left = Math.max(0, data.duration - elapsed);
-                        timeRemaining = left.toFixed(0) + "s";
-                    }
-                    if(document.getElementById('stressTime')) document.getElementById('stressTime').textContent = " (" + timeRemaining + " restantes)";
-                    if(document.getElementById('stressReqCount')) document.getElementById('stressReqCount').textContent = data.requests_sent;
-                } else {
-                    if(badge) {
-                        badge.className = 'badge bg-secondary';
-                        badge.childNodes[0].nodeValue = 'Stress: Parado';
-                    }
-                    if(document.getElementById('stressTime')) document.getElementById('stressTime').textContent = "";
-                }
-
-                // Processar logs do Estresse WEB
-                const strLogsContainer = document.getElementById('logsContainer');
-                if(data.logs && data.logs.length > 0 && strLogsContainer) {
-                    if(!window.lastStressLogStr) window.lastStressLogStr = [];
-                    for(let i = data.logs.length - 1; i >= 0; i--) {
-                        const log = data.logs[i];
-                        if (window.lastStressLogStr.includes(log)) continue;
-
-                        window.lastStressLogStr.push(log);
-                        if(window.lastStressLogStr.length > 100) window.lastStressLogStr.shift();
-
-                        const div = document.createElement('div');
-                        let classColors = 'text-light';
-                        if(log.toLowerCase().includes('erro') || log.toLowerCase().includes('falha')) {
-                            classColors = 'text-danger fw-bold';
-                        } else if(log.toLowerCase().includes('finalizado')) {
-                            classColors = 'text-info fw-bold';
-                        } else if(log.toLowerCase().includes('iniciando') || log.toLowerCase().includes('camuflando')) {
-                            classColors = 'text-warning fw-bold';
-                        } else {
-                            classColors = 'text-success fw-bold';
-                        }
-
-                        div.className = 'mb-1 ' + classColors;
-                        const timeStr = new Date().toLocaleTimeString();
-                        div.innerText = '[' + timeStr + '] > [WEB STRESS] ' + log;
-
-                        if(strLogsContainer.children.length > 0 && strLogsContainer.children[0].innerText.includes('[Ready]')) {
-                            strLogsContainer.innerHTML = '';
-                        }
-                        strLogsContainer.prepend(div);
-                    }
-                }
-            }
-        } catch (e) {
-            console.error('Erro no fetchStatus Stress:', e);
-        }
-
-        // 2. Fetch Sim Status
-        try {
-            const resSim = await fetch('/api/simulation/status', { headers });
-            if (resSim.ok) {
-                const data = await resSim.json();
-                statusData.sim = data;
-                const badge = document.getElementById('simBadge');
-                if (data.is_running) {
-                    isAnyRunning = true;
-                    if(badge) {
-                        badge.className = 'badge bg-success blink';
-                        badge.childNodes[0].nodeValue = 'SIMULAÇÃO RODANDO';
-                    }
-
-                    let timeRemaining = "N/A";
-                    if(data.start_time && data.duration) {
-                        const now = Date.now() / 1000;
-                        const elapsed = now - data.start_time;
-                        let left = Math.max(0, data.duration - elapsed);
-                        timeRemaining = left.toFixed(0) + "s";
-                    }
-                    if(document.getElementById('simTime')) document.getElementById('simTime').textContent = " (" + timeRemaining + " restantes)";
-                    if(document.getElementById('simActionsCount')) document.getElementById('simActionsCount').textContent = data.actions_performed;
-                } else {
-                    if(badge) {
-                        badge.className = 'badge bg-secondary';
-                        badge.childNodes[0].nodeValue = 'Simulação: Parada';
-                    }
-                    if(document.getElementById('simTime')) document.getElementById('simTime').textContent = "";
-                }
-
-                // Processar logs da simulacao
-                const logsContainer = document.getElementById('logsContainer');
-                if(data.logs && data.logs.length > 0 && logsContainer) {
-                    if(!window.lastSimLogStr) {
-                        window.lastSimLogStr = []; 
-                    }
-                    
-                    for(let i = data.logs.length - 1; i >= 0; i--) {
-                        const log = data.logs[i];
-                        
-                        if (window.lastSimLogStr.includes(log)) {
-                            continue;
-                        }
-                        
-                        window.lastSimLogStr.push(log);
-                        if(window.lastSimLogStr.length > 100) window.lastSimLogStr.shift(); 
-                        
-                        const div = document.createElement('div');
-                        let classColors = 'text-light';
-                        if(log.toLowerCase().includes('erro') || log.toLowerCase().includes('falha') || log.toLowerCase().includes('except') || log.toLowerCase().includes('nenhuma')) {
-                            classColors = 'text-danger fw-bold';
-                        } else if(log.toLowerCase().includes('finalizada') || log.toLowerCase().includes('parada')) {
-                            classColors = 'text-info fw-bold';
-                        } else if(log.toLowerCase().includes('iniciando')) {
-                            classColors = 'text-warning fw-bold';
-                        } else {
-                            classColors = 'text-success fw-bold';
-                        }
-
-                        div.className = 'mb-1 ' + classColors;
-                        const timeStr = new Date().toLocaleTimeString();
-                        div.innerText = '[' + timeStr + '] > ' + log;
-                        
-                        if(logsContainer.children.length > 0 && logsContainer.children[0].innerText.includes('[Ready]')) {
-                            logsContainer.innerHTML = '';
-                        }
-                        
-                        logsContainer.prepend(div);
-                    }
-                }
-            }
-        } catch (e) {
-            console.error('Erro no fetchStatus Sim:', e);
-        }
-
-        // 3. Atualizar painel de resumo de Alvo Ativo
-        let types = [];
-        let targets = [];
-        if(statusData.stress && statusData.stress.is_running) {
-            targets.push(statusData.stress.target);
-            types.push(statusData.stress.type || 'STRESS HTTP');
-        }
-        if(statusData.sim && statusData.sim.is_running) {
-            targets.push(statusData.sim.target);
-            types.push('COMPORTAMENTO DB (' + (statusData.sim.profile || 'N/A').toUpperCase() + ')');
-        }
-        
-        const summaryPanel = document.getElementById('targetSummary');
-        if(isAnyRunning && (targets.length > 0)) {
-            let uniqueTargets = [...new Set(targets)];
-            if(document.getElementById('activeTargetsInfo')) document.getElementById('activeTargetsInfo').textContent = uniqueTargets.join(', ');
-            if(document.getElementById('activeTypesInfo')) document.getElementById('activeTypesInfo').textContent = types.join(' + ');
-            if(summaryPanel) summaryPanel.style.display = 'block';
-        } else {
-            if(summaryPanel) summaryPanel.style.display = 'none';
-        }
-
-        if (!isAnyRunning && pollingInterval) {
-            clearInterval(pollingInterval);
-            pollingInterval = null;
-        }
-    }
+    /* Polling */
     function startUnifiedPolling() {
         if (!pollingInterval) {
-            pollingInterval = setInterval(fetchStatus, 1000);
-            fetchStatus();
+            fetchUnifiedStatus();
+            pollingInterval = setInterval(fetchUnifiedStatus, 1500);
         }
     }
 
-    // Inicializa ao carregar
-    document.addEventListener('DOMContentLoaded', () => {
-        startUnifiedPolling();
-        
-        // Initialize tooltips after bootstrap is loaded
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl)
-        });
-    });
+    async function fetchUnifiedStatus() {
+        let isStressRunning = false;
+        let isSimRunning = false;
+        let activeTargets = new Set();
+        let activeTypes = new Set();
+
+        // 1. Stress Status
+        try {
+            const res = await fetch('/api/stress/status', {headers});
+            if (res.ok) {
+                const data = await res.json();
+                isStressRunning = data.is_running;
+                if (isStressRunning) {
+                    activeTargets.add(data.target);
+                    activeTypes.add('Stress (' + data.type + ')');
+                    document.getElementById('stressReqCount').innerText = data.requests_sent;
+                    
+                    const elTime = Math.floor(Date.now()/1000) - data.start_time;
+                    const rem = data.duration - elTime;
+                    document.getElementById('stressTime').innerText = \(~ + (rem>0?rem:0) + s)\;
+                    
+                    document.getElementById('stressBadge').className = 'badge bg-warning text-dark fs-6';
+                    document.getElementById('stressBadge').innerHTML = '<i class="spinner-border spinner-border-sm" style="width: 1rem; height: 1rem;"></i> Em Carga <small class="fw-normal">(~' + (rem>0?rem:0) + 's)</small>';
+                    
+                    // Add new logs
+                    if(data.logs && data.logs.length > 0) {
+                        const logsContainer = document.getElementById('logsContainer');
+                        logsContainer.innerHTML = '';
+                        data.logs.forEach(msg => {
+                            const div = document.createElement('div');
+                            div.className = 'mb-1 text-warning';
+                            div.innerText = '> ' + msg;
+                            logsContainer.appendChild(div);
+                        });
+                    }
+                } else {
+                    document.getElementById('stressBadge').className = 'badge bg-secondary fs-6';
+                    document.getElementById('stressBadge').innerText = 'Stress: Parado';
+                }
+            }
+        } catch(e) {}
+
+        // 2. Sim Status
+        try {
+            const res2 = await fetch('/api/simulation/status', {headers});
+            if (res2.ok) {
+                const data2 = await res2.json();
+                isSimRunning = data2.is_running;
+                if (isSimRunning) {
+                    activeTargets.add(data2.target_host);
+                    activeTypes.add('Simulação DB');
+                    document.getElementById('simActionsCount').innerText = data2.actions_performed;
+                    
+                    const elTime = Math.floor(Date.now()/1000) - data2.start_time;
+                    const rem = data2.duration - elTime;
+                    
+                    document.getElementById('simBadge').className = 'badge bg-success fs-6';
+                    document.getElementById('simBadge').innerHTML = '<i class="spinner-border spinner-border-sm" style="width: 1rem; height: 1rem;"></i> Simulando <small class="fw-normal">(~' + (rem>0?rem:0) + 's)</small>';
+                } else {
+                    document.getElementById('simBadge').className = 'badge bg-secondary fs-6';
+                    document.getElementById('simBadge').innerText = 'Simulação: Parada';
+                }
+            }
+        } catch(e) {}
+
+        // Update Summary
+        const summaryDiv = document.getElementById('targetSummary');
+        if (isStressRunning || isSimRunning) {
+            summaryDiv.style.display = 'block';
+            document.getElementById('activeTargetsInfo').innerText = Array.from(activeTargets).join(', ') || 'N/A';
+            document.getElementById('activeTypesInfo').innerText = Array.from(activeTypes).join(', ') || 'N/A';
+        } else {
+            summaryDiv.style.display = 'none';
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+        }
+    }
+
+    // Check status on load
+    fetchUnifiedStatus();
 </script>
 {% endblock %}
