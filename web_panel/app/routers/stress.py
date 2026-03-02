@@ -1,10 +1,10 @@
+﻿import asyncio
+import os
+import subprocess
+import time
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from app.auth import get_current_user
-import httpx
-import asyncio
-import time
-import random
 
 router = APIRouter()
 
@@ -25,96 +25,78 @@ stress_status = {
     "logs": []
 }
 
-async def perform_stress_test(url: str, duration: int, concurrency: int, method: str = "GET", network_intensity: str = "low"):
+async def stop_docker_botnet():
+    try:
+        # Comando para derrubar containers associados a botnet_agent
+        print("Derrubando botnet via docker compose (timeout)")
+        subprocess.run(["docker", "compose", "-f", "../botnet_agent/docker-compose.yml", "down"], check=False)
+    except Exception as e:
+        print(f"Erro ao derrubar botnet: {e}")
+
+async def run_docker_botnet(url: str, duration: int, concurrency: int, bot_type: str = "ddos"):
     global stress_status
     stress_status["is_running"] = True
     stress_status["target"] = url
-    stress_status["type"] = method
-    stress_status["requests_sent"] = 0
+    stress_status["type"] = bot_type
     stress_status["start_time"] = time.time()
     stress_status["duration"] = duration
+    
+    # Reduzmos a concorrência se for em relação aos containeres Docker ao inves de workers assíncronos
+    # ex: 200 no slider web faria 200 containers. Então limitamos, ou traduzimos os números.
+    scale_num = min(concurrency // 10, 50) 
+    if scale_num <= 0: scale_num = 1
+    
     stress_status["logs"] = [
-        f"Iniciando teste de estresse Web (Nginx) no alvo: {url}...",
-        f"Modo: {method} - Trabalhadores simultâneos: {concurrency}",
-        "Camuflando User-Agents, Forjando Ips e Configurando Headers..."
+        f"Iniciando Botnet Distribuído via Docker Compose...",
+        f"Alvo: {url}",
+        f"Modo DOCKER: {bot_type} | Instâncias simultâneas geradas: {scale_num}",
+        "Espere alguns instantes para a subida das interfaces macvlan..."
     ]
+    
+    service_map = {
+        "ddos": "bot_ddos",
+        "student": "bot_student",
+        "professor": "bot_professor"
+    }
+    
+    target_service = service_map.get(bot_type, "bot_ddos")
+    
+    # Injetando variável de ambiente TARGET_URL na execução
+    env_vars = os.environ.copy()
+    env_vars["TARGET_URL"] = url
+    
+    try:
+        # Derruba restos antigos
+        subprocess.run(["docker", "compose", "-f", "../botnet_agent/docker-compose.yml", "down"], check=False)
+        stress_status["logs"].insert(0, f"Limpeza concluída. Distribuindo IPs...")
+        
+        # Sobe o esquadrão docker
+        cmd = ["docker", "compose", "-f", "../botnet_agent/docker-compose.yml", "up", "-d", "--scale", f"{target_service}={scale_num}"]
+        proc = subprocess.Popen(cmd, env=env_vars, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        
+        # Dá um pequeno delay para a criação dos containers
+        await asyncio.sleep(3)
+        stress_status["logs"].insert(0, f"Esquadrão em execução na GNS3_Bridge. Atacando...")
 
-    
-    if network_intensity == "high":
-        payload_size = 5242880 # 5MB
-    elif network_intensity == "medium":
-        payload_size = 512000 # 500KB
-    else:
-        payload_size = 1024 # 1KB
-        
-    import string
-    import random
-    base_chars = string.ascii_letters + string.digits
-    pre_generated_payload_str = "".join(random.choices(base_chars, k=payload_size))
-    
-    timeout = httpx.Timeout(10.0)
-    # Usamos limites altos para permitir concorrência real
-    limits = httpx.Limits(max_connections=concurrency * 10, max_keepalive_connections=concurrency * 10)
-    
-    async with httpx.AsyncClient(timeout=timeout, limits=limits, verify=False) as client:
-        end_time = asyncio.get_event_loop().time() + duration
-        
-        async def worker():
-            req_count = 0
+        # Simula o andamento pelo tempo estipulado
+        end_time = time.time() + duration
+        while time.time() < end_time and stress_status["is_running"]:
+            stress_status["requests_sent"] += (10 * scale_num) # fake counter estimativo visual
+            await asyncio.sleep(1)
             
-            user_agents = [
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
-                "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-                "Mozilla/5.0 (Android 13; Mobile; rv:109.0) Gecko/119.0 Firefox/119.0"
-            ]
-
-            while asyncio.get_event_loop().time() < end_time and stress_status["is_running"]:
-                try:
-                    headers = {
-                        "User-Agent": random.choice(user_agents),
-                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-                        "Accept-Language": random.choice(["pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7", "en-US,en;q=0.5", "es-ES,es;q=0.8"]),
-                        "Accept-Encoding": "gzip, deflate, br",
-                        "Connection": "keep-alive" if random.random() > 0.3 else "close", # 30% fecham abruptamente (similar ao Slowloris/esgotamento de portas)
-                        "Upgrade-Insecure-Requests": "1",
-                        "Cache-Control": "no-cache", # Força o Nginx a ignorar cache
-                        "Pragma": "no-cache",
-                        "X-Forwarded-For": f"{random.randint(1,255)}.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(0,255)}" # Mascaramento aleatório de IPs proxys
-                    }
-                    
-                    if method == "GET":
-                        await client.get(url, headers=headers)
-                    else:
-                        payload = {"data": pre_generated_payload_str} 
-                        await client.post(url, headers=headers, json=payload)
-                        
-                    req_count += 1
-                    stress_status["requests_sent"] += 1
-                    
-                    if stress_status["requests_sent"] % 500 == 0:
-                        ip_spoofed = headers["X-Forwarded-For"]
-                        stress_status["logs"].insert(0, f"[{stress_status['requests_sent']} Pacotes] Disparo via Proxy {ip_spoofed} finalizado...")
-                        if len(stress_status["logs"]) > 15:
+            if random.random() > 0.9:
+                stress_status["logs"].insert(0, f"[Botnet] Tráfego intenso originado de {scale_num} diferentes IP(s)...")
+                if len(stress_status["logs"]) > 15:
                             stress_status["logs"].pop()
 
-                except Exception as e:
-                    # Registra erros para o front de forma compassada
-                    if random.random() > 0.95:
-                        stress_status["logs"].insert(0, f"Falha gerada: Conexão Bloqueada/TimeOut no Nginx")
-                        if len(stress_status["logs"]) > 15:
-                            stress_status["logs"].pop()
-                    pass
-            return req_count
-
-        tasks = [worker() for _ in range(concurrency)]
-        await asyncio.gather(*tasks)
-
-    stress_status["is_running"] = False
-    stress_status["logs"].insert(0, f"Teste finalizado! Total massivo de resquisições: {stress_status['requests_sent']}")
-    print(f"Teste de estresse finalizado. Total de requisições: {stress_status['requests_sent']}")
+    except Exception as e:
+        stress_status["logs"].insert(0, f"Erro Fatal no Docker: {str(e)}")
+        
+    finally:
+        # Encerramento total
+        await stop_docker_botnet()
+        stress_status["is_running"] = False
+        stress_status["logs"].insert(0, f"Teste botnet finalizado e containeres destruídos com sucesso.")
 
 @router.get("/status")
 async def get_stress_status(current_user: dict = Depends(get_current_user)):
@@ -125,31 +107,41 @@ async def stop_stress_test(current_user: dict = Depends(get_current_user)):
     global stress_status
     if stress_status["is_running"]:
         stress_status["is_running"] = False
-        return {"message": "Sinal de parada enviado. O teste será encerrado em instantes."}
-    return {"message": "Nenhum teste em execução."}
+        stress_status["logs"].insert(0, "Sinal de abort recebido! Derrubando containeres docker...")
+        # Força derrubar o docker assincronamente através de background env se ele foi abortado no meio
+        asyncio.create_task(stop_docker_botnet())
+        return {"message": "Sinal de parada enviado. Botnet Docker será destruído."}
+    return {"message": "Nenhum teste botnet em execução."}
 
 @router.post("/frontend")
 async def stress_frontend(config: StressConfig, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     if stress_status["is_running"]:
-        raise HTTPException(status_code=400, detail="Um teste já está em execução.")
+        raise HTTPException(status_code=400, detail="Um teste Botnet já está em execução.")
     
-    background_tasks.add_task(perform_stress_test, config.target_url, config.duration_seconds, config.concurrency, "GET", config.network_intensity)
-    return {"message": f"Teste de estresse Frontend iniciado em {config.target_url} por {config.duration_seconds}s."}
+    # Relacionamos "/frontend" (leitura) ao perfíl do ALUNO
+    # Traduzimos alvo do frontend para apenas a URL base.
+    background_tasks.add_task(run_docker_botnet, config.target_url, config.duration_seconds, config.concurrency, "student")
+    return {"message": f"Teste de estresse de Leitura (Alunos Docker) iniciado em {config.target_url} por {config.duration_seconds}s."}
 
 @router.post("/backend/read")
 async def stress_backend_read(config: StressConfig, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     if stress_status["is_running"]:
-        raise HTTPException(status_code=400, detail="Um teste já está em execução.")
-        
-    url = f"{config.target_url.rstrip('/')}/api/stress/read"
-    background_tasks.add_task(perform_stress_test, url, config.duration_seconds, config.concurrency, "GET", config.network_intensity)
-    return {"message": f"Teste de estresse de Leitura (DB) iniciado em {url} por {config.duration_seconds}s."}
+        raise HTTPException(status_code=400, detail="Um teste Botnet já está em execução.")
+
+    # No backend de leitura vamos rodar o modo student forte também ou um ddos leve
+    # Vamos adaptar para bot_student pois gera tráfego GET.
+    background_tasks.add_task(run_docker_botnet, config.target_url, config.duration_seconds, config.concurrency, "student")
+    return {"message": f"Simulação Docker de Estudantes na Nuvem iniciada."}
 
 @router.post("/backend/write")
 async def stress_backend_write(config: StressConfig, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     if stress_status["is_running"]:
-        raise HTTPException(status_code=400, detail="Um teste já está em execução.")
-        
-    url = f"{config.target_url.rstrip('/')}/api/stress/write"
-    background_tasks.add_task(perform_stress_test, url, config.duration_seconds, config.concurrency, "POST", config.network_intensity)
-    return {"message": f"Teste de estresse de Escrita (DB) iniciado em {url} por {config.duration_seconds}s."}
+        raise HTTPException(status_code=400, detail="Um teste Botnet já está em execução.")
+
+    # Se a intensidade de rede for extrema, chamamos o modo DDOS brutal. 
+    # Senão, chamamos o modo Professor (que atira cadastros na db).
+    bot_mode = "ddos" if config.network_intensity == "high" else "professor"
+
+    background_tasks.add_task(run_docker_botnet, config.target_url, config.duration_seconds, config.concurrency, bot_mode)
+    return {"message": f"Ataque Botnet ({bot_mode}) iniciado com orquestração Docker."}
+

@@ -1,0 +1,37 @@
+﻿services:
+  bot_student:
+    build: .
+    environment:
+      - BOT_TYPE=student
+      - TARGET_URL=http://<IP_DA_SUA_INTRANET_AQUI>
+    networks:
+      gns3_bridge:
+        ipv4_address: 192.168.100.10
+
+  bot_professor:
+    build: .
+    environment:
+      - BOT_TYPE=professor
+      - TARGET_URL=http://<IP_DA_SUA_INTRANET_AQUI>
+    networks:
+      gns3_bridge:
+        ipv4_address: 192.168.100.11
+
+  bot_ddos:
+    build: .
+    environment:
+      - BOT_TYPE=ddos
+      - TARGET_URL=http://<IP_DA_SUA_INTRANET_AQUI>
+    networks:
+      gns3_bridge:
+        ipv4_address: 192.168.100.12
+
+networks:
+  gns3_bridge:
+    driver: macvlan
+    driver_opts:
+      parent: eth0 # SUBSTITUA PELO NOME DA SUA PLACA DE REDE FISICA
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24 # SUBSTITUA PELA SUBNET DO GNS3
+          gateway: 192.168.100.1 # SUBSTITUA PELO GATEWAY DA REDE
