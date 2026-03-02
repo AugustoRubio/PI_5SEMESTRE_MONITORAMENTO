@@ -12,6 +12,7 @@ class StressConfig(BaseModel):
     target_url: str
     duration_seconds: int
     concurrency: int
+    network_intensity: str = "low"
 
 # Variável global para rastrear o status do teste
 stress_status = {
@@ -24,7 +25,7 @@ stress_status = {
     "logs": []
 }
 
-async def perform_stress_test(url: str, duration: int, concurrency: int, method: str = "GET"):
+async def perform_stress_test(url: str, duration: int, concurrency: int, method: str = "GET", network_intensity: str = "low"):
     global stress_status
     stress_status["is_running"] = True
     stress_status["target"] = url
@@ -38,6 +39,19 @@ async def perform_stress_test(url: str, duration: int, concurrency: int, method:
         "Camuflando User-Agents, Forjando Ips e Configurando Headers..."
     ]
 
+    
+    if network_intensity == "high":
+        payload_size = 5242880 # 5MB
+    elif network_intensity == "medium":
+        payload_size = 512000 # 500KB
+    else:
+        payload_size = 1024 # 1KB
+        
+    import string
+    import random
+    base_chars = string.ascii_letters + string.digits
+    pre_generated_payload_str = "".join(random.choices(base_chars, k=payload_size))
+    
     timeout = httpx.Timeout(10.0)
     # Usamos limites altos para permitir concorrência real
     limits = httpx.Limits(max_connections=concurrency * 10, max_keepalive_connections=concurrency * 10)
@@ -74,7 +88,7 @@ async def perform_stress_test(url: str, duration: int, concurrency: int, method:
                     if method == "GET":
                         await client.get(url, headers=headers)
                     else:
-                        payload = {"data": "".join(random.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=20480))} # 20KB dummy load
+                        payload = {"data": pre_generated_payload_str} 
                         await client.post(url, headers=headers, json=payload)
                         
                     req_count += 1
@@ -119,7 +133,7 @@ async def stress_frontend(config: StressConfig, background_tasks: BackgroundTask
     if stress_status["is_running"]:
         raise HTTPException(status_code=400, detail="Um teste já está em execução.")
     
-    background_tasks.add_task(perform_stress_test, config.target_url, config.duration_seconds, config.concurrency, "GET")
+    background_tasks.add_task(perform_stress_test, config.target_url, config.duration_seconds, config.concurrency, "GET", config.network_intensity)
     return {"message": f"Teste de estresse Frontend iniciado em {config.target_url} por {config.duration_seconds}s."}
 
 @router.post("/backend/read")
@@ -128,7 +142,7 @@ async def stress_backend_read(config: StressConfig, background_tasks: Background
         raise HTTPException(status_code=400, detail="Um teste já está em execução.")
         
     url = f"{config.target_url.rstrip('/')}/api/stress/read"
-    background_tasks.add_task(perform_stress_test, url, config.duration_seconds, config.concurrency, "GET")
+    background_tasks.add_task(perform_stress_test, url, config.duration_seconds, config.concurrency, "GET", config.network_intensity)
     return {"message": f"Teste de estresse de Leitura (DB) iniciado em {url} por {config.duration_seconds}s."}
 
 @router.post("/backend/write")
@@ -137,5 +151,5 @@ async def stress_backend_write(config: StressConfig, background_tasks: Backgroun
         raise HTTPException(status_code=400, detail="Um teste já está em execução.")
         
     url = f"{config.target_url.rstrip('/')}/api/stress/write"
-    background_tasks.add_task(perform_stress_test, url, config.duration_seconds, config.concurrency, "POST")
+    background_tasks.add_task(perform_stress_test, url, config.duration_seconds, config.concurrency, "POST", config.network_intensity)
     return {"message": f"Teste de estresse de Escrita (DB) iniciado em {url} por {config.duration_seconds}s."}

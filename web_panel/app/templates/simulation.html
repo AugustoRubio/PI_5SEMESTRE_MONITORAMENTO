@@ -43,6 +43,16 @@
                                 </div>
                             </div>
                         </div>
+                            <div class="mb-2 row">
+                                <div class="col-sm-12">
+                                    <label class="form-label fw-bold mb-0"><small>Intensidade de Rede (Payload)</small></label>
+                                    <select class="form-select form-select-sm" id="networkIntensity">
+                                        <option value="low">Baixa (~1KB por req)</option>
+                                        <option value="medium">Media (~500KB por req)</option>
+                                        <option value="high" selected>Extrema (~5MB por req)</option>
+                                    </select>
+                                </div>
+                            </div>
                         <div class="col-md-7">
                             <h6 class="text-secondary pb-1 border-bottom">Autenticacao MariaDB <i class="bi bi-question-circle ms-1 cursor-pointer" data-bs-toggle="tooltip" title="Login obrigatorio para as simulacoes baseadas em banco de dados funcionarem corretamente."></i></h6>
                             <div class="mb-2 row">
@@ -197,12 +207,13 @@
         const target_url = formatUrl(rawTarget);
         const duration_seconds = parseInt(document.getElementById('duration').value);
         const concurrency = parseInt(document.getElementById('concurrency').value);
+        const network_intensity = document.getElementById('networkIntensity').value;
 
         try {
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ target_url, duration_seconds, concurrency })
+                body: JSON.stringify({ target_url, duration_seconds, concurrency, network_intensity })
             });
             const data = await response.json();
             if (response.ok) {
