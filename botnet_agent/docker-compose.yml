@@ -5,7 +5,7 @@
       - BOT_TYPE=student
       - TARGET_URL=https://10.10.100.4
     networks:
-      - gns3_bridge
+      - lab_bridge
 
   bot_professor:
     build: .
@@ -13,7 +13,7 @@
       - BOT_TYPE=professor
       - TARGET_URL=https://10.10.100.4
     networks:
-      - gns3_bridge
+      - lab_bridge
 
   bot_ddos:
     build: .
@@ -21,15 +21,11 @@
       - BOT_TYPE=ddos
       - TARGET_URL=https://10.10.100.4
     networks:
-      - gns3_bridge
+      - lab_bridge
 
 networks:
-  gns3_bridge:
-    driver: macvlan
-    driver_opts:
-      parent: bond0
+  lab_bridge:
+    driver: bridge
     ipam:
       config:
-        - subnet: 10.10.250.0/29
-          gateway: 10.10.250.1
-              
+        - subnet: 192.168.100.0/24

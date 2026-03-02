@@ -43,7 +43,7 @@ async def run_docker_botnet(url: str, duration: int, concurrency: int, bot_type:
     
     # Reduzmos a concorrência se for em relação aos containeres Docker ao inves de workers assíncronos
     # ex: 200 no slider web faria 200 containers. Então limitamos, ou traduzimos os números.
-    scale_num = min(concurrency // 10, 50) 
+    scale_num = min(concurrency, 50) 
     if scale_num <= 0: scale_num = 1
     
     stress_status["logs"] = [
