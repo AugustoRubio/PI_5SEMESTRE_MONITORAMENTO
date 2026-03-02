@@ -196,24 +196,27 @@ async def login_page(request: Request, type: str = "admin"):
 @app.post("/login")
 async def login(username: str = Form(...), password: str = Form(...), login_type: str = Form(...), db: Session = Depends(get_db)):
     if login_type == 'admin':
-        admin = db.query(Admin).filter(Admin.username == username).first()
-        if admin and pwd_context.verify(password, admin.password):
+        clean_user = username.strip()
+        admin = db.query(Admin).filter(Admin.username == clean_user).first()
+        if admin and pwd_context.verify(password.strip(), admin.password):
             response = RedirectResponse(url="/admin_dashboard", status_code=302)
             response.set_cookie(key="session", value="authenticated")
             response.set_cookie(key="role", value="admin")
             response.set_cookie(key="user_id", value=str(admin.id))
             return response
     elif login_type == 'professor':
-        professor = db.query(Professor).filter(Professor.username == username).first()
-        if professor and pwd_context.verify(password, professor.password):
+        clean_user = username.strip()
+        professor = db.query(Professor).filter((Professor.username == clean_user) | (Professor.name == clean_user)).first()
+        if professor and pwd_context.verify(password.strip(), professor.password):
             response = RedirectResponse(url="/prof_dashboard", status_code=302)
             response.set_cookie(key="session", value="authenticated")
             response.set_cookie(key="role", value="professor")
             response.set_cookie(key="user_id", value=str(professor.id))
             return response
     elif login_type == 'student':
-        student = db.query(Student).filter(Student.registration == username).first()
-        if student and student.password and pwd_context.verify(password, student.password):
+        clean_user = username.strip()
+        student = db.query(Student).filter((Student.registration == clean_user) | (Student.name == clean_user)).first()
+        if student and student.password and pwd_context.verify(password.strip(), student.password):
             response = RedirectResponse(url="/student_dashboard", status_code=302)
             response.set_cookie(key="session", value="authenticated")
             response.set_cookie(key="role", value="student")
@@ -294,7 +297,7 @@ async def impersonate_student(request: Request, student_id: int, db: Session = D
         response = RedirectResponse(url="/student_dashboard", status_code=302)
         response.set_cookie(key="session", value="authenticated")
         response.set_cookie(key="role", value="student")
-        response.set_cookie(key="student_id", value=str(st.id))
+        response.set_cookie(key="user_id", value=str(st.id))
         return response
     return RedirectResponse(url="/admin_dashboard", status_code=302)
 

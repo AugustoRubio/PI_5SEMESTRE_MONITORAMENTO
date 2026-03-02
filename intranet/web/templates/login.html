@@ -102,16 +102,20 @@
                 if (urlParams.has('type')) {
                     const type = urlParams.get('type');
                     document.getElementById('login_type').value = type;
-                    
+                    const userField = document.querySelector('input[name="username"]');
+
                     if (type === 'professor') {
                         document.getElementById('panel-title').innerHTML = '<i class="fas fa-chalkboard-teacher me-2 text-primary"></i>Acesso Docente';
                         document.querySelector('.login-card').style.borderTop = '5px solid #0d6efd';
+                        if(userField) userField.placeholder = "Digite seu usuário (Ex: prof_joao)";
                     } else if (type === 'admin') {
                         document.getElementById('panel-title').innerHTML = '<i class="fas fa-cogs me-2 text-secondary"></i>Administração';
                         document.querySelector('.login-card').style.borderTop = '5px solid #6c757d';
+                        if(userField) userField.placeholder = "Digite o usuário de Admin";
                     } else if (type === 'student') {
                         document.getElementById('panel-title').innerHTML = '<i class="fas fa-user-graduate me-2 text-success"></i>Acesso Aluno';
                         document.querySelector('.login-card').style.borderTop = '5px solid #198754';
+                        if(userField) userField.placeholder = "Digite seu RA ou seu Nome";
                     }
                 }
             </script>
