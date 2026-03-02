@@ -76,9 +76,16 @@
                             <tr>
                                 <td>{{ student.id }}</td><td>{{ student.registration }}</td><td>{{ student.name }}</td>
                                 <td>
-                                    <form action="/students/delete/{{ student.id }}" method="POST" class="d-inline" onsubmit="return confirm('Remover aluno?');">
-                                        <button class="btn btn-sm btn-outline-danger p-1"><i class="fas fa-trash"></i></button>
+                                <div class="d-inline-flex gap-1">
+                                    <a href="/admin/impersonate/student/{{ student.id }}" class="btn btn-sm btn-outline-info p-1" title="Acessar como Aluno"><i class="fas fa-user-circle"></i></a>
+                                    <form action="/students/reset_password/{{ student.id }}" method="POST" class="d-inline" onsubmit="return confirm('Redefinir senha para (sim)?');">
+                                        <input type="hidden" name="new_password" value="sim">
+                                        <button class="btn btn-sm btn-outline-warning p-1" title="Resetar Senha para 'sim'"><i class="fas fa-key"></i></button>
                                     </form>
+                                    <form action="/students/delete/{{ student.id }}" method="POST" class="d-inline" onsubmit="return confirm('Remover aluno?');">
+                                        <button class="btn btn-sm btn-outline-danger p-1" title="Remover"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </div>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -115,9 +122,16 @@
                             <tr>
                                 <td>{{ prof.id }}</td><td>{{ prof.username }}</td><td>{{ prof.name }}</td><td>{{ prof.department }}</td>
                                 <td>
+                                <div class="d-inline-flex gap-1">
+                                    <a href="/admin/impersonate/professor/{{ prof.id }}" class="btn btn-sm btn-outline-info p-1" title="Acessar como Professor"><i class="fas fa-chalkboard-teacher"></i></a>
+                                    <form action="/professors/reset_password/{{ prof.id }}" method="POST" class="d-inline" onsubmit="return confirm('Redefinir senha para (sim)?');">
+                                        <input type="hidden" name="new_password" value="sim">
+                                        <button class="btn btn-sm btn-outline-warning p-1" title="Resetar Senha para 'sim'"><i class="fas fa-key"></i></button>
+                                    </form>
                                     <form action="/professors/delete/{{ prof.id }}" method="POST" class="d-inline" onsubmit="return confirm('Remover professor?');">
                                         <button class="btn btn-sm btn-outline-danger p-1"><i class="fas fa-trash"></i></button>
                                     </form>
+                                </div>
                                 </td>
                             </tr>
                             {% endfor %}

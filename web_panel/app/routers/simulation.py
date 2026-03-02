@@ -62,7 +62,7 @@ async def perform_simulation(config: SimConfig):
     end_time = time.time() + config.duration
 
     while time.time() < end_time and simulation_status["is_running"]:
-        action = random.choice(["create_student", "create_professor", "create_class", "edit", "delete"])
+        action = random.choice(["create_student", "create_professor", "create_class", "edit", "delete", "enroll_student", "add_grade", "add_attendance"])
 
         try:
             with conn.cursor() as cursor:
@@ -119,6 +119,60 @@ async def perform_simulation(config: SimConfig):
                             log_msg = f"Ignorado erro de FK ao deletar {table} ID {result['id']}"
                     else:
                         log_msg = f"Tentou deletar {table}, mas nada encontrado."
+
+                elif action == "enroll_student":
+                    cursor.execute("SELECT id FROM students WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
+                    st = cursor.fetchone()
+                    cursor.execute("SELECT id FROM classes WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
+                    cls = cursor.fetchone()
+                    if st and cls:
+                        st_id, cls_id = st['id'], cls['id']
+                        cursor.execute("SELECT * FROM student_class WHERE student_id=%s AND class_id=%s", (st_id, cls_id))
+                        if not cursor.fetchone():
+                            cursor.execute("INSERT INTO student_class (student_id, class_id) VALUES (%s, %s)", (st_id, cls_id))
+                            conn.commit()
+                            log_msg = f"Vinculou Estudante ID {st_id} à Turma ID {cls_id}"
+                        else:
+                            log_msg = "Vínculo já existente, ignorado."
+                    else:
+                        log_msg = "Tentou vincular aluno a turma, mas faltam dados."
+
+                elif action == "add_grade":
+                    cursor.execute("""
+                        SELECT sc.student_id, sc.class_id 
+                        FROM student_class sc
+                        JOIN students s ON sc.student_id = s.id 
+                        WHERE s.name LIKE %s 
+                        ORDER BY RAND() LIMIT 1
+                    """, (f"{SIM_MARKER}%",))
+                    rel = cursor.fetchone()
+                    if rel:
+                        grade_val = str(round(random.uniform(2.0, 10.0), 1))
+                        desc = random.choice(["Prova 1", "Prova 2", "Trabalho", "Seminário", "Projeto Final"])
+                        cursor.execute("INSERT INTO grades (student_id, class_id, value, description) VALUES (%s, %s, %s, %s)", 
+                                       (rel['student_id'], rel['class_id'], grade_val, desc))
+                        conn.commit()
+                        log_msg = f"Lançou nota {grade_val} para Aluno ID {rel['student_id']} (Turma {rel['class_id']})"
+                    else:
+                        log_msg = "Tentou lançar nota, mas nenhum aluno matriculado."
+
+                elif action == "add_attendance":
+                    cursor.execute("""
+                        SELECT sc.student_id, sc.class_id 
+                        FROM student_class sc
+                        JOIN students s ON sc.student_id = s.id 
+                        WHERE s.name LIKE %s 
+                        ORDER BY RAND() LIMIT 1
+                    """, (f"{SIM_MARKER}%",))
+                    rel = cursor.fetchone()
+                    if rel:
+                        date_str = f"2026-03-{random.randint(1,28):02d}"
+                        cursor.execute("INSERT INTO attendances (student_id, class_id, date, absent) VALUES (%s, %s, %s, 1)", 
+                                       (rel['student_id'], rel['class_id'], date_str))
+                        conn.commit()
+                        log_msg = f"Registrou falta para Aluno ID {rel['student_id']} (Turma {rel['class_id']})"
+                    else:
+                        log_msg = "Tentou registrar falta, mas nenhum aluno matriculado."
 
                 simulation_status["actions_performed"] += 1
                 simulation_status["logs"].insert(0, log_msg)
