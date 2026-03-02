@@ -314,6 +314,40 @@
                     badge.childNodes[0].nodeValue = 'Stress: Parado';
                     document.getElementById('stressTime').textContent = "";
                 }
+
+                // Processar logs do Estresse WEB
+                const strLogsContainer = document.getElementById('logsContainer');
+                if(data.logs && data.logs.length > 0) {
+                    if(!window.lastStressLogStr) window.lastStressLogStr = [];
+                    for(let i = data.logs.length - 1; i >= 0; i--) {
+                        const log = data.logs[i];
+                        if (window.lastStressLogStr.includes(log)) continue;
+
+                        window.lastStressLogStr.push(log);
+                        if(window.lastStressLogStr.length > 100) window.lastStressLogStr.shift();
+
+                        const div = document.createElement('div');
+                        let classColors = 'text-light';
+                        if(log.toLowerCase().includes('erro') || log.toLowerCase().includes('falha')) {
+                            classColors = 'text-danger fw-bold';
+                        } else if(log.toLowerCase().includes('finalizado')) {
+                            classColors = 'text-info fw-bold';
+                        } else if(log.toLowerCase().includes('iniciando') || log.toLowerCase().includes('camuflando')) {
+                            classColors = 'text-warning fw-bold';
+                        } else {
+                            classColors = 'text-success fw-bold';
+                        }
+
+                        div.className = 'mb-1 ' + classColors;
+                        const timeStr = new Date().toLocaleTimeString();
+                        div.innerText = '[' + timeStr + '] > [WEB STRESS] ' + log;
+
+                        if(strLogsContainer.children.length === 1 && strLogsContainer.children[0].innerText.includes('[Ready]')) {
+                            strLogsContainer.innerHTML = '';
+                        }
+                        strLogsContainer.prepend(div);
+                    }
+                }
             }
         } catch (e) {}
 
