@@ -100,6 +100,14 @@ async def perform_stress_test(url: str, duration: int, concurrency: int, method:
 
     stress_status["is_running"] = False
     stress_status["logs"].insert(0, f"Teste finalizado! Total massivo de resquisições: {stress_status['requests_sent']}")
+    print(f"Teste de estresse finalizado. Total de requisições: {stress_status['requests_sent']}")
+
+@router.get("/status")
+async def get_stress_status(current_user: dict = Depends(get_current_user)):
+    return stress_status
+
+@router.post("/stop")
+async def stop_stress_test(current_user: dict = Depends(get_current_user)):
     global stress_status
     if stress_status["is_running"]:
         stress_status["is_running"] = False
