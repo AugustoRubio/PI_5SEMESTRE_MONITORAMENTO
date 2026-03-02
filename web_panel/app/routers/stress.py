@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import os
 import time
 import httpx
@@ -13,7 +13,7 @@ class StressConfig(BaseModel):
     target_url: str
     preset: str
 
-# Variável global para rastrear o status do teste
+# VariÃ¡vel global para rastrear o status do teste
 stress_status = {
     "is_running": False,
     "target": "",
@@ -27,7 +27,7 @@ stress_status = {
 async def worker(target_url: str, stop_event: asyncio.Event, payload_size: int, is_post: bool):
     global stress_status
     
-    # Gere um payload grande com caracteres dummy se necessário
+    # Gere um payload grande com caracteres dummy se necessÃ¡rio
     payload_data = b"A" * payload_size if is_post and payload_size > 0 else None
     
     async with httpx.AsyncClient(verify=False, timeout=3.0) as client:
@@ -42,7 +42,7 @@ async def worker(target_url: str, stop_event: asyncio.Event, payload_size: int, 
                 # Ignoramos erros para evitar sobrecarga de logs durante flood e continuar atacando
                 pass
             
-            # Pequeno intervalo para não travar o event loop do próprio painel monitor
+            # Pequeno intervalo para nÃ£o travar o event loop do prÃ³prio painel monitor
             await asyncio.sleep(0.01)
 
 async def _run_stress_preset(target_url: str, preset_name: str):
@@ -58,23 +58,23 @@ async def _run_stress_preset(target_url: str, preset_name: str):
     presets = {
         "estudantes_leve": {
             "name": "Onda de Estudantes (Leve)",
-            "concurrency": 20, "duration": 30, "payload": 0, "is_post": False
+            "concurrency": 20, "duration": 300, "payload": 0, "is_post": False
         },
         "surto_notas": {
             "name": "Surto de Notas DB (Medio)",
-            "concurrency": 50, "duration": 45, "payload": 1024 * 50, "is_post": True # 50 KB
+            "concurrency": 50, "duration": 300, "payload": 1024 * 50, "is_post": True # 50 KB
         },
         "acesso_constante": {
-            "name": "Acesso Constante (Intermediário)",
-            "concurrency": 100, "duration": 60, "payload": 1024 * 10, "is_post": True # 10 KB
+            "name": "Acesso Constante (IntermediÃ¡rio)",
+            "concurrency": 100, "duration": 300, "payload": 1024 * 10, "is_post": True # 10 KB
         },
         "pico_matriculas": {
             "name": "Pico de Matriculas (Pesado)",
-            "concurrency": 200, "duration": 60, "payload": 1024 * 500, "is_post": True # 500 KB
+            "concurrency": 200, "duration": 300, "payload": 1024 * 500, "is_post": True # 500 KB
         },
         "ddos_extremo": {
             "name": "Ataque Volumetrico DDoS (Extremo)",
-            "concurrency": 400, "duration": 120, "payload": 1024 * 1024 * 5, "is_post": True # 5 MB
+            "concurrency": 400, "duration": 600, "payload": 1024 * 1024 * 5, "is_post": True # 5 MB
         }
     }
     
@@ -86,8 +86,8 @@ async def _run_stress_preset(target_url: str, preset_name: str):
     stress_status["duration"] = config["duration"]
     stress_status["logs"] = [
         f"Iniciando cenario: {config['name']}...",
-        f"Alvo: {target_url} | Requisições Paralelas: {config['concurrency']} | Duração base: {config['duration']}s",
-        "Disparando carga assíncrona com httpx nativo..."
+        f"Alvo: {target_url} | RequisiÃ§Ãµes Paralelas: {config['concurrency']} | DuraÃ§Ã£o base: {config['duration']}s",
+        "Disparando carga assÃ­ncrona com httpx nativo..."
     ]
     
     stop_event = asyncio.Event()
@@ -100,17 +100,17 @@ async def _run_stress_preset(target_url: str, preset_name: str):
     end_time = time.time() + config["duration"]
     while time.time() < end_time and stress_status["is_running"]:
         await asyncio.sleep(1)
-        # Log aleatório de andamento
+        # Log aleatÃ³rio de andamento
         if random.random() > 0.7:
             stress_status["logs"].insert(0, f"[{config['name']}] Status: {stress_status['requests_sent']} reqs disparadas.")
             if len(stress_status["logs"]) > 15:
                 stress_status["logs"].pop()
 
-    # Tempo estourou ou usuário interrompeu o teste manualmente, cancelando o envio
+    # Tempo estourou ou usuÃ¡rio interrompeu o teste manualmente, cancelando o envio
     stop_event.set()
     stress_status["logs"].insert(0, f"Aguardando cancelamento dos workers...")
     
-    # Tolerância máxima de 2 seg pro gathering
+    # TolerÃ¢ncia mÃ¡xima de 2 seg pro gathering
     try:
         await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=2.0)
     except asyncio.TimeoutError:
@@ -132,12 +132,12 @@ async def stop_stress_test(current_user: dict = Depends(get_current_user)):
         print("==== [STRESS] SINAL DE ABORTO RECEBIDO ====")
         stress_status["logs"].insert(0, "Sinal manual de aborto recebido! Cortando repasses HTTP...")
         return {"message": "Sinal de parada enviado."}
-    return {"message": "Nenhum teste de estresse em execução."}
+    return {"message": "Nenhum teste de estresse em execuÃ§Ã£o."}
 
 @router.post("/run")
 async def stress_frontend(config: StressConfig, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     if stress_status["is_running"]:
-        raise HTTPException(status_code=400, detail="Um teste de Carga já está em execução no painel.")
+        raise HTTPException(status_code=400, detail="Um teste de Carga jÃ¡ estÃ¡ em execuÃ§Ã£o no painel.")
     
     background_tasks.add_task(_run_stress_preset, config.target_url, config.preset)
     return {"message": f"Carga pre-configurada '{config.preset}' iniciada contra {config.target_url}."}
