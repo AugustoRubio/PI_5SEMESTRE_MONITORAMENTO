@@ -275,6 +275,29 @@ async def create_student(request: Request, name: str = Form(...), registration: 
         db.commit()
     return RedirectResponse(url="/admin_dashboard", status_code=302)
 
+@app.post("/students/reset_password/{student_id}")
+async def reset_student_password(request: Request, student_id: int, new_password: str = Form(...), db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login?type=admin", status_code=302)
+    st = db.query(Student).filter(Student.id == student_id).first()
+    if st:
+        st.password = pwd_context.hash(new_password)
+        db.commit()
+    return RedirectResponse(url="/admin_dashboard", status_code=302)
+
+@app.get("/admin/impersonate/student/{student_id}")
+async def impersonate_student(request: Request, student_id: int, db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login?type=admin", status_code=302)
+    st = db.query(Student).filter(Student.id == student_id).first()
+    if st:
+        response = RedirectResponse(url="/student_dashboard", status_code=302)
+        response.set_cookie(key="session", value="authenticated")
+        response.set_cookie(key="role", value="student")
+        response.set_cookie(key="student_id", value=str(st.id))
+        return response
+    return RedirectResponse(url="/admin_dashboard", status_code=302)
+
 @app.post("/students/delete/{student_id}")
 async def delete_student(request: Request, student_id: int, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
@@ -302,8 +325,32 @@ async def create_professor_web(
         new_prof = Professor(username=username, password=pwd_context.hash(password), name=name, department=department)
         db.add(new_prof)
         db.commit()
-        
+
     return RedirectResponse(url="/admin_dashboard", status_code=302)
+
+@app.post("/professors/reset_password/{prof_id}")
+async def reset_professor_password(request: Request, prof_id: int, new_password: str = Form(...), db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login?type=admin", status_code=302)
+    prof = db.query(Professor).filter(Professor.id == prof_id).first()
+    if prof:
+        prof.password = pwd_context.hash(new_password)
+        db.commit()
+    return RedirectResponse(url="/admin_dashboard", status_code=302)
+
+@app.get("/admin/impersonate/professor/{prof_id}")
+async def impersonate_professor(request: Request, prof_id: int, db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login?type=admin", status_code=302)
+    prof = db.query(Professor).filter(Professor.id == prof_id).first()
+    if prof:
+        response = RedirectResponse(url="/prof_dashboard", status_code=302)
+        response.set_cookie(key="session", value="authenticated")
+        response.set_cookie(key="role", value="professor")
+        response.set_cookie(key="user_id", value=str(prof.id))
+        return response
+    return RedirectResponse(url="/admin_dashboard", status_code=302)
+
 
 @app.post("/professors/delete/{prof_id}")
 async def delete_professor_web(request: Request, prof_id: int, db: Session = Depends(get_db)):
