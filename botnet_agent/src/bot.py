@@ -2,14 +2,18 @@
 import random
 import os
 import requests
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 def bot_routine():
     target_url = os.getenv('TARGET_URL', 'http://172.16.1.100')
     bot_type = os.getenv('BOT_TYPE', 'student') # student, professor, ou ddos
-    
+
     print(f"[*] Bot Iniciado. Tipo: {bot_type} | Alvo: {target_url}")
-    
+
     session = requests.Session()
+    session.verify = False
     session.headers.update({
         'User-Agent': f'Botnet-Agent-{random.randint(1000, 9999)} Mozilla/5.0'
     })
