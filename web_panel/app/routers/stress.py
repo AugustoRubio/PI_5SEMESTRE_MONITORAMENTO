@@ -4,6 +4,7 @@ from app.auth import get_current_user
 import httpx
 import asyncio
 import time
+import random
 
 router = APIRouter()
 
@@ -40,12 +41,36 @@ async def perform_stress_test(url: str, duration: int, concurrency: int, method:
         
         async def worker():
             req_count = 0
+            
+            user_agents = [
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+                "Mozilla/5.0 (Android 13; Mobile; rv:109.0) Gecko/119.0 Firefox/119.0"
+            ]
+
             while asyncio.get_event_loop().time() < end_time and stress_status["is_running"]:
                 try:
+                    headers = {
+                        "User-Agent": random.choice(user_agents),
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                        "Accept-Language": random.choice(["pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7", "en-US,en;q=0.5", "es-ES,es;q=0.8"]),
+                        "Accept-Encoding": "gzip, deflate, br",
+                        "Connection": "keep-alive" if random.random() > 0.3 else "close", # 30% fecham abruptamente (similar ao Slowloris/esgotamento de portas)
+                        "Upgrade-Insecure-Requests": "1",
+                        "Cache-Control": "no-cache", # Força o Nginx a ignorar cache
+                        "Pragma": "no-cache",
+                        "X-Forwarded-For": f"{random.randint(1,255)}.{random.randint(0,255)}.{random.randint(0,255)}.{random.randint(0,255)}" # Mascaramento aleatório de IPs proxys
+                    }
+                    
                     if method == "GET":
-                        await client.get(url)
+                        await client.get(url, headers=headers)
                     else:
-                        await client.post(url)
+                        payload = {"data": "".join(random.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=1024))} # 1KB dummy load
+                        await client.post(url, headers=headers, json=payload)
+                        
                     req_count += 1
                     stress_status["requests_sent"] += 1
                 except Exception:
