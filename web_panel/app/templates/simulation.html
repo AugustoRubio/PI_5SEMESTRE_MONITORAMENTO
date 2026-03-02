@@ -1,10 +1,10 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h2 class="text-primary"><i class="bi bi-tools"></i> Dashboard de Simulação & Estresse</h2>
-        <p class="text-muted">Painel unificado para gerar carga de rede HTTP (Nginx) e carga avançada de rotina no DB.</p>
+        <h2 class="text-primary"><i class="bi bi-tools"></i> Dashboard de Simula??o & Estresse</h2>
+        <p class="text-muted">Painel unificado para gerar carga de rede HTTP (Nginx) e carga avan?ada de rotina no DB.</p>
     </div>
 </div>
 
@@ -12,7 +12,7 @@
     <div class="col-12">
         <div class="card shadow-sm border-primary">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-gear"></i> Configurações Base do Alvo</h5>
+                <h5 class="mb-0"><i class="bi bi-gear"></i> Configura??es Base do Alvo</h5>
             </div>
             <div class="card-body bg-light pb-2 pt-3">
                 <form id="mainForm" onsubmit="event.preventDefault(); return false;">
@@ -21,13 +21,13 @@
                             <h6 class="text-secondary pb-1 border-bottom">Ataque Web (HTTP)</h6>
                             <div class="mb-2 row">
                                 <div class="col-sm-12">
-                                    <label class="form-label fw-bold mb-0"><small>URL/IP Alvo da Aplicação</small></label>
+                                    <label class="form-label fw-bold mb-0"><small>URL/IP Alvo da Aplica??o</small></label>
                                     <input type="text" id="targetUrl" class="form-control form-control-sm" value="http://10.10.100.4" placeholder="http://10.10.100.4">
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-7">
-                            <h6 class="text-secondary pb-1 border-bottom">Simulação de Rotina (MariaDB)</h6>
+                            <h6 class="text-secondary pb-1 border-bottom">Simula??o de Rotina (MariaDB)</h6>
                             <div class="mb-2 row">
                                 <div class="col-sm-3">
                                     <label class="form-label fw-bold mb-0"><small>User</small></label>
@@ -61,34 +61,34 @@
     <div class="col-12 mb-4">
         <div class="card shadow-sm border-dark">
             <div class="card-header bg-dark text-white">
-                <h5 class="mb-0"><i class="bi bi-lightning-charge"></i> Disparo Rápido (1-Click Presets)</h5>
+                <h5 class="mb-0"><i class="bi bi-lightning-charge"></i> Disparo R?pido (1-Click Presets)</h5>
             </div>
             <div class="card-body bg-light">
                 <div class="row">
                     
                     <div class="col-md-5 border-end">
-                        <h6 class="text-secondary"><i class="bi bi-cloud-lightning-rain"></i> 1. Flood HTTP (Concorrência Python)</h6>
+                        <h6 class="text-secondary"><i class="bi bi-cloud-lightning-rain"></i> 1. Flood HTTP (Concorr?ncia Python)</h6>
                         <div class="d-flex flex-column gap-2 mb-2">
                             <button class="btn btn-outline-info w-100" onclick="startStressAjax('estudantes_leve')">
                                 <i class="bi bi-person-lines-fill"></i> Onda de Estudantes (GET Leve)
                             </button>
                             <button class="btn btn-outline-success w-100" onclick="startStressAjax('surto_notas')">
-                                <i class="bi bi-journal-arrow-up"></i> Surto de Notas DB (POST Médio)
+                                <i class="bi bi-journal-arrow-up"></i> Surto de Notas DB (POST M?dio)
                             </button>
                             <button class="btn btn-outline-warning text-dark w-100" onclick="startStressAjax('acesso_constante')">
-                                <i class="bi bi-activity"></i> Acesso Constante (Constante Intermediário)
+                                <i class="bi bi-activity"></i> Acesso Constante (Constante Intermedi?rio)
                             </button>
                             <button class="btn btn-outline-danger w-100" onclick="startStressAjax('pico_matriculas')">
-                                <i class="bi bi-people-fill"></i> Pico de Matrículas (POST Pesado)
+                                <i class="bi bi-people-fill"></i> Pico de Matr?culas (POST Pesado)
                             </button>
                             <button class="btn btn-danger w-100 fw-bold" onclick="startStressAjax('ddos_extremo')">
-                                <i class="bi bi-exclamation-triangle"></i> Ataque Volumétrico DDoS (Extremo)
+                                <i class="bi bi-exclamation-triangle"></i> Ataque Volum?trico DDoS (Extremo)
                             </button>
                         </div>
                     </div>
 
                     <div class="col-md-3 border-end">
-                        <h6 class="text-secondary"><i class="bi bi-robot"></i> 2. Simulação Backend DB</h6>
+                        <h6 class="text-secondary"><i class="bi bi-robot"></i> 2. Simula??o Backend DB</h6>
                         <div class="d-flex flex-column gap-2 mb-2">
                             <button class="btn btn-success w-100" id="btnStartSim">
                                 <i class="bi bi-play-circle"></i> Iniciar Comportamento
@@ -125,7 +125,7 @@
                 <span><i class="bi bi-terminal"></i> Console de Monitoramento Unificado</span>
                 <div class="d-flex gap-3">
                     <span id="stressBadge" class="badge bg-secondary fs-6">Stress: Parado <small id="stressTime" class="fw-normal"></small></span>
-                    <span id="simBadge" class="badge bg-secondary fs-6">Simulação: Parada <small id="simTime" class="fw-normal"></small></span>
+                    <span id="simBadge" class="badge bg-secondary fs-6">Simula??o: Parada <small id="simTime" class="fw-normal"></small></span>
                 </div>
             </div>
             <div id="targetSummary" class="bg-black text-light p-2 border-bottom border-secondary" style="font-size: 0.9em; display: none;">
@@ -138,16 +138,16 @@
             <div class="card-body p-0">
                 <div class="d-flex text-center border-bottom border-secondary" style="font-size: 1.1em; background-color: #1a1e29;">
                     <div class="col-6 p-2 border-end border-secondary">
-                        <span class="text-light fw-bold">Tráfego HTTP/Flood:</span>
+                        <span class="text-light fw-bold">Tr?fego HTTP/Flood:</span>
                         <strong id="stressReqCount" class="ms-2" style="color: #ffc107;">0</strong>
                     </div>
                     <div class="col-6 p-2">
-                        <span class="text-light fw-bold">Ações Simulação:</span>
+                        <span class="text-light fw-bold">A??es Simula??o:</span>
                         <strong id="simActionsCount" class="ms-2" style="color: #28a745;">0</strong>
                     </div>
                 </div>
                 <div id="logsContainer" class="p-3" style="height: 35vh; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9em; background-color: #0b0f19;">
-                    <div class="text-info">[Ready] Aguardando início dos testes...</div>
+                    <div class="text-info">[Ready] Aguardando in?cio dos testes...</div>
                 </div>
             </div>
         </div>
@@ -204,7 +204,7 @@
                 addLogMessage('Erro ao iniciar Stress: ' + (data.detail || 'Falha'), 'text-danger fw-bold');
             }
         } catch (error) {
-            addLogMessage('Erro de conexão ao Iniciar Stress.', 'text-danger fw-bold');
+            addLogMessage('Erro de conex?o ao Iniciar Stress.', 'text-danger fw-bold');
         }
     }
 
@@ -227,14 +227,14 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                addLogMessage('Simulação de Banco Iniciada!', 'text-success fw-bold');
+                addLogMessage('Simula??o de Banco Iniciada!', 'text-success fw-bold');
                 startUnifiedPolling();
             } else {
                 const data = await res.json();
-                addLogMessage('Erro ao iniciar Simulação.', 'text-danger fw-bold');
+                addLogMessage('Erro ao iniciar Simula??o.', 'text-danger fw-bold');
             }
         } catch(err) {
-            addLogMessage('Erro de conexão ao iniciar Simulação.', 'text-danger fw-bold');
+            addLogMessage('Erro de conex?o ao iniciar Simula??o.', 'text-danger fw-bold');
         }
     });
 
@@ -250,10 +250,10 @@
         try {
             await fetch('/api/stress/stop', { method: 'POST', headers });
             await fetch('/api/simulation/stop', { method: 'POST', headers });
-            addLogMessage('Cargas abortadas pelo usuário!', 'text-danger fw-bold');
+            addLogMessage('Cargas abortadas pelo usu?rio!', 'text-danger fw-bold');
             setTimeout(fetchUnifiedStatus, 1500);
         } catch (error) {
-            addLogMessage('Erro ao parar serviços', 'text-danger');
+            addLogMessage('Erro ao parar servi?os', 'text-danger');
         }
     }
 
@@ -291,8 +291,8 @@
                     activeTypes.add('Stress (' + data.type + ')');
                     document.getElementById('stressReqCount').innerText = data.requests_sent;
                     
-                    const elTime = Math.floor(Date.now()/1000) - Math.floor(data.start_time);
-                    const rem = Math.max(0, Math.floor(data.duration - elTime));
+                    let elTime = Math.floor(Date.now()/1000) - Math.floor(data.start_time);
+                    let rem = Math.max(0, Math.floor(data.duration - elTime));
                     document.getElementById('stressTime').innerText = "(~" + rem + "s)";
                     
                     document.getElementById('stressBadge').className = 'badge bg-warning text-dark fs-6';
@@ -316,11 +316,11 @@
                 isSimRunning = data2.is_running;
                 if (isSimRunning) {
                     activeTargets.add(data2.target_host);
-                    activeTypes.add('Simulação DB');
+                    activeTypes.add('Simula??o DB');
                     document.getElementById('simActionsCount').innerText = data2.actions_performed;
                     
-                    const elTime = Math.floor(Date.now()/1000) - Math.floor(data2.start_time);
-                    const rem = Math.max(0, Math.floor(data2.duration - elTime));
+                    let elTime = Math.floor(Date.now()/1000) - Math.floor(data2.start_time);
+                    let rem = Math.max(0, Math.floor(data2.duration - elTime));
                     
                     document.getElementById('simBadge').className = 'badge bg-success fs-6';
                     document.getElementById('simBadge').innerHTML = '<i class="spinner-border spinner-border-sm" style="width: 1rem; height: 1rem;"></i> Simulando <small class="fw-normal">(~' + rem + 's)</small>';
@@ -330,7 +330,7 @@
                     }
                 } else {
                     document.getElementById('simBadge').className = 'badge bg-secondary fs-6';
-                    document.getElementById('simBadge').innerText = 'Simulação: Parada';
+                    document.getElementById('simBadge').innerText = 'Simula??o: Parada';
                 }
             }
         } catch(e) {}
