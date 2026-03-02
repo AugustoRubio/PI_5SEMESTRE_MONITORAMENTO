@@ -3,8 +3,8 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h2 class="text-primary"><i class="bi bi-tools"></i> Dashboard de Simula??o & Estresse</h2>
-        <p class="text-muted">Painel unificado para gerar carga de rede HTTP (Nginx) e carga avan?ada de rotina no DB.</p>
+        <h2 class="text-primary"><i class="bi bi-tools"></i> Dashboard de Simulação & Estresse</h2>
+        <p class="text-muted">Painel unificado para gerar carga de rede HTTP (Nginx) e carga avançada de rotina no DB.</p>
     </div>
 </div>
 
@@ -12,7 +12,7 @@
     <div class="col-12">
         <div class="card shadow-sm border-primary">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-gear"></i> Configura??es Base do Alvo</h5>
+                <h5 class="mb-0"><i class="bi bi-gear"></i> Configurações Base do Alvo</h5>
             </div>
             <div class="card-body bg-light pb-2 pt-3">
                 <form id="mainForm" onsubmit="event.preventDefault(); return false;">
@@ -21,13 +21,13 @@
                             <h6 class="text-secondary pb-1 border-bottom">Ataque Web (HTTP)</h6>
                             <div class="mb-2 row">
                                 <div class="col-sm-12">
-                                    <label class="form-label fw-bold mb-0"><small>URL/IP Alvo da Aplica??o</small></label>
+                                    <label class="form-label fw-bold mb-0"><small>URL/IP Alvo da Aplicação</small></label>
                                     <input type="text" id="targetUrl" class="form-control form-control-sm" value="http://10.10.100.4" placeholder="http://10.10.100.4">
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-7">
-                            <h6 class="text-secondary pb-1 border-bottom">Simula??o de Rotina (MariaDB)</h6>
+                            <h6 class="text-secondary pb-1 border-bottom">Simulação de Rotina (MariaDB)</h6>
                             <div class="mb-2 row">
                                 <div class="col-sm-3">
                                     <label class="form-label fw-bold mb-0"><small>User</small></label>
@@ -88,7 +88,7 @@
                     </div>
 
                     <div class="col-md-3 border-end">
-                        <h6 class="text-secondary"><i class="bi bi-robot"></i> 2. Simula??o Backend DB</h6>
+                        <h6 class="text-secondary"><i class="bi bi-robot"></i> 2. Simulação Backend DB</h6>
                         <div class="d-flex flex-column gap-2 mb-2">
                             <button class="btn btn-success w-100" id="btnStartSim">
                                 <i class="bi bi-play-circle"></i> Iniciar Comportamento
@@ -125,7 +125,7 @@
                 <span><i class="bi bi-terminal"></i> Console de Monitoramento Unificado</span>
                 <div class="d-flex gap-3">
                     <span id="stressBadge" class="badge bg-secondary fs-6">Stress: Parado <small id="stressTime" class="fw-normal"></small></span>
-                    <span id="simBadge" class="badge bg-secondary fs-6">Simula??o: Parada <small id="simTime" class="fw-normal"></small></span>
+                    <span id="simBadge" class="badge bg-secondary fs-6">Simulação: Parada <small id="simTime" class="fw-normal"></small></span>
                 </div>
             </div>
             <div id="targetSummary" class="bg-black text-light p-2 border-bottom border-secondary" style="font-size: 0.9em; display: none;">
@@ -138,11 +138,11 @@
             <div class="card-body p-0">
                 <div class="d-flex text-center border-bottom border-secondary" style="font-size: 1.1em; background-color: #1a1e29;">
                     <div class="col-6 p-2 border-end border-secondary">
-                        <span class="text-light fw-bold">Tr?fego HTTP/Flood:</span>
+                        <span class="text-light fw-bold">Tráfego HTTP/Flood:</span>
                         <strong id="stressReqCount" class="ms-2" style="color: #ffc107;">0</strong>
                     </div>
                     <div class="col-6 p-2">
-                        <span class="text-light fw-bold">A??es Simula??o:</span>
+                        <span class="text-light fw-bold">A??es Simulação:</span>
                         <strong id="simActionsCount" class="ms-2" style="color: #28a745;">0</strong>
                     </div>
                 </div>
@@ -227,14 +227,14 @@
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                addLogMessage('Simula??o de Banco Iniciada!', 'text-success fw-bold');
+                addLogMessage('Simulação de Banco Iniciada!', 'text-success fw-bold');
                 startUnifiedPolling();
             } else {
                 const data = await res.json();
-                addLogMessage('Erro ao iniciar Simula??o.', 'text-danger fw-bold');
+                addLogMessage('Erro ao iniciar Simulação.', 'text-danger fw-bold');
             }
         } catch(err) {
-            addLogMessage('Erro de conex?o ao iniciar Simula??o.', 'text-danger fw-bold');
+            addLogMessage('Erro de conex?o ao iniciar Simulação.', 'text-danger fw-bold');
         }
     });
 
@@ -316,7 +316,7 @@
                 isSimRunning = data2.is_running;
                 if (isSimRunning) {
                     activeTargets.add(data2.target_host);
-                    activeTypes.add('Simula??o DB');
+                    activeTypes.add('Simulação DB');
                     document.getElementById('simActionsCount').innerText = data2.actions_performed;
                     
                     let elTime = Math.floor(Date.now()/1000) - Math.floor(data2.start_time);
@@ -330,7 +330,7 @@
                     }
                 } else {
                     document.getElementById('simBadge').className = 'badge bg-secondary fs-6';
-                    document.getElementById('simBadge').innerText = 'Simula??o: Parada';
+                    document.getElementById('simBadge').innerText = 'Simulação: Parada';
                 }
             }
         } catch(e) {}
