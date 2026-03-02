@@ -61,28 +61,28 @@
     <div class="col-12 mb-4">
         <div class="card shadow-sm border-dark">
             <div class="card-header bg-dark text-white">
-                <h5 class="mb-0"><i class="bi bi-lightning-charge"></i> Disparo R?pido (1-Click Presets)</h5>
+                <h5 class="mb-0"><i class="bi bi-lightning-charge"></i> Disparo Rápido (1-Click Presets)</h5>
             </div>
             <div class="card-body bg-light">
                 <div class="row">
                     
                     <div class="col-md-5 border-end">
-                        <h6 class="text-secondary"><i class="bi bi-cloud-lightning-rain"></i> 1. Flood HTTP (Concorr?ncia Python)</h6>
+                        <h6 class="text-secondary"><i class="bi bi-cloud-lightning-rain"></i> 1. Flood HTTP (Concorrência Python)</h6>
                         <div class="d-flex flex-column gap-2 mb-2">
                             <button class="btn btn-outline-info w-100" onclick="startStressAjax('estudantes_leve')">
                                 <i class="bi bi-person-lines-fill"></i> Onda de Estudantes (GET Leve)
                             </button>
                             <button class="btn btn-outline-success w-100" onclick="startStressAjax('surto_notas')">
-                                <i class="bi bi-journal-arrow-up"></i> Surto de Notas DB (POST M?dio)
+                                <i class="bi bi-journal-arrow-up"></i> Surto de Notas DB (POST Médio)
                             </button>
                             <button class="btn btn-outline-warning text-dark w-100" onclick="startStressAjax('acesso_constante')">
-                                <i class="bi bi-activity"></i> Acesso Constante (Constante Intermedi?rio)
+                                <i class="bi bi-activity"></i> Acesso Constante (Constante Intermediário)
                             </button>
                             <button class="btn btn-outline-danger w-100" onclick="startStressAjax('pico_matriculas')">
-                                <i class="bi bi-people-fill"></i> Pico de Matr?culas (POST Pesado)
+                                <i class="bi bi-people-fill"></i> Pico de Matrículas (POST Pesado)
                             </button>
                             <button class="btn btn-danger w-100 fw-bold" onclick="startStressAjax('ddos_extremo')">
-                                <i class="bi bi-exclamation-triangle"></i> Ataque Volum?trico DDoS (Extremo)
+                                <i class="bi bi-exclamation-triangle"></i> Ataque Volumétrico DDoS (Extremo)
                             </button>
                         </div>
                     </div>
@@ -142,12 +142,12 @@
                         <strong id="stressReqCount" class="ms-2" style="color: #ffc107;">0</strong>
                     </div>
                     <div class="col-6 p-2">
-                        <span class="text-light fw-bold">A??es Simulação:</span>
+                        <span class="text-light fw-bold">Ações Simulação:</span>
                         <strong id="simActionsCount" class="ms-2" style="color: #28a745;">0</strong>
                     </div>
                 </div>
                 <div id="logsContainer" class="p-3" style="height: 35vh; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9em; background-color: #0b0f19;">
-                    <div class="text-info">[Ready] Aguardando in?cio dos testes...</div>
+                    <div class="text-info">[Ready] Aguardando início dos testes...</div>
                 </div>
             </div>
         </div>
@@ -204,7 +204,7 @@
                 addLogMessage('Erro ao iniciar Stress: ' + (data.detail || 'Falha'), 'text-danger fw-bold');
             }
         } catch (error) {
-            addLogMessage('Erro de conex?o ao Iniciar Stress.', 'text-danger fw-bold');
+            addLogMessage('Erro de conexão ao Iniciar Stress.', 'text-danger fw-bold');
         }
     }
 
@@ -234,7 +234,7 @@
                 addLogMessage('Erro ao iniciar Simulação.', 'text-danger fw-bold');
             }
         } catch(err) {
-            addLogMessage('Erro de conex?o ao iniciar Simulação.', 'text-danger fw-bold');
+            addLogMessage('Erro de conexão ao iniciar Simulação.', 'text-danger fw-bold');
         }
     });
 
@@ -250,10 +250,10 @@
         try {
             await fetch('/api/stress/stop', { method: 'POST', headers });
             await fetch('/api/simulation/stop', { method: 'POST', headers });
-            addLogMessage('Cargas abortadas pelo usu?rio!', 'text-danger fw-bold');
+            addLogMessage('Cargas abortadas pelo usuário!', 'text-danger fw-bold');
             setTimeout(fetchUnifiedStatus, 1500);
         } catch (error) {
-            addLogMessage('Erro ao parar servi?os', 'text-danger');
+            addLogMessage('Erro ao parar serviços', 'text-danger');
         }
     }
 
