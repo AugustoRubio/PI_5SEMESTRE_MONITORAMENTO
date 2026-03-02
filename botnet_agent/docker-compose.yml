@@ -5,8 +5,7 @@
       - BOT_TYPE=student
       - TARGET_URL=https://10.10.100.4
     networks:
-      gns3_bridge:
-        ipv4_address: 10.10.250.4
+      - gns3_bridge
 
   bot_professor:
     build: .
@@ -14,8 +13,7 @@
       - BOT_TYPE=professor
       - TARGET_URL=https://10.10.100.4
     networks:
-      gns3_bridge:
-        ipv4_address: 10.10.250.5
+      - gns3_bridge
 
   bot_ddos:
     build: .
@@ -23,8 +21,7 @@
       - BOT_TYPE=ddos
       - TARGET_URL=https://10.10.100.4
     networks:
-      gns3_bridge:
-        ipv4_address: 10.10.250.6
+      - gns3_bridge
 
 networks:
   gns3_bridge:
