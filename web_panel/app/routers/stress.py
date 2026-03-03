@@ -29,9 +29,9 @@ DOCKER_COMPOSE_PATH = os.path.join(BASE_DIR, "botnet_agent", "docker-compose.yml
 async def stop_docker_botnet():
     try:
         print("Derrubando botnet via docker compose...")
-        cmd_down = ["docker", "compose", "-f", DOCKER_COMPOSE_PATH, "down"]
-        proc = await asyncio.create_subprocess_exec(
-            *cmd_down,
+        cmd_down = f'docker compose -f "{DOCKER_COMPOSE_PATH}" down'
+        proc = await asyncio.create_subprocess_shell(
+            cmd_down,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
@@ -90,10 +90,10 @@ async def _run_stress_preset(target_url: str, preset_name: str):
     try:
         await stop_docker_botnet()
 
-        cmd_up = ["docker", "compose", "-f", DOCKER_COMPOSE_PATH, "up", "--build", "-d", "--scale", f"{config['service']}={config['scale']}"]
+        cmd_up = f'docker compose -f "{DOCKER_COMPOSE_PATH}" up --build -d --scale {config["service"]}={config["scale"]}'
         
-        proc = await asyncio.create_subprocess_exec(
-            *cmd_up,
+        proc = await asyncio.create_subprocess_shell(
+            cmd_up,
             env=env_vars,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
