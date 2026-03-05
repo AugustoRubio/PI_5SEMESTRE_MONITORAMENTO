@@ -181,7 +181,7 @@
             // Se houver conteúdo de log, cria e anexa o bloco <pre>
             if (logContent) {
                 const pre = document.createElement('pre');
-                pre.className = 'bg-dark border border-secondary rounded p-2 mt-1 mb-1';
+                pre.className = 'bg-dark text-white border border-secondary rounded p-2 mt-1 mb-1';
                 pre.style.cssText = 'font-size: 0.8em; white-space: pre-wrap; max-height: 200px; overflow-y: auto;';
                 pre.textContent = logContent;
                 newEntry.appendChild(pre);
@@ -215,7 +215,7 @@
             if (response.ok) {
                 addLogMessage(data.message, 'text-success fw-bold');
                 if (data.log) {
-                    addLogMessage('Logs detalhados da inicialização do Docker:', 'text-muted', data.log);
+                    addLogMessage('Logs detalhados da inicialização do Docker:', 'text-info', data.log);
                 }
                 startUnifiedPolling();
             } else {
@@ -285,7 +285,7 @@
             if (stressStopResponse.ok) {
                 addLogMessage(stressStopData.message, 'text-danger fw-bold');
                 if (stressStopData.log) {
-                    addLogMessage('Logs detalhados da parada do Docker:', 'text-muted', stressStopData.log);
+                    addLogMessage('Logs detalhados da parada do Docker:', 'text-info', stressStopData.log);
                 }
             } else {
                 addLogMessage('Erro ao parar o stress: ' + (stressStopData.detail || 'Falha'), 'text-danger fw-bold');
