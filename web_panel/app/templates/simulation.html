@@ -162,18 +162,31 @@
 
     let pollingInterval = null;
 
-    function addLogMessage(msg, typeClass) {
+    function addLogMessage(msg, typeClass, logContent = null) {
         const logsContainer = document.getElementById('logsContainer');
         if (logsContainer) {
-            if(logsContainer.children.length === 1 && logsContainer.children[0].innerText.includes('[Ready]')) {
+            // Limpa a mensagem inicial de "Ready" se for o primeiro log
+            if (logsContainer.children.length === 1 && logsContainer.children[0].innerText.includes('[Ready]')) {
                 logsContainer.innerHTML = '';
             }
-            const div = document.createElement('div');
-            div.className = 'mb-1 ' + typeClass;
             const timeStr = new Date().toLocaleTimeString();
-            let templateStr = '[' + timeStr + '] > ' + msg;
-            div.innerText = templateStr;
-            logsContainer.prepend(div);
+            const newEntry = document.createElement('div');
+            
+            // Adiciona a mensagem principal (ex: "Iniciando Docker...")
+            const msgSpan = document.createElement('span');
+            msgSpan.className = 'd-block ' + typeClass;
+            msgSpan.innerText = `[${timeStr}] > ${msg}`;
+            newEntry.appendChild(msgSpan);
+
+            // Se houver conteúdo de log, cria e anexa o bloco <pre>
+            if (logContent) {
+                const pre = document.createElement('pre');
+                pre.className = 'bg-dark border border-secondary rounded p-2 mt-1 mb-1';
+                pre.style.cssText = 'font-size: 0.8em; white-space: pre-wrap; max-height: 200px; overflow-y: auto;';
+                pre.textContent = logContent;
+                newEntry.appendChild(pre);
+            }
+            logsContainer.prepend(newEntry);
         }
     }
 
@@ -191,20 +204,34 @@
         const target_url = formatUrl(rawTarget);
         
         try {
+            addLogMessage(`Enviando requisição para iniciar preset [${presetName}]...`, 'text-info');
             const response = await fetch('/api/stress/run', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({ target_url: target_url, preset: presetName })
             });
             const data = await response.json();
+
             if (response.ok) {
-                addLogMessage('Stress Preset [' + presetName + '] Iniciado com sucesso!', 'text-warning fw-bold');
+                addLogMessage(data.message, 'text-success fw-bold');
+                if (data.log) {
+                    addLogMessage('Logs detalhados da inicialização do Docker:', 'text-muted', data.log);
+                }
                 startUnifiedPolling();
             } else {
-                addLogMessage('Erro ao iniciar Stress: ' + (data.detail || 'Falha'), 'text-danger fw-bold');
+                let errorDetail = data.detail || 'Falha desconhecida';
+                if (typeof data.detail === 'object' && data.detail.message) {
+                    errorDetail = data.detail.message;
+                }
+                addLogMessage('Erro ao iniciar Stress: ' + errorDetail, 'text-danger fw-bold');
+
+                if (data.detail && data.detail.log) {
+                    addLogMessage('Logs de erro do Docker:', 'text-danger', data.detail.log);
+                }
             }
         } catch (error) {
-            addLogMessage('Erro de conexão ao Iniciar Stress.', 'text-danger fw-bold');
+            addLogMessage('Erro de conexão ao Iniciar Stress. O backend pode estar offline ou sobrecarregado.', 'text-danger fw-bold');
+            console.error(error);
         }
     }
 
@@ -248,12 +275,27 @@
 
     async function stopAllTasks() {
         try {
-            await fetch('/api/stress/stop', { method: 'POST', headers });
+            // Para a simulação de DB primeiro
             await fetch('/api/simulation/stop', { method: 'POST', headers });
-            addLogMessage('Cargas abortadas pelo usuário!', 'text-danger fw-bold');
+            
+            // Para o stress e obtém os logs de parada
+            const stressStopResponse = await fetch('/api/stress/stop', { method: 'POST', headers });
+            const stressStopData = await stressStopResponse.json();
+
+            if (stressStopResponse.ok) {
+                addLogMessage(stressStopData.message, 'text-danger fw-bold');
+                if (stressStopData.log) {
+                    addLogMessage('Logs detalhados da parada do Docker:', 'text-muted', stressStopData.log);
+                }
+            } else {
+                addLogMessage('Erro ao parar o stress: ' + (stressStopData.detail || 'Falha'), 'text-danger fw-bold');
+            }
+            
+            // Força a atualização do status após um breve delay para dar tempo ao backend de processar
             setTimeout(fetchUnifiedStatus, 1500);
+
         } catch (error) {
-            addLogMessage('Erro ao parar serviços', 'text-danger');
+            addLogMessage('Erro de conexão ao parar os serviços.', 'text-danger fw-bold');
         }
     }
 
