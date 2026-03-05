@@ -32,7 +32,14 @@ DOCKER_COMPOSE_PATH = os.path.join(BASE_DIR, "botnet_agent", "docker-compose.yml
 
 # Use o caminho do executável do docker-compose se definido, caso contrário, use o comando padrão
 
-DOCKER_COMPOSE_EXEC = os.getenv("DOCKER_COMPOSE_EXECUTABLE", "docker compose")
+# Tenta detectar o executável do docker compose automaticamente se não estiver no env
+DOCKER_COMPOSE_EXEC = os.getenv("DOCKER_COMPOSE_EXECUTABLE")
+
+if not DOCKER_COMPOSE_EXEC:
+    # No Windows/Linux modernos, 'docker compose' é o padrão (v2)
+    # Mas em alguns ambientes linux antigos ou instalações específicas, 'docker-compose' (v1) é o comando
+    # O erro "/bin/sh: 1: docker compose: not found" sugere que o shell não reconhece o comando composto
+    DOCKER_COMPOSE_EXEC = "docker compose"
 
 
 
@@ -84,62 +91,62 @@ presets = {
 
 
 
+async def run_docker_command(args: str, env=None):
+    """Executa um comando docker compose tentando v2 e v1 como fallback."""
+    global DOCKER_COMPOSE_EXEC
+    
+    # Lista de comandos para tentar se o principal falhar
+    commands_to_try = [DOCKER_COMPOSE_EXEC, "docker-compose", "/usr/local/bin/docker-compose"]
+    
+    last_error = ""
+    for cmd in commands_to_try:
+        try:
+            full_cmd = f'{cmd} -f "{DOCKER_COMPOSE_PATH}" {args}'
+            # No Windows, shell=True usa cmd.exe. No Linux usa /bin/sh
+            proc = await asyncio.create_subprocess_shell(
+                full_cmd,
+                env=env,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            
+            # Se o erro for "not found", tentamos o próximo
+            err_msg = stderr.decode('utf-8', errors='ignore')
+            if proc.returncode != 0 and ("not found" in err_msg or "not recognized" in err_msg):
+                last_error = err_msg
+                continue
+                
+            # Se chegamos aqui, o comando ao menos foi encontrado
+            if cmd != DOCKER_COMPOSE_EXEC:
+                print(f"[*] Ajustando DOCKER_COMPOSE_EXEC para: {cmd}")
+                DOCKER_COMPOSE_EXEC = cmd # Cache do comando que funcionou
+                
+            return proc.returncode, stdout.decode('utf-8', errors='ignore'), err_msg
+        except Exception as e:
+            last_error = str(e)
+            continue
+            
+    return 1, "", f"Erro: Nenhum executável docker compose encontrado. Último erro: {last_error}"
+
 async def stop_docker_botnet():
-
     """Tenta derrubar a botnet e retorna a saída do processo."""
-
     output_logs = []
-
     try:
-
-        print("Derrubando botnet via docker compose...")
-
-        cmd_down = f'"{DOCKER_COMPOSE_EXEC}" -f "{DOCKER_COMPOSE_PATH}" down'
-
-        proc = await asyncio.create_subprocess_shell(
-
-            cmd_down,
-
-            stdout=asyncio.subprocess.PIPE,
-
-            stderr=asyncio.subprocess.PIPE
-
-        )
-
-        stdout, stderr = await proc.communicate()
-
+        print("Derrubando botnet...")
+        returncode, stdout, stderr = await run_docker_command("down")
         
-
-        if stdout:
-
-            output_logs.append(stdout.decode('utf-8', errors='ignore'))
-
-        if stderr:
-
-            output_logs.append(stderr.decode('utf-8', errors='ignore'))
-
+        if stdout: output_logs.append(stdout)
+        if stderr: output_logs.append(stderr)
         
-
-        if proc.returncode == 0:
-
+        if returncode == 0:
             print("Botnet derrubada com sucesso.")
-
         else:
-
-            print(f"Erro ao derrubar botnet, código de saída: {proc.returncode}")
-
-
+            print(f"Erro ao derrubar botnet, código: {returncode}")
 
     except Exception as e:
-
-        error_msg = f"Exceção ao derrubar botnet: {e}"
-
-        print(error_msg)
-
-        output_logs.append(error_msg)
-
+        output_logs.append(f"Exceção ao derrubar: {e}")
     
-
     return "\n".join(output_logs)
 
 
@@ -163,18 +170,12 @@ async def _monitor_and_shutdown_task(preset_name: str, duration: int):
             if current_time - last_log_check > 10:
                 last_log_check = current_time
                 try:
-                    # Verifica quantos containers estão realmente UP
-                    cmd_ps = f'"{DOCKER_COMPOSE_EXEC}" -f "{DOCKER_COMPOSE_PATH}" ps --format json'
-                    proc_ps = await asyncio.create_subprocess_shell(cmd_ps, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-                    stdout_ps, _ = await proc_ps.communicate()
-                    
-                    # Tenta pegar as últimas 2 linhas de logs dos bots para mostrar atividade real
-                    cmd_logs = f'"{DOCKER_COMPOSE_EXEC}" -f "{DOCKER_COMPOSE_PATH}" logs --tail=2 {config["service"]}'
-                    proc_logs = await asyncio.create_subprocess_shell(cmd_logs, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-                    stdout_logs, _ = await proc_logs.communicate()
+                    # Verifica status e logs usando o novo sistema robusto
+                    rc_ps, stdout_ps, _ = await run_docker_command("ps --format json")
+                    rc_logs, stdout_logs, _ = await run_docker_command(f"logs --tail=2 {config['service']}")
                     
                     if stdout_logs:
-                        real_logs = stdout_logs.decode('utf-8', errors='ignore').strip().split('\n')
+                        real_logs = stdout_logs.strip().split('\n')
                         for line in real_logs:
                             if line:
                                 stress_status["logs"].insert(0, f"[DOCKER] {line}")
@@ -281,51 +282,18 @@ async def stress_frontend(config: StressConfig, background_tasks: BackgroundTask
     
 
     env_vars = os.environ.copy()
-
     env_vars["TARGET_URL"] = config.target_url
 
-
-
-    cmd_up = f'"{DOCKER_COMPOSE_EXEC}" -f "{DOCKER_COMPOSE_PATH}" up --build -d --scale {preset_config["service"]}={preset_config["scale"]}'
-
+    # Inicia os containers com o comando robusto
+    args_up = f"up --build -d --scale {preset_config['service']}={preset_config['scale']}"
+    returncode, stdout_up, stderr_up = await run_docker_command(args_up, env=env_vars)
     
+    startup_log = f"{stdout_up}\n{stderr_up}"
 
-    proc_up = await asyncio.create_subprocess_shell(
-
-        cmd_up,
-
-        env=env_vars,
-
-        stdout=asyncio.subprocess.PIPE,
-
-        stderr=asyncio.subprocess.PIPE
-
-    )
-
-    stdout_up, stderr_up = await proc_up.communicate()
-
-    
-
-    startup_log = ""
-
-    if stdout_up:
-
-        startup_log += stdout_up.decode('utf-8', errors='ignore') + "\n"
-
-    if stderr_up:
-
-        startup_log += stderr_up.decode('utf-8', errors='ignore')
-
-
-
-    if proc_up.returncode != 0:
-
+    if returncode != 0:
         stress_status["is_running"] = False
-
         error_message = "Falha ao iniciar os containers do Docker."
-
         stress_status["logs"].insert(0, error_message)
-
         raise HTTPException(status_code=500, detail={"message": error_message, "log": startup_log})
 
 
