@@ -98,8 +98,25 @@ async def run_docker_command(args: str, env=None):
                 DOCKER_COMPOSE_EXEC = cmd
                 
             out_str = stdout.decode('utf-8', errors='ignore')
-            if out_str or err_msg:
-                add_stress_log(f"--- Comando: {args} ---\n{out_str}\n{err_msg}", is_raw=True)
+            log_content = out_str
+            
+            # Se for o comando ps com json, tenta formatar para legibilidade
+            if "ps --format json" in args and out_str.strip():
+                try:
+                    import json
+                    lines = out_str.strip().split('\n')
+                    formatted_json_list = []
+                    for line in lines:
+                        if line.strip().startswith('{'):
+                            formatted_json_list.append(json.dumps(json.loads(line), indent=4, ensure_ascii=False))
+                        else:
+                            formatted_json_list.append(line)
+                    log_content = "\n\n".join(formatted_json_list)
+                except:
+                    pass
+
+            if log_content or err_msg:
+                add_stress_log(f"--- Comando: {args} ---\n{log_content}\n{err_msg}", is_raw=True)
 
             return proc.returncode, out_str, err_msg
         except Exception as e:

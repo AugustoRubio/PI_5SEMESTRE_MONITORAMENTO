@@ -170,6 +170,9 @@
             </div>
             <div class="modal-footer border-secondary">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-outline-info btn-sm" onclick="copyRawLogs()">
+                    <i class="bi bi-clipboard"></i> Copiar Tudo
+                </button>
                 <button type="button" class="btn btn-outline-danger btn-sm" onclick="document.getElementById('rawLogsContainer').innerText = 'Logs limpos.'">Limpar Visão</button>
             </div>
         </div>
@@ -326,6 +329,16 @@
         setTimeout(() => {
             document.getElementById('btnStartSim').click();
         }, 1000);
+    }
+
+    function copyRawLogs() {
+        const text = document.getElementById('rawLogsContainer').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Copiado!';
+            setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+        });
     }
 
     /* Polling */
