@@ -145,63 +145,57 @@ async def stop_docker_botnet():
 
 
 async def _monitor_and_shutdown_task(preset_name: str, duration: int):
-
     """Tarefa de fundo para monitorar o tempo de execução e derrubar o docker no final."""
-
     global stress_status
-
     
-
     config = presets.get(preset_name, presets["estudantes_leve"])
-
     end_time = time.time() + duration
-
+    last_log_check = 0
         
-
     try:
-
         while time.time() < end_time and stress_status["is_running"]:
-
-            await asyncio.sleep(2)
-
-            # Simula a contagem de requests
-
-            stress_status["requests_sent"] += int(config.get('scale', 1) * random.uniform(5, 15))
-
+            await asyncio.sleep(3)
+            # Simula a contagem de requests baseada na escala
+            stress_status["requests_sent"] += int(config.get('scale', 1) * random.uniform(8, 20))
             
+            # A cada ~10 segundos, verifica o status real dos containers e logs
+            current_time = time.time()
+            if current_time - last_log_check > 10:
+                last_log_check = current_time
+                try:
+                    # Verifica quantos containers estão realmente UP
+                    cmd_ps = f'"{DOCKER_COMPOSE_EXEC}" -f "{DOCKER_COMPOSE_PATH}" ps --format json'
+                    proc_ps = await asyncio.create_subprocess_shell(cmd_ps, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                    stdout_ps, _ = await proc_ps.communicate()
+                    
+                    # Tenta pegar as últimas 2 linhas de logs dos bots para mostrar atividade real
+                    cmd_logs = f'"{DOCKER_COMPOSE_EXEC}" -f "{DOCKER_COMPOSE_PATH}" logs --tail=2 {config["service"]}'
+                    proc_logs = await asyncio.create_subprocess_shell(cmd_logs, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                    stdout_logs, _ = await proc_logs.communicate()
+                    
+                    if stdout_logs:
+                        real_logs = stdout_logs.decode('utf-8', errors='ignore').strip().split('\n')
+                        for line in real_logs:
+                            if line:
+                                stress_status["logs"].insert(0, f"[DOCKER] {line}")
+                    
+                    stress_status["logs"].insert(0, f"[STATUS] Botnet '{config['name']}' ativa com {config['scale']} instâncias.")
+                except Exception as e:
+                    stress_status["logs"].insert(0, f"[AVISO] Erro ao buscar status real: {str(e)[:50]}")
 
-            if random.random() > 0.7:
-
-                log_msg = f"[{config['name']}] Status: ~{stress_status['requests_sent']} reqs reportadas pela Botnet."
-
-                stress_status["logs"].insert(0, log_msg)
-
-                if len(stress_status["logs"]) > 15:
-
-                    stress_status["logs"].pop()
+            if len(stress_status["logs"]) > 20:
+                stress_status["logs"] = stress_status["logs"][:20]
 
     finally:
-
         if stress_status["is_running"]:
-
             stress_status["logs"].insert(0, "Tempo de execução do preset finalizado. Derrubando containers...")
-
         else:
-
-            # Esta mensagem será usada se o stop for chamado manualmente
-
             stress_status["logs"].insert(0, "Sinal de aborto recebido. Derrubando containers...")
 
-
-
         shutdown_log = await stop_docker_botnet()
-
         stress_status["logs"].insert(0, shutdown_log)
-
         stress_status["is_running"] = False
-
         stress_status["logs"].insert(0, "Simulação de estresse finalizada no Docker!")
-
         print(f"==== [STRESS DOCKER] TAREFA DE FUNDO CONCLUÍDA/PARADA ====")
 
 
