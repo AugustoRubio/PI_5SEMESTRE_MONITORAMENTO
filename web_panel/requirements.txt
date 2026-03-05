@@ -13,4 +13,3 @@ sqlalchemy
 pymysql
 faker
 httpx
-paramiko

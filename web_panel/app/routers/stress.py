@@ -2,12 +2,12 @@
 import os
 import time
 import random
-import paramiko
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from app.auth import get_current_user
 from dotenv import load_dotenv
 
+# Carrega variáveis de ambiente de um arquivo .env
 load_dotenv()
 
 router = APIRouter()
@@ -26,64 +26,29 @@ stress_status = {
     "logs": []
 }
 
-# --- Configuração do Cliente SSH ---
-REMOTE_HOST = os.getenv("REMOTE_HOST")
-REMOTE_USER = os.getenv("REMOTE_USER")
-REMOTE_PASSWORD = os.getenv("REMOTE_PASSWORD")
+# Caminho absoluto montado a partir de app/routers -> web_panel -> raiz.
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+DOCKER_COMPOSE_PATH = os.path.join(BASE_DIR, "botnet_agent", "docker-compose.yml")
 
-# ATENÇÃO: Altere este caminho para o caminho absoluto do docker-compose.yml NO SERVIDOR REMOTO
-REMOTE_DOCKER_COMPOSE_PATH = "/app/botnet_agent/docker-compose.yml" 
+# Use o caminho do executável do docker-compose se definido, caso contrário, use o comando padrão
+DOCKER_COMPOSE_EXEC = os.getenv("DOCKER_COMPOSE_EXECUTABLE", "docker compose")
 
-def execute_remote_command(command):
-    if not all([REMOTE_HOST, REMOTE_USER, REMOTE_PASSWORD]):
-        msg = "Variáveis de ambiente para conexão remota (REMOTE_HOST, REMOTE_USER, REMOTE_PASSWORD) não configuradas."
-        print(f"[SSH_ERROR] {msg}")
-        stress_status["logs"].insert(0, f"Erro de Configuração: {msg}")
-        return None, msg
-
-    ssh_client = paramiko.SSHClient()
-    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+async def stop_docker_botnet():
     try:
-        print(f"[SSH] Conectando a {REMOTE_USER}@{REMOTE_HOST}...")
-        ssh_client.connect(hostname=REMOTE_HOST, username=REMOTE_USER, password=REMOTE_PASSWORD, timeout=10)
-        
-        print(f"[SSH] Executando comando: {command}")
-        stdin, stdout, stderr = ssh_client.exec_command(command, get_pty=True)
-        
-        # Esperar o comando terminar. stdout.channel.recv_exit_status() bloqueia até a conclusão.
-        exit_status = stdout.channel.recv_exit_status() 
-        
-        stdout_output = stdout.read().decode('utf-8')
-        stderr_output = stderr.read().decode('utf-8')
-
-        print(f"[SSH] Comando finalizado. Exit Status: {exit_status}")
-        if exit_status != 0:
-             print(f"[SSH_STDOUT] {stdout_output}")
-             print(f"[SSH_STDERR] {stderr_output}")
-
-        return exit_status, stdout_output + stderr_output
-
+        print("Derrubando botnet via docker compose...")
+        # Adicionado aspas ao redor do DOCKER_COMPOSE_EXEC para lidar com espaços no caminho
+        cmd_down = f'"{DOCKER_COMPOSE_EXEC}" -f "{DOCKER_COMPOSE_PATH}" down'
+        proc = await asyncio.create_subprocess_shell(
+            cmd_down,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        await proc.communicate()
     except Exception as e:
-        error_msg = f"Falha na conexão ou execução SSH: {e}"
-        print(f"[SSH_ERROR] {error_msg}")
-        stress_status["logs"].insert(0, f"Erro de Conexão: {error_msg}")
-        return None, error_msg
-    finally:
-        if ssh_client:
-            ssh_client.close()
-            print("[SSH] Conexão fechada.")
+        print(f"Erro ao derrubar botnet: {e}")
 
-
-def stop_docker_botnet():
-    try:
-        print("Derrubando botnet remotamente via docker compose...")
-        cmd_down = f'docker compose -f "{REMOTE_DOCKER_COMPOSE_PATH}" down'
-        execute_remote_command(cmd_down)
-    except Exception as e:
-        print(f"Erro ao derrubar botnet remoto: {e}")
-
-def _run_stress_preset(target_url: str, preset_name: str):
-    print(f"==== [STRESS] INICIANDO PRESET DOCKER REMOTO: {preset_name} ALVO: {target_url} ====")
+async def _run_stress_preset(target_url: str, preset_name: str):
+    print(f"==== [STRESS] INICIANDO PRESET DOCKER: {preset_name} ALVO: {target_url} ====")
     global stress_status
     stress_status["is_running"] = True
     stress_status["target"] = target_url
@@ -92,61 +57,96 @@ def _run_stress_preset(target_url: str, preset_name: str):
     stress_status["requests_sent"] = 0
 
     presets = {
-        "estudantes_leve": {"name": "Onda de Estudantes (Leve)", "service": "bot_student", "scale": 15, "duration": 300},
-        "surto_notas": {"name": "Surto de Notas DB (Médio)", "service": "bot_professor", "scale": 30, "duration": 300},
-        "acesso_constante": {"name": "Acesso Constante (Intermediário)", "service": "bot_student", "scale": 50, "duration": 300},
-        "pico_matriculas": {"name": "Pico de Matrículas (Pesado)", "service": "bot_professor", "scale": 80, "duration": 300},
-        "ddos_extremo": {"name": "Ataque Volumétrico DDoS (Extremo)", "service": "bot_ddos", "scale": 120, "duration": 600}
+        "estudantes_leve": {
+            "name": "Onda de Estudantes (Leve)",
+            "service": "bot_student", "scale": 15, "duration": 300
+        },
+        "surto_notas": {
+            "name": "Surto de Notas DB (Médio)",
+            "service": "bot_professor", "scale": 30, "duration": 300
+        },
+        "acesso_constante": {
+            "name": "Acesso Constante (Intermediário)",
+            "service": "bot_student", "scale": 50, "duration": 300
+        },
+        "pico_matriculas": {
+            "name": "Pico de Matrículas (Pesado)",
+            "service": "bot_professor", "scale": 80, "duration": 300
+        },
+        "ddos_extremo": {
+            "name": "Ataque Volumétrico DDoS (Extremo)",
+            "service": "bot_ddos", "scale": 120, "duration": 600
+        }
     }
-    
-    config = presets.get(preset_name, presets["estudantes_leve"])
+
+    if preset_name not in presets:
+        preset_name = "estudantes_leve"
+
+    config = presets[preset_name]
 
     stress_status["duration"] = config["duration"]
     stress_status["logs"] = [
-        f"Iniciando DOCKER botnet REMOTO: {config['name']}...",
-        f"Alvo: {target_url} | Containers (scale): {config['scale']} | Duração: {config['duration']}s",
-        f"Conectando ao servidor remoto em {REMOTE_HOST}..."
+        f"Iniciando DOCKER botnet: {config['name']}...",
+        f"Alvo: {target_url} | Containers (scale): {config['scale']} | Duração base: {config['duration']}s",
+        f"Lendo docker-compose em: {DOCKER_COMPOSE_PATH}",
+        f"Usando executável: {DOCKER_COMPOSE_EXEC}",
+        "Aguardando subida da orquestração Docker..."
     ]
-    
-    # Inicia a limpeza de containers antigos em segundo plano
-    stop_docker_botnet()
 
-    # O TARGET_URL precisa ser passado para o ambiente do docker-compose
-    env_export = f'export TARGET_URL="{target_url}";'
-    cmd_up = f'{env_export} docker compose -f "{REMOTE_DOCKER_COMPOSE_PATH}" up --build -d --scale {config["service"]}={config["scale"]}'
-    
-    exit_code, output = execute_remote_command(cmd_up)
-    
-    if exit_code == 0:
-        stress_status["logs"].insert(0, f"Esquadrão DOCKER em execução remota! Atacando...")
-    else:
-        stress_status["logs"].insert(0, f"Erro ao subir docker remoto. Código: {exit_code}")
-        stress_status["logs"].insert(0, f"Saída: {output}")
-        stress_status["is_running"] = False
-        print(f"Docker Remoto Erro: {output}")
-        return # Finaliza a execução
+    env_vars = os.environ.copy()
+    env_vars["TARGET_URL"] = target_url
 
-    end_time = time.time() + config["duration"]
-    
     try:
+        await stop_docker_botnet()
+
+        # Adicionado aspas ao redor do DOCKER_COMPOSE_EXEC para lidar com espaços no caminho
+        cmd_up = f'"{DOCKER_COMPOSE_EXEC}" -f "{DOCKER_COMPOSE_PATH}" up --build -d --scale {config["service"]}={config["scale"]}'
+        
+        proc = await asyncio.create_subprocess_shell(
+            cmd_up,
+            env=env_vars,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+        
+        if proc.returncode == 0:
+            stress_status["logs"].insert(0, f"Esquadrão DOCKER em execução! Atacando...")
+        else:
+            stress_status["logs"].insert(0, f"Erro ao subir docker. Código: {proc.returncode}")
+            error_details = stderr.decode('utf-8', errors='ignore')
+            stress_status["logs"].insert(0, f"Detalhes: {error_details}")
+            print(f"Docker Erro: {error_details}")
+
+        end_time = time.time() + config["duration"]
+        
         while time.time() < end_time and stress_status["is_running"]:
-            time.sleep(2) # Usar time.sleep em vez de asyncio.sleep
-            stress_status["requests_sent"] += int(config["scale"] * random.uniform(5, 15))
+            await asyncio.sleep(2)
+            stress_status["requests_sent"] += int(config['scale'] * random.uniform(5, 15))
             
             if random.random() > 0.7:
-                log_msg = f"[{config['name']}] Status: ~{stress_status['requests_sent']} reqs reportadas enviadas pela Botnet."
-                stress_status["logs"].insert(0, log_msg)
+                stress_status["logs"].insert(0, f"[{config['name']}] Status: ~{stress_status['requests_sent']} reqs reportadas enviadas pela Botnet.")
                 if len(stress_status["logs"]) > 15:
                     stress_status["logs"].pop()
-    finally:
-        log_end_reason = "Tempo ou limite alcançado" if stress_status["is_running"] else "Aborto manual recebido"
-        stress_status["logs"].insert(0, f"{log_end_reason}. Derrubando containers remotos...")
-        
-        stop_docker_botnet()
-        stress_status["is_running"] = False
-        stress_status["logs"].insert(0, "Simulação de estresse remoto finalizada!")
-        print("==== [STRESS DOCKER REMOTO] CONCLUÍDO/PARADO ====")
 
+    except FileNotFoundError:
+        msg = f"O executável '{DOCKER_COMPOSE_EXEC}' não foi encontrado. Verifique a variável de ambiente DOCKER_COMPOSE_EXECUTABLE ou se o Docker está no PATH do sistema."
+        stress_status["logs"].insert(0, f"Exceção interna: {msg}")
+        print(f"Erro: {msg}")
+    except Exception as e:
+        stress_status["logs"].insert(0, f"Exceção interna: {str(e)}")
+        print(f"Erro: {str(e)}")
+
+    finally:
+        if stress_status["is_running"]:
+            stress_status["logs"].insert(0, f"Tempo ou limite alcançado. Derrubando containers...")
+        else:
+            stress_status["logs"].insert(0, f"Aborto manual recebido. Derrubando containers...")
+
+        await stop_docker_botnet()
+        stress_status["is_running"] = False
+        stress_status["logs"].insert(0, f"Simulação de estresse finalizada no Docker!")
+        print(f"==== [STRESS DOCKER] CONCLUÍDO/PARADO ====")
 
 @router.get("/status")
 async def get_stress_status(current_user: dict = Depends(get_current_user)):
@@ -157,18 +157,15 @@ async def stop_stress_test(current_user: dict = Depends(get_current_user)):
     global stress_status
     if stress_status["is_running"]:
         stress_status["is_running"] = False
-        print("==== [STRESS DOCKER REMOTO] SINAL DE ABORTO RECEBIDO ====")
-        stress_status["logs"].insert(0, "Sinal manual de aborto recebido! Solicitando encerramento remoto...")
-        return {"message": "Sinal de parada enviado. A botnet remota está sendo destruída."}
+        print("==== [STRESS DOCKER] SINAL DE ABORTO RECEBIDO ====")
+        stress_status["logs"].insert(0, "Sinal manual de aborto recebido! Solicitando encerramento do Docker...")
+        return {"message": "Sinal de parada enviado. O Docker está sendo destruído."}
     return {"message": "Nenhum teste de estresse em execução."}
 
 @router.post("/run")
 async def stress_frontend(config: StressConfig, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
-    if not all([REMOTE_HOST, REMOTE_USER, REMOTE_PASSWORD]):
-         raise HTTPException(status_code=400, detail="Servidor remoto não configurado. Verifique as variáveis de ambiente.")
-
     if stress_status["is_running"]:
         raise HTTPException(status_code=400, detail="Um teste de Carga Docker já está em execução no painel.")
 
     background_tasks.add_task(_run_stress_preset, config.target_url, config.preset)
-    return {"message": f"Carga pre-configurada '{config.preset}' iniciada remotamente contra {config.target_url}."}
+    return {"message": f"Carga pre-configurada '{config.preset}' via DOCKER iniciada contra {config.target_url}."}
