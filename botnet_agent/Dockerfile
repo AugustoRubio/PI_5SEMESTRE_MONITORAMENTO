@@ -1,8 +1,10 @@
-﻿FROM python:3.11-alpine
+FROM python:3.11-alpine
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir requests pymysql
+# Invalidação de cache explícita para garantir instalação do pymysql
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir requests pymysql
 
 COPY src/bot.py /app/bot.py
 

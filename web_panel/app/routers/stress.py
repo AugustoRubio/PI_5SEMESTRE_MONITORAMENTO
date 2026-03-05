@@ -210,8 +210,8 @@ async def stress_frontend(config: StressConfig, background_tasks: BackgroundTask
     env_vars = os.environ.copy()
     env_vars["TARGET_URL"] = config.target_url
 
-    add_stress_log("🛠️ Construindo imagens e subindo containers...")
-    args_up = f"up --build -d --scale {preset_config['service']}={preset_config['scale']}"
+    add_stress_log("🛠️ Construindo imagens e subindo containers (Limpando Cache)...")
+    args_up = f"up --build --force-recreate -d --scale {preset_config['service']}={preset_config['scale']}"
     returncode, stdout_up, stderr_up = await run_docker_command(args_up, env=env_vars)
     
     if returncode == 0:
