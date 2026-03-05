@@ -2,7 +2,7 @@
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir requests
+RUN pip install --no-cache-dir requests pymysql
 
 COPY src/bot.py /app/bot.py
 
