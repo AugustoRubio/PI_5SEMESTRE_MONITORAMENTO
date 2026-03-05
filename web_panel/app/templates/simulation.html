@@ -123,7 +123,10 @@
         <div class="card bg-dark text-light border-secondary">
             <div class="card-header border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
                 <span><i class="bi bi-terminal"></i> Console de Monitoramento Unificado</span>
-                <div class="d-flex gap-3">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#dockerLogsModal">
+                        <i class="bi bi-list-columns"></i> Logs Técnicos
+                    </button>
                     <span id="stressBadge" class="badge bg-secondary fs-6">Stress: Parado <small id="stressTime" class="fw-normal"></small></span>
                     <span id="simBadge" class="badge bg-secondary fs-6">Simulação: Parada <small id="simTime" class="fw-normal"></small></span>
                 </div>
@@ -149,6 +152,25 @@
                 <div id="logsContainer" class="p-3" style="height: 35vh; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9em; background-color: #0b0f19;">
                     <div class="text-info">[Ready] Aguardando início dos testes...</div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Logs Brutos do Docker -->
+<div class="modal fade" id="dockerLogsModal" tabindex="-1" aria-labelledby="dockerLogsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="dockerLogsModalLabel"><i class="bi bi-terminal"></i> Saída Bruta do Docker Compose</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <pre id="rawLogsContainer" class="p-3 m-0" style="font-size: 0.85em; color: #adbac7; background-color: #0d1117; min-height: 400px;">Aguardando logs...</pre>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="document.getElementById('rawLogsContainer').innerText = 'Logs limpos.'">Limpar Visão</button>
             </div>
         </div>
     </div>
@@ -328,6 +350,12 @@
             if (res.ok) {
                 const data = await res.json();
                 isStressRunning = data.is_running;
+
+                // Atualiza Raw Logs na Modal se estiver aberta ou apenas mantém o conteúdo
+                if (data.raw_logs) {
+                    document.getElementById('rawLogsContainer').innerText = data.raw_logs;
+                }
+
                 if (isStressRunning) {
                     activeTargets.add(data.target);
                     activeTypes.add('Stress (' + data.type + ')');
@@ -383,8 +411,10 @@
             
             allLogs.forEach(item => {
                 const div = document.createElement('div');
-                div.className = 'mb-1 ' + item.color;
-                div.innerText = '[' + item.src.toUpperCase() + '] > ' + item.msg;
+                div.className = 'mb-2 p-1 border-start border-2 ' + item.color;
+                div.style.borderColor = 'currentColor !important';
+                div.style.backgroundColor = 'rgba(255,255,255,0.03)';
+                div.innerHTML = `<small class="text-secondary">[${item.src.toUpperCase()}]</small> ${item.msg}`;
                 logsContainer.appendChild(div);
             });
         }
