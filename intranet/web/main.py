@@ -170,13 +170,13 @@ def get_db():
 
 # --- ROTAS DE SETUP ---
 @app.get("/setup", response_class=HTMLResponse)
-async def setup_get(request: Request):
+def setup_get(request: Request):
     if DB_CONFIGURED:
         return RedirectResponse(url="/login")
     return templates.TemplateResponse("setup.html", {"request": request})
 
 @app.post("/setup")
-async def setup_post(request: Request, db_host: str = Form(...), db_port: str = Form(...), db_user: str = Form(...), db_pass: str = Form(...), db_name: str = Form(...)):
+def setup_post(request: Request, db_host: str = Form(...), db_port: str = Form(...), db_user: str = Form(...), db_pass: str = Form(...), db_name: str = Form(...)):
     safe_pass = urllib.parse.quote_plus(db_pass)
     db_url = f"mysql+pymysql://{db_user}:{safe_pass}@{db_host}:{db_port}/{db_name}"
     success, msg = init_db(db_url)
@@ -192,17 +192,17 @@ async def setup_post(request: Request, db_host: str = Form(...), db_port: str = 
 
 # --- ROTAS FRONTEND ---
 @app.get("/", response_class=HTMLResponse)
-async def root_redirect(request: Request):
+def root_redirect(request: Request):
     if DB_CONFIGURED:
         return templates.TemplateResponse("index.html", {"request": request})
     return RedirectResponse(url="/setup", status_code=302)
 
 @app.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request, type: str = "admin"):
+def login_page(request: Request, type: str = "admin"):
     return templates.TemplateResponse("login.html", {"request": request, "type": type})
 
 @app.post("/login")
-async def login(request: Request, username: str = Form(...), password: str = Form(...), login_type: str = Form(...), db: Session = Depends(get_db)):
+def login(request: Request, username: str = Form(...), password: str = Form(...), login_type: str = Form(...), db: Session = Depends(get_db)):
     ip = request.client.host
     now = int(time.time())
     
@@ -263,7 +263,7 @@ async def login(request: Request, username: str = Form(...), password: str = For
     return RedirectResponse(url=f"/login?error=1&type={login_type}", status_code=302)
 
 @app.get("/security/metrics")
-async def security_metrics(db: Session = Depends(get_db)):
+def security_metrics(db: Session = Depends(get_db)):
     now = int(time.time())
     total_failures = db.query(LoginAttempt).filter(LoginAttempt.success == 0).count()
     failures_last_hour = db.query(LoginAttempt).filter(LoginAttempt.success == 0, LoginAttempt.timestamp > now - 3600).count()
@@ -285,7 +285,7 @@ async def security_metrics(db: Session = Depends(get_db)):
     }
 
 @app.get("/logout")
-async def logout():
+def logout():
     response = RedirectResponse(url="/login", status_code=302)
     response.delete_cookie("session")
     response.delete_cookie("role")
@@ -294,7 +294,7 @@ async def logout():
 
 # --- ADMIN DASHBOARD ---
 @app.get("/admin_dashboard", response_class=HTMLResponse)
-async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
+def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
     
@@ -315,7 +315,7 @@ async def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     })
 
 @app.post("/admin/change_password")
-async def change_admin_password(request: Request, new_password: str = Form(...), db: Session = Depends(get_db)):
+def change_admin_password(request: Request, new_password: str = Form(...), db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
     
@@ -327,7 +327,7 @@ async def change_admin_password(request: Request, new_password: str = Form(...),
     return RedirectResponse(url="/admin_dashboard", status_code=302)
 
 @app.post("/students")
-async def create_student(request: Request, name: str = Form(...), registration: str = Form(...), course: str = Form(...), db: Session = Depends(get_db)):
+def create_student(request: Request, name: str = Form(...), registration: str = Form(...), course: str = Form(...), db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated":
         return RedirectResponse(url="/login", status_code=302)
     
@@ -338,7 +338,7 @@ async def create_student(request: Request, name: str = Form(...), registration: 
     return RedirectResponse(url="/admin_dashboard", status_code=302)
 
 @app.post("/students/reset_password/{student_id}")
-async def reset_student_password(request: Request, student_id: int, new_password: str = Form(...), db: Session = Depends(get_db)):
+def reset_student_password(request: Request, student_id: int, new_password: str = Form(...), db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login?type=admin", status_code=302)
     st = db.query(Student).filter(Student.id == student_id).first()
@@ -348,7 +348,7 @@ async def reset_student_password(request: Request, student_id: int, new_password
     return RedirectResponse(url="/admin_dashboard", status_code=302)
 
 @app.get("/admin/impersonate/student/{student_id}")
-async def impersonate_student(request: Request, student_id: int, db: Session = Depends(get_db)):
+def impersonate_student(request: Request, student_id: int, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login?type=admin", status_code=302)
     st = db.query(Student).filter(Student.id == student_id).first()
@@ -361,7 +361,7 @@ async def impersonate_student(request: Request, student_id: int, db: Session = D
     return RedirectResponse(url="/admin_dashboard", status_code=302)
 
 @app.post("/students/delete/{student_id}")
-async def delete_student(request: Request, student_id: int, db: Session = Depends(get_db)):
+def delete_student(request: Request, student_id: int, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
     
@@ -372,7 +372,7 @@ async def delete_student(request: Request, student_id: int, db: Session = Depend
     return RedirectResponse(url="/admin_dashboard", status_code=302)
 
 @app.post("/professors")
-async def create_professor_web(
+def create_professor_web(
     request: Request, 
     username: str = Form(...), 
     password: str = Form(...), 
@@ -391,7 +391,7 @@ async def create_professor_web(
     return RedirectResponse(url="/admin_dashboard", status_code=302)
 
 @app.post("/professors/reset_password/{prof_id}")
-async def reset_professor_password(request: Request, prof_id: int, new_password: str = Form(...), db: Session = Depends(get_db)):
+def reset_professor_password(request: Request, prof_id: int, new_password: str = Form(...), db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login?type=admin", status_code=302)
     prof = db.query(Professor).filter(Professor.id == prof_id).first()
@@ -401,7 +401,7 @@ async def reset_professor_password(request: Request, prof_id: int, new_password:
     return RedirectResponse(url="/admin_dashboard", status_code=302)
 
 @app.get("/admin/impersonate/professor/{prof_id}")
-async def impersonate_professor(request: Request, prof_id: int, db: Session = Depends(get_db)):
+def impersonate_professor(request: Request, prof_id: int, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login?type=admin", status_code=302)
     prof = db.query(Professor).filter(Professor.id == prof_id).first()
@@ -415,7 +415,7 @@ async def impersonate_professor(request: Request, prof_id: int, db: Session = De
 
 
 @app.post("/professors/delete/{prof_id}")
-async def delete_professor_web(request: Request, prof_id: int, db: Session = Depends(get_db)):
+def delete_professor_web(request: Request, prof_id: int, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
     
@@ -427,7 +427,7 @@ async def delete_professor_web(request: Request, prof_id: int, db: Session = Dep
     return RedirectResponse(url="/admin_dashboard", status_code=302)
 
 @app.post("/classes")
-async def create_class(request: Request, name: str = Form(...), professor_id: int = Form(...), student_ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
+def create_class(request: Request, name: str = Form(...), professor_id: int = Form(...), student_ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
     
@@ -439,7 +439,7 @@ async def create_class(request: Request, name: str = Form(...), professor_id: in
     return RedirectResponse(url="/admin_dashboard", status_code=302)
 
 @app.post("/classes/delete/{class_id}")
-async def delete_class(request: Request, class_id: int, db: Session = Depends(get_db)):
+def delete_class(request: Request, class_id: int, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
     
@@ -451,7 +451,7 @@ async def delete_class(request: Request, class_id: int, db: Session = Depends(ge
 
 # --- PROFESSOR DASHBOARD ---
 @app.get("/prof_dashboard", response_class=HTMLResponse)
-async def prof_dashboard(request: Request, db: Session = Depends(get_db)):
+def prof_dashboard(request: Request, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "professor":
         return RedirectResponse(url="/login", status_code=302)
     
@@ -466,7 +466,7 @@ async def prof_dashboard(request: Request, db: Session = Depends(get_db)):
     })
 
 @app.get("/prof_dashboard/class/{class_id}", response_class=HTMLResponse)
-async def prof_class_view(request: Request, class_id: int, date: str = "", db: Session = Depends(get_db)):
+def prof_class_view(request: Request, class_id: int, date: str = "", db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "professor":
         return RedirectResponse(url="/login", status_code=302)
     
@@ -487,7 +487,7 @@ async def prof_class_view(request: Request, class_id: int, date: str = "", db: S
     })
 
 @app.post("/prof_dashboard/class/{class_id}/attendance")
-async def mark_attendance(request: Request, class_id: int, date: str = Form(...), absent_students: list[int] = Form(default=[]), db: Session = Depends(get_db)):
+def mark_attendance(request: Request, class_id: int, date: str = Form(...), absent_students: list[int] = Form(default=[]), db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "professor":
         return RedirectResponse(url="/login", status_code=302)
     
