@@ -91,9 +91,18 @@
                 <span class="badge bg-dark" id="status-bf">Status: INATIVO</span>
             </div>
             <div class="card-body">
-                <p><strong>Alvo:</strong> http://localhost:8000/login (Servidor da Intranet)</p>
+                <p><strong>Alvo Base:</strong> Servidor da Intranet (https://10.10.100.4)</p>
                 <p class="text-muted small">Esta simulação realiza múltiplas tentativas de login com credenciais aleatórias para testar a detecção de brute force e o bloqueio de IP na aplicação.</p>
                 
+                <div class="mb-3">
+                    <label class="form-label">Alvo do Ataque (Formulário)</label>
+                    <select id="bf-login-type" class="form-select">
+                        <option value="student">Portal do Aluno</option>
+                        <option value="professor">Portal do Professor</option>
+                        <option value="admin">Portal do Administrador</option>
+                    </select>
+                </div>
+
                 <div class="mb-3">
                     <label class="form-label">Duração (segundos)</label>
                     <input type="number" id="bf-duration" class="form-control" value="60">
@@ -168,7 +177,7 @@
 
 {% block scripts %}
 <script>
-    const INTRANET_URL = "http://localhost:8000"; // Ajustar se necessário
+    const INTRANET_URL = "https://10.10.100.4"; // IP real da Intranet
 
     async function launchAttack(origin, type, action) {
         // ... (existing launchAttack logic)
@@ -176,6 +185,7 @@
 
     async function startBruteForce() {
         const duration = document.getElementById('bf-duration').value;
+        const loginType = document.getElementById('bf-login-type').value;
         const endpoint = `/api/bruteforce/start`;
         
         try {
@@ -186,7 +196,8 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    target_url: `${INTRANET_URL}/login`,
+                    target_url: `${INTRANET_URL}/login?type=${loginType}`,
+                    login_type: loginType,
                     duration: parseInt(duration)
                 })
             });

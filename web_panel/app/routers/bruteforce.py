@@ -21,8 +21,9 @@ bruteforce_status = {
 }
 
 class BFConfig(BaseModel):
-    target_url: str # e.g. http://localhost:8000/login
-    usernames: list[str] = ["admin", "root", "professor", "aluno"]
+    target_url: str = "https://10.10.100.4/login"
+    login_type: str = "student"
+    usernames: list[str] = ["admin", "root", "professor", "aluno", "joao", "maria", "pedro"]
     duration: int = 60 # seconds
 
 def update_snmp_file(metrics, is_attacking=False):
@@ -46,11 +47,12 @@ async def run_bruteforce(config: BFConfig):
     bruteforce_status["blocked_detected"] = False
     bruteforce_status["start_time"] = time.time()
     bruteforce_status["target_url"] = config.target_url
-    bruteforce_status["logs"] = [f"Iniciando brute force contra {config.target_url}..."]
+    bruteforce_status["logs"] = [f"Iniciando brute force ({config.login_type}) contra {config.target_url}..."]
 
     end_time = time.time() + config.duration
     
-    async with httpx.AsyncClient() as client:
+    # disable SSL verification since internal network might use self-signed certs
+    async with httpx.AsyncClient(verify=False) as client:
         while time.time() < end_time and bruteforce_status["is_running"]:
             user = random.choice(config.usernames)
             password = f"senha_{random.randint(100, 999)}"
@@ -59,7 +61,7 @@ async def run_bruteforce(config: BFConfig):
                 # Intranet expects Form data
                 response = await client.post(
                     config.target_url,
-                    data={"username": user, "password": password, "login_type": "admin"},
+                    data={"username": user, "password": password, "login_type": config.login_type},
                     follow_redirects=False
                 )
                 
@@ -78,8 +80,6 @@ async def run_bruteforce(config: BFConfig):
                     bruteforce_status["logs"].pop()
                 
                 # Update SNMP immediately during attack
-                # Get metrics from intranet to sync
-                # Extract base URL from config.target_url
                 base_url = config.target_url.split("/login")[0]
                 m_resp = await client.get(f"{base_url}/security/metrics")
                 if m_resp.status_code == 200:
@@ -95,7 +95,7 @@ async def run_bruteforce(config: BFConfig):
     # Final sync
     try:
         base_url = config.target_url.split("/login")[0]
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=False) as client:
             m_resp = await client.get(f"{base_url}/security/metrics")
             if m_resp.status_code == 200:
                 update_snmp_file(m_resp.json(), is_attacking=False)
@@ -110,7 +110,7 @@ async def start_bf(config: BFConfig, background_tasks: BackgroundTasks, current_
         raise HTTPException(status_code=400, detail="Simulação já em execução.")
     
     background_tasks.add_task(run_bruteforce, config)
-    return {"message": "Ataque de brute force iniciado."}
+    return {"message": f"Ataque de brute force ({config.login_type}) iniciado."}
 
 @router.post("/stop")
 async def stop_bf(current_user: dict = Depends(get_current_user)):
@@ -126,7 +126,7 @@ async def get_bf_status(current_user: dict = Depends(get_current_user)):
 async def get_metrics(target_api: str):
     # Proxy to the intranet metrics
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=False) as client:
             response = await client.get(f"{target_api}/security/metrics")
             return response.json()
     except Exception as e:
