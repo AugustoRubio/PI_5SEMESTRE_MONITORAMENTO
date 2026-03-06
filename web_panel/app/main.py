@@ -2,14 +2,14 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from app.routers import snmp, attacks, auth, admin, stress, simulation
+from app.routers import snmp, attacks, auth, admin, stress, simulation, bruteforce
 from app.auth import get_current_user
 import os
 
 app = FastAPI(
     title="Painel de Controle - Simulação de Redes e Segurança",
     description="Painel para controle do simulador SNMP e disparos de ataques controlados.",
-    version="1.0.0"
+    version="1.2.0"
 )
 
 # Configuração de arquivos estáticos e templates
@@ -24,6 +24,7 @@ app.include_router(attacks.router, prefix="/api/attacks", tags=["Ataques"], depe
 app.include_router(admin.router, prefix="/api/admin", tags=["Administração"], dependencies=[Depends(get_current_user)])
 app.include_router(stress.router, prefix="/api/stress", tags=["Estresse"], dependencies=[Depends(get_current_user)])
 app.include_router(simulation.router, prefix="/api/simulation", tags=["Simulação"], dependencies=[Depends(get_current_user)])
+app.include_router(bruteforce.router, prefix="/api/bruteforce", tags=["Brute Force"], dependencies=[Depends(get_current_user)])
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):

@@ -90,6 +90,14 @@ class Attendance(Base):
     student = relationship("Student")
     course_class = relationship("Class", back_populates="attendances")
 
+class LoginAttempt(Base):
+    __tablename__ = "login_attempts"
+    id = Column(Integer, primary_key=True, index=True)
+    ip_address = Column(String(50), index=True)
+    username = Column(String(255))
+    timestamp = Column(Integer) # Unix timestamp
+    success = Column(Integer, default=0) # 0 for failure, 1 for success
+
 def init_db(db_url):
     global engine, SessionLocal, DB_CONFIGURED
     try:
@@ -194,36 +202,87 @@ async def login_page(request: Request, type: str = "admin"):
     return templates.TemplateResponse("login.html", {"request": request, "type": type})
 
 @app.post("/login")
-async def login(username: str = Form(...), password: str = Form(...), login_type: str = Form(...), db: Session = Depends(get_db)):
+async def login(request: Request, username: str = Form(...), password: str = Form(...), login_type: str = Form(...), db: Session = Depends(get_db)):
+    ip = request.client.host
+    now = int(time.time())
+    
+    # Check for block (5 failures in last 60 seconds)
+    recent_failures = db.query(LoginAttempt).filter(
+        LoginAttempt.ip_address == ip,
+        LoginAttempt.success == 0,
+        LoginAttempt.timestamp > now - 60
+    ).count()
+    
+    if recent_failures >= 5:
+        # Record attempt even if blocked to prolong the block if they keep trying
+        new_attempt = LoginAttempt(ip_address=ip, username=username, timestamp=now, success=0)
+        db.add(new_attempt)
+        db.commit()
+        return RedirectResponse(url=f"/login?error=blocked&type={login_type}", status_code=302)
+
+    authenticated = False
+    user_id = None
+
     if login_type == 'admin':
         clean_user = username.strip()
         admin = db.query(Admin).filter(Admin.username == clean_user).first()
         if admin and pwd_context.verify(password.strip(), admin.password):
-            response = RedirectResponse(url="/admin_dashboard", status_code=302)
-            response.set_cookie(key="session", value="authenticated")
-            response.set_cookie(key="role", value="admin")
-            response.set_cookie(key="user_id", value=str(admin.id))
-            return response
+            authenticated = True
+            user_id = admin.id
+            target_url = "/admin_dashboard"
+            role = "admin"
     elif login_type == 'professor':
         clean_user = username.strip()
         professor = db.query(Professor).filter((Professor.username == clean_user) | (Professor.name == clean_user)).first()
         if professor and pwd_context.verify(password.strip(), professor.password):
-            response = RedirectResponse(url="/prof_dashboard", status_code=302)
-            response.set_cookie(key="session", value="authenticated")
-            response.set_cookie(key="role", value="professor")
-            response.set_cookie(key="user_id", value=str(professor.id))
-            return response
+            authenticated = True
+            user_id = professor.id
+            target_url = "/prof_dashboard"
+            role = "professor"
     elif login_type == 'student':
         clean_user = username.strip()
         student = db.query(Student).filter((Student.registration == clean_user) | (Student.name == clean_user)).first()
         if student and student.password and pwd_context.verify(password.strip(), student.password):
-            response = RedirectResponse(url="/student_dashboard", status_code=302)
-            response.set_cookie(key="session", value="authenticated")
-            response.set_cookie(key="role", value="student")
-            response.set_cookie(key="user_id", value=str(student.id))
-            return response
+            authenticated = True
+            user_id = student.id
+            target_url = "/student_dashboard"
+            role = "student"
+
+    # Record attempt
+    new_attempt = LoginAttempt(ip_address=ip, username=username, timestamp=now, success=1 if authenticated else 0)
+    db.add(new_attempt)
+    db.commit()
+
+    if authenticated:
+        response = RedirectResponse(url=target_url, status_code=302)
+        response.set_cookie(key="session", value="authenticated")
+        response.set_cookie(key="role", value=role)
+        response.set_cookie(key="user_id", value=str(user_id))
+        return response
 
     return RedirectResponse(url=f"/login?error=1&type={login_type}", status_code=302)
+
+@app.get("/security/metrics")
+async def security_metrics(db: Session = Depends(get_db)):
+    now = int(time.time())
+    total_failures = db.query(LoginAttempt).filter(LoginAttempt.success == 0).count()
+    failures_last_hour = db.query(LoginAttempt).filter(LoginAttempt.success == 0, LoginAttempt.timestamp > now - 3600).count()
+    
+    # Group by IP to see who is currently "blocked" or "active"
+    # This is simplified for the API
+    active_ips = db.query(LoginAttempt.ip_address).filter(LoginAttempt.timestamp > now - 300).distinct().count()
+    
+    # Get last 10 failed attempts for the dashboard
+    recent_logs = db.query(LoginAttempt).filter(LoginAttempt.success == 0).order_by(LoginAttempt.timestamp.desc()).limit(10).all()
+    logs = [{"ip": l.ip_address, "user": l.username, "time": datetime.datetime.fromtimestamp(l.timestamp).strftime("%H:%M:%S")} for l in recent_logs]
+
+    return {
+        "total_failures": total_failures,
+        "failures_last_hour": failures_last_hour,
+        "active_ips": active_ips,
+        "recent_failed_attempts": logs,
+        "system_time": now
+    }
 
 @app.get("/logout")
 async def logout():

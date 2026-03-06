@@ -83,11 +83,19 @@
             
             // Tratamento de erro
             if (urlParams.has('error')) {
-                const type = urlParams.get('type') || 'admin';
+                const errorType = urlParams.get('error');
+                let message = "Credenciais inválidas! Tente novamente.";
+                let icon = "fas fa-exclamation-triangle";
+                
+                if (errorType === 'blocked') {
+                    message = "<strong>ACESSO NEGADO:</strong> IP bloqueado por excesso de tentativas (60s).";
+                    icon = "fas fa-shield-alt";
+                }
+
                 document.write(`
                     <div class="alert alert-danger d-flex align-items-center" role="alert">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <div>Credenciais inválidas! Tente novamente.</div>
+                        <i class="${icon} me-2"></i>
+                        <div>${message}</div>
                     </div>
                 `);
             }
