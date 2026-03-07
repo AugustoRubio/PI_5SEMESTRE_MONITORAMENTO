@@ -17,7 +17,7 @@ zabbix_export:
           key: security.login.failures.total
           delay: 1m
           history: 7d
-          value_type: UINT64
+          value_type: UNSIGNED
           description: 'Total acumulado de tentativas de login que falharam na Intranet.'
           tags:
             - tag: Application
@@ -30,7 +30,7 @@ zabbix_export:
           key: security.login.failures.1h
           delay: 1m
           history: 7d
-          value_type: UINT64
+          value_type: UNSIGNED
           description: 'Quantidade de falhas de login registradas na última hora.'
           tags:
             - tag: Application
@@ -49,7 +49,7 @@ zabbix_export:
           key: security.active.ips
           delay: 30s
           history: 7d
-          value_type: UINT64
+          value_type: UNSIGNED
           description: 'Número de endereços IP únicos que tentaram login nos últimos 5 minutos.'
           tags:
             - tag: Application
@@ -62,7 +62,7 @@ zabbix_export:
           key: security.attack.status
           delay: 10s
           history: 7d
-          value_type: UINT64
+          value_type: UNSIGNED
           description: 'Indica se uma simulação de Brute Force está sendo executada pelo painel (0=Inativo, 1=Ativo).'
           valuemap:
             name: 'Attack Status Map'
