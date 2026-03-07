@@ -1,4 +1,5 @@
 import os
+import subprocess
 from fastapi import APIRouter
 
 router = APIRouter()
@@ -48,6 +49,33 @@ def get_snmprec_value(file_path: str, target_oid: str):
 TEMP_SNMPREC = os.path.join(os.path.dirname(__file__), "../../../snmp_simulator/data/sensor_temp.snmprec")
 UPS_SNMPREC = os.path.join(os.path.dirname(__file__), "../../../snmp_simulator/data/nobreak.snmprec")
 ROUTER_SNMPREC = os.path.join(os.path.dirname(__file__), "../../../snmp_simulator/data/router_core.snmprec")
+SIMULATOR_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../snmp_simulator"))
+
+@router.post("/simulator/start")
+async def start_simulator():
+    try:
+        subprocess.run(["docker-compose", "up", "-d"], cwd=SIMULATOR_DIR, check=True)
+        return {"status": "success", "message": "Simulador SNMP iniciado com sucesso!"}
+    except Exception as e:
+        return {"status": "error", "message": f"Erro ao iniciar simulador: {str(e)}"}
+
+@router.post("/simulator/stop")
+async def stop_simulator():
+    try:
+        subprocess.run(["docker-compose", "stop"], cwd=SIMULATOR_DIR, check=True)
+        return {"status": "success", "message": "Simulador SNMP parado com sucesso!"}
+    except Exception as e:
+        return {"status": "error", "message": f"Erro ao parar simulador: {str(e)}"}
+
+@router.get("/simulator/status")
+async def simulator_status():
+    try:
+        result = subprocess.run(["docker", "ps", "--filter", "name=snmpsim_pi", "--format", "{{.Status}}"], capture_output=True, text=True, check=True)
+        status = result.stdout.strip()
+        is_running = status.startswith("Up")
+        return {"is_running": is_running, "status": status if is_running else "Parado"}
+    except Exception as e:
+        return {"is_running": False, "status": "Erro/Parado"}
 
 @router.post("/temperature/increase")
 async def increase_temperature():
