@@ -4,13 +4,13 @@ zabbix_export:
     - uuid: a571c0d144b14fd2af33355590c9666d
       name: 'Templates/Security'
   templates:
-    - uuid: security_monitor_snmp_v1
+    - uuid: 58ca311353804eccbbbdde588e5bde1a
       template: 'Template Security Monitoring - Brute Force'
       name: 'Template Security Monitoring - Brute Force'
       groups:
         - name: 'Templates/Security'
       items:
-        - uuid: item_total_failures
+        - uuid: 255b52152fcb4ca68275cc6a88cdef36
           name: 'Segurança: Total de Falhas de Login'
           type: SNMP_AGENT
           snmp_oid: '1.3.6.1.4.1.99999.1.1.0'
@@ -23,7 +23,7 @@ zabbix_export:
             - tag: Application
               value: Security
         
-        - uuid: item_failures_1h
+        - uuid: e2a64d380735443db8e6384cad55d025
           name: 'Segurança: Falhas de Login (Última 1h)'
           type: SNMP_AGENT
           snmp_oid: '1.3.6.1.4.1.99999.1.2.0'
@@ -36,13 +36,13 @@ zabbix_export:
             - tag: Application
               value: Security
           triggers:
-            - uuid: trigger_high_failures
+            - uuid: 6aed27a8de934ab08df5098465515b67
               expression: 'last(/Template Security Monitoring - Brute Force/security.login.failures.1h)>50'
               name: 'Segurança: Alto volume de falhas de login detectado'
               priority: HIGH
               description: 'Mais de 50 falhas de login em 1 hora podem indicar um ataque de força bruta persistente.'
 
-        - uuid: item_active_ips
+        - uuid: bc49c949a7514a52b4adcc1162988602
           name: 'Segurança: IPs Atacantes Ativos'
           type: SNMP_AGENT
           snmp_oid: '1.3.6.1.4.1.99999.1.3.0'
@@ -55,7 +55,7 @@ zabbix_export:
             - tag: Application
               value: Security
 
-        - uuid: item_attack_status
+        - uuid: bd44e41c180c4977ba3176d4c31eb2c4
           name: 'Segurança: Status de Simulação de Ataque'
           type: SNMP_AGENT
           snmp_oid: '1.3.6.1.4.1.99999.1.4.0'
@@ -70,14 +70,14 @@ zabbix_export:
             - tag: Application
               value: Security
           triggers:
-            - uuid: trigger_attack_active
+            - uuid: 59d364a803264888a6fea7b58a7324fc
               expression: 'last(/Template Security Monitoring - Brute Force/security.attack.status)=1'
               name: 'Segurança: Simulação de Brute Force em execução'
               priority: WARNING
               manual_close: 'YES'
 
       valuemaps:
-        - uuid: valmap_attack_status
+        - uuid: 9f5e1821c6c3436f814a74acd7655ce5
           name: 'Attack Status Map'
           mappings:
             - value: '0'
