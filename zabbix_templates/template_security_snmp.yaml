@@ -1,0 +1,86 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: a571c0d144b14fd2af33355590c9666d
+      name: 'Templates/Security'
+  templates:
+    - uuid: security_monitor_snmp_v1
+      template: 'Template Security Monitoring - Brute Force'
+      name: 'Template Security Monitoring - Brute Force'
+      groups:
+        - name: 'Templates/Security'
+      items:
+        - uuid: item_total_failures
+          name: 'Segurança: Total de Falhas de Login'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.99999.1.1.0'
+          key: security.login.failures.total
+          delay: 1m
+          history: 7d
+          value_type: UINT64
+          description: 'Total acumulado de tentativas de login que falharam na Intranet.'
+          tags:
+            - tag: Application
+              value: Security
+        
+        - uuid: item_failures_1h
+          name: 'Segurança: Falhas de Login (Última 1h)'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.99999.1.2.0'
+          key: security.login.failures.1h
+          delay: 1m
+          history: 7d
+          value_type: UINT64
+          description: 'Quantidade de falhas de login registradas na última hora.'
+          tags:
+            - tag: Application
+              value: Security
+          triggers:
+            - uuid: trigger_high_failures
+              expression: 'last(/Template Security Monitoring - Brute Force/security.login.failures.1h)>50'
+              name: 'Segurança: Alto volume de falhas de login detectado'
+              priority: HIGH
+              description: 'Mais de 50 falhas de login em 1 hora podem indicar um ataque de força bruta persistente.'
+
+        - uuid: item_active_ips
+          name: 'Segurança: IPs Atacantes Ativos'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.99999.1.3.0'
+          key: security.active.ips
+          delay: 30s
+          history: 7d
+          value_type: UINT64
+          description: 'Número de endereços IP únicos que tentaram login nos últimos 5 minutos.'
+          tags:
+            - tag: Application
+              value: Security
+
+        - uuid: item_attack_status
+          name: 'Segurança: Status de Simulação de Ataque'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.99999.1.4.0'
+          key: security.attack.status
+          delay: 10s
+          history: 7d
+          value_type: UINT64
+          description: 'Indica se uma simulação de Brute Force está sendo executada pelo painel (0=Inativo, 1=Ativo).'
+          valuemap:
+            name: 'Attack Status Map'
+          tags:
+            - tag: Application
+              value: Security
+          triggers:
+            - uuid: trigger_attack_active
+              expression: 'last(/Template Security Monitoring - Brute Force/security.attack.status)=1'
+              name: 'Segurança: Simulação de Brute Force em execução'
+              priority: WARNING
+              manual_close: 'YES'
+
+      valuemaps:
+        - uuid: valmap_attack_status
+          name: 'Attack Status Map'
+          mappings:
+            - value: '0'
+              newvalue: Inativo
+            - value: '1'
+              newvalue: ATACANDO
