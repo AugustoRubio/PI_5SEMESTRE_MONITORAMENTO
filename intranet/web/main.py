@@ -154,19 +154,51 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "t
 # Middleware para redirecionar para a página de setup
 @app.middleware("http")
 async def check_setup(request: Request, call_next):
-    if not DB_CONFIGURED and request.url.path not in ["/setup", "/docs", "/openapi.json", "/security/metrics"] and not request.url.path.startswith("/static"):
+    # Permite acesso à página de setup, documentação e ao endpoint de métricas mesmo sem DB
+    allowed_paths = ["/setup", "/docs", "/openapi.json", "/security/metrics", "/security/metrics/"]
+    if not DB_CONFIGURED and request.url.path not in allowed_paths and not request.url.path.startswith("/static"):
         return RedirectResponse(url="/setup")
     return await call_next(request)
 
 # Dependência do DB
 def get_db():
     if not engine:
-        raise Exception("Banco de dados não conectado.")
+        return None
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+
+# --- ENDPOINT DE SEGURANÇA (Mover para o topo para evitar conflitos) ---
+@app.get("/security/metrics")
+@app.get("/security/metrics/")
+def security_metrics(db: Session = Depends(get_db)):
+    if db is None:
+        return {
+            "total_failures": 0,
+            "failures_last_hour": 0,
+            "active_ips": 0,
+            "recent_failed_attempts": [],
+            "error": "Banco de dados não configurado"
+        }
+    
+    now = int(time.time())
+    total_failures = db.query(LoginAttempt).filter(LoginAttempt.success == 0).count()
+    failures_last_hour = db.query(LoginAttempt).filter(LoginAttempt.success == 0, LoginAttempt.timestamp > now - 3600).count()
+    
+    active_ips = db.query(LoginAttempt.ip_address).filter(LoginAttempt.timestamp > now - 300).distinct().count()
+    
+    recent_logs = db.query(LoginAttempt).filter(LoginAttempt.success == 0).order_by(LoginAttempt.timestamp.desc()).limit(10).all()
+    logs = [{"ip": l.ip_address, "user": l.username, "time": datetime.datetime.fromtimestamp(l.timestamp).strftime("%H:%M:%S")} for l in recent_logs]
+
+    return {
+        "total_failures": total_failures,
+        "failures_last_hour": failures_last_hour,
+        "active_ips": active_ips,
+        "recent_failed_attempts": logs,
+        "system_time": now
+    }
 
 # --- ROTAS DE SETUP ---
 @app.get("/setup", response_class=HTMLResponse)
@@ -203,6 +235,9 @@ def login_page(request: Request, type: str = "admin"):
 
 @app.post("/login")
 def login(request: Request, username: str = Form(...), password: str = Form(...), login_type: str = Form(...), db: Session = Depends(get_db)):
+    if db is None:
+        return RedirectResponse(url="/setup")
+        
     ip = request.client.host
     now = int(time.time())
     
@@ -262,28 +297,6 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
 
     return RedirectResponse(url=f"/login?error=1&type={login_type}", status_code=302)
 
-@app.get("/security/metrics")
-def security_metrics(db: Session = Depends(get_db)):
-    now = int(time.time())
-    total_failures = db.query(LoginAttempt).filter(LoginAttempt.success == 0).count()
-    failures_last_hour = db.query(LoginAttempt).filter(LoginAttempt.success == 0, LoginAttempt.timestamp > now - 3600).count()
-    
-    # Group by IP to see who is currently "blocked" or "active"
-    # This is simplified for the API
-    active_ips = db.query(LoginAttempt.ip_address).filter(LoginAttempt.timestamp > now - 300).distinct().count()
-    
-    # Get last 10 failed attempts for the dashboard
-    recent_logs = db.query(LoginAttempt).filter(LoginAttempt.success == 0).order_by(LoginAttempt.timestamp.desc()).limit(10).all()
-    logs = [{"ip": l.ip_address, "user": l.username, "time": datetime.datetime.fromtimestamp(l.timestamp).strftime("%H:%M:%S")} for l in recent_logs]
-
-    return {
-        "total_failures": total_failures,
-        "failures_last_hour": failures_last_hour,
-        "active_ips": active_ips,
-        "recent_failed_attempts": logs,
-        "system_time": now
-    }
-
 @app.get("/logout")
 def logout():
     response = RedirectResponse(url="/login", status_code=302)
@@ -297,6 +310,8 @@ def logout():
 def admin_dashboard(request: Request, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
+    
+    if db is None: return RedirectResponse(url="/setup")
     
     students = db.query(Student).all()
     professors = db.query(Professor).all()
@@ -319,6 +334,8 @@ def change_admin_password(request: Request, new_password: str = Form(...), db: S
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
     
+    if db is None: return RedirectResponse(url="/setup")
+    
     admin_id = request.cookies.get("user_id")
     admin = db.query(Admin).filter(Admin.id == admin_id).first()
     if admin:
@@ -331,6 +348,8 @@ def create_student(request: Request, name: str = Form(...), registration: str = 
     if request.cookies.get("session") != "authenticated":
         return RedirectResponse(url="/login", status_code=302)
     
+    if db is None: return RedirectResponse(url="/setup")
+    
     if not db.query(Student).filter(Student.registration == registration).first():
         new_student = Student(name=name, registration=registration, course=course)
         db.add(new_student)
@@ -341,6 +360,9 @@ def create_student(request: Request, name: str = Form(...), registration: str = 
 def reset_student_password(request: Request, student_id: int, new_password: str = Form(...), db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login?type=admin", status_code=302)
+    
+    if db is None: return RedirectResponse(url="/setup")
+    
     st = db.query(Student).filter(Student.id == student_id).first()
     if st:
         st.password = pwd_context.hash(new_password)
@@ -351,6 +373,9 @@ def reset_student_password(request: Request, student_id: int, new_password: str 
 def impersonate_student(request: Request, student_id: int, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login?type=admin", status_code=302)
+    
+    if db is None: return RedirectResponse(url="/setup")
+    
     st = db.query(Student).filter(Student.id == student_id).first()
     if st:
         response = RedirectResponse(url="/student_dashboard", status_code=302)
@@ -364,6 +389,8 @@ def impersonate_student(request: Request, student_id: int, db: Session = Depends
 def delete_student(request: Request, student_id: int, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
+    
+    if db is None: return RedirectResponse(url="/setup")
     
     st = db.query(Student).filter(Student.id == student_id).first()
     if st:
@@ -383,6 +410,8 @@ def create_professor_web(
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
     
+    if db is None: return RedirectResponse(url="/setup")
+    
     if not db.query(Professor).filter(Professor.username == username).first():
         new_prof = Professor(username=username, password=pwd_context.hash(password), name=name, department=department)
         db.add(new_prof)
@@ -394,6 +423,9 @@ def create_professor_web(
 def reset_professor_password(request: Request, prof_id: int, new_password: str = Form(...), db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login?type=admin", status_code=302)
+    
+    if db is None: return RedirectResponse(url="/setup")
+    
     prof = db.query(Professor).filter(Professor.id == prof_id).first()
     if prof:
         prof.password = pwd_context.hash(new_password)
@@ -404,6 +436,9 @@ def reset_professor_password(request: Request, prof_id: int, new_password: str =
 def impersonate_professor(request: Request, prof_id: int, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login?type=admin", status_code=302)
+    
+    if db is None: return RedirectResponse(url="/setup")
+    
     prof = db.query(Professor).filter(Professor.id == prof_id).first()
     if prof:
         response = RedirectResponse(url="/prof_dashboard", status_code=302)
@@ -419,6 +454,8 @@ def delete_professor_web(request: Request, prof_id: int, db: Session = Depends(g
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
     
+    if db is None: return RedirectResponse(url="/setup")
+    
     prof = db.query(Professor).filter(Professor.id == prof_id).first()
     if prof:
         db.delete(prof)
@@ -430,6 +467,8 @@ def delete_professor_web(request: Request, prof_id: int, db: Session = Depends(g
 def create_class(request: Request, name: str = Form(...), professor_id: int = Form(...), student_ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
+    
+    if db is None: return RedirectResponse(url="/setup")
     
     new_class = Class(name=name, professor_id=professor_id)
     students = db.query(Student).filter(Student.id.in_(student_ids)).all()
@@ -443,6 +482,8 @@ def delete_class(request: Request, class_id: int, db: Session = Depends(get_db))
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login", status_code=302)
     
+    if db is None: return RedirectResponse(url="/setup")
+    
     cls = db.query(Class).filter(Class.id == class_id).first()
     if cls:
         db.delete(cls)
@@ -454,6 +495,8 @@ def delete_class(request: Request, class_id: int, db: Session = Depends(get_db))
 def prof_dashboard(request: Request, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "professor":
         return RedirectResponse(url="/login", status_code=302)
+    
+    if db is None: return RedirectResponse(url="/setup")
     
     prof_id = int(request.cookies.get("user_id"))
     professor = db.query(Professor).filter(Professor.id == prof_id).first()
@@ -469,6 +512,8 @@ def prof_dashboard(request: Request, db: Session = Depends(get_db)):
 def prof_class_view(request: Request, class_id: int, date: str = "", db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "professor":
         return RedirectResponse(url="/login", status_code=302)
+    
+    if db is None: return RedirectResponse(url="/setup")
     
     prof_id = int(request.cookies.get("user_id"))
     cls = db.query(Class).filter(Class.id == class_id, Class.professor_id == prof_id).first()
@@ -491,6 +536,8 @@ def mark_attendance(request: Request, class_id: int, date: str = Form(...), abse
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "professor":
         return RedirectResponse(url="/login", status_code=302)
     
+    if db is None: return RedirectResponse(url="/setup")
+    
     prof_id = int(request.cookies.get("user_id"))
     cls = db.query(Class).filter(Class.id == class_id, Class.professor_id == prof_id).first()
     if not cls:
@@ -506,79 +553,51 @@ def mark_attendance(request: Request, class_id: int, date: str = Form(...), abse
         
     db.commit()
     return RedirectResponse(url=f"/prof_dashboard/class/{class_id}?date={date}", status_code=302)
+
 # --- STUDENT DASHBOARD ---
-
 @app.get("/student_dashboard", response_class=HTMLResponse)
-
-async def student_dashboard(request: Request, db: Session = Depends(get_db)):
-
+def student_dashboard(request: Request, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "student":
-
         return RedirectResponse(url="/login", status_code=302)
-
+    
+    if db is None: return RedirectResponse(url="/setup")
+    
     student_id = int(request.cookies.get("user_id"))
-
     student = db.query(Student).filter(Student.id == student_id).first()
-
     if not student:
-
         return RedirectResponse(url="/login", status_code=302)
-
     return templates.TemplateResponse("student_dashboard.html", {"request": request, "student": student})
 
-
-
 # --- GRADES (Professor side) ---
-
 @app.post("/prof_dashboard/class/{class_id}/grade")
-
-async def give_grade(request: Request, class_id: int, student_id: int = Form(...), value: str = Form(...), description: str = Form(...), db: Session = Depends(get_db)):
-
+def give_grade(request: Request, class_id: int, student_id: int = Form(...), value: str = Form(...), description: str = Form(...), db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "professor":
-
         return RedirectResponse(url="/login", status_code=302)
-
+    
+    if db is None: return RedirectResponse(url="/setup")
+    
     prof_id = int(request.cookies.get("user_id"))
-
     cls = db.query(Class).filter(Class.id == class_id, Class.professor_id == prof_id).first()
-
     if not cls:
-
         return RedirectResponse(url="/prof_dashboard", status_code=302)
-
     grade = Grade(student_id=student_id, class_id=class_id, value=value, description=description)
-
     db.add(grade)
-
     db.commit()
-
     return RedirectResponse(url=f"/prof_dashboard/class/{class_id}", status_code=302)
-
-
 
 @app.post("/prof_dashboard/class/{class_id}/grade/delete/{grade_id}")
-
-async def delete_grade(request: Request, class_id: int, grade_id: int, db: Session = Depends(get_db)):
-
+def delete_grade(request: Request, class_id: int, grade_id: int, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "professor":
-
         return RedirectResponse(url="/login", status_code=302)
-
+    
+    if db is None: return RedirectResponse(url="/setup")
+    
     prof_id = int(request.cookies.get("user_id"))
-
     cls = db.query(Class).filter(Class.id == class_id, Class.professor_id == prof_id).first()
-
     if not cls:
-
         return RedirectResponse(url="/prof_dashboard", status_code=302)
-
     grade = db.query(Grade).filter(Grade.id == grade_id, Grade.class_id == class_id).first()
-
     if grade:
-
         db.delete(grade)
-
         db.commit()
-
     return RedirectResponse(url=f"/prof_dashboard/class/{class_id}", status_code=302)
-
