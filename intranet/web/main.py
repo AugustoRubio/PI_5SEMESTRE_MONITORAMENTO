@@ -101,7 +101,7 @@ class LoginAttempt(Base):
 def init_db(db_url):
     global engine, SessionLocal, DB_CONFIGURED
     try:
-        temp_engine = create_engine(db_url, pool_pre_ping=True)
+        temp_engine = create_engine(db_url, pool_pre_ping=True, pool_recycle=3600)
         # Testa a conexão
         with temp_engine.connect() as connection:
             pass

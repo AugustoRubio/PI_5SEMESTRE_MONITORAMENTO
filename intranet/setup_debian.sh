@@ -53,7 +53,7 @@ User=$USER
 WorkingDirectory=$WEB_DIR
 Environment="PATH=$WEB_DIR/venv/bin"
 EnvironmentFile=-$WEB_DIR/.env
-ExecStart=$WEB_DIR/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+ExecStart=$WEB_DIR/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --timeout-keep-alive 75
 
 [Install]
 WantedBy=multi-user.target
