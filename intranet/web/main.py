@@ -154,7 +154,7 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(__file__), "t
 # Middleware para redirecionar para a página de setup
 @app.middleware("http")
 async def check_setup(request: Request, call_next):
-    if not DB_CONFIGURED and request.url.path not in ["/setup", "/docs", "/openapi.json"] and not request.url.path.startswith("/static"):
+    if not DB_CONFIGURED and request.url.path not in ["/setup", "/docs", "/openapi.json", "/security/metrics"] and not request.url.path.startswith("/static"):
         return RedirectResponse(url="/setup")
     return await call_next(request)
 
