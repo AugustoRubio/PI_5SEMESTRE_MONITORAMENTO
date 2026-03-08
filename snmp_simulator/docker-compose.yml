@@ -9,8 +9,17 @@ services:
     volumes:
       - ./data:/usr/snmpsim/data
     restart: unless-stopped
+    networks:
+      - sim_snmp_net
     command: >
       --agent-udpv4-endpoint=0.0.0.0:161
       --process-user=snmpsim
       --process-group=snmpsim
       --data-dir=/usr/snmpsim/data
+
+networks:
+  sim_snmp_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.200.101.0/24
