@@ -51,29 +51,54 @@ UPS_SNMPREC = os.path.join(os.path.dirname(__file__), "../../../snmp_simulator/d
 ROUTER_SNMPREC = os.path.join(os.path.dirname(__file__), "../../../snmp_simulator/data/router_core.snmprec")
 SIMULATOR_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../snmp_simulator"))
 
+def run_compose_command(args_list):
+    commands_to_try = [
+        ["docker", "compose"],
+        ["docker-compose"],
+        ["/usr/local/bin/docker-compose"]
+    ]
+    last_err = None
+    for base in commands_to_try:
+        try:
+            cmd = base + args_list
+            result = subprocess.run(cmd, cwd=SIMULATOR_DIR, capture_output=True, text=True, check=True)
+            return True, result.stdout
+        except FileNotFoundError as e:
+            last_err = e
+            continue
+        except subprocess.CalledProcessError as e:
+            return False, e.stderr
+
+    raise FileNotFoundError(f"Docker compose não encontrado. Último erro: {last_err}")
+
 @router.post("/simulator/start")
 async def start_simulator():
     try:
-        subprocess.run(["docker", "compose", "up", "-d"], cwd=SIMULATOR_DIR, check=True)
-        return {"status": "success", "message": "Simulador SNMP iniciado com sucesso!"}
+        success, msg = run_compose_command(["up", "-d"])
+        if success:
+            return {"status": "success", "message": "Simulador SNMP iniciado com sucesso!"}
+        return {"status": "error", "message": f"Erro ao iniciar simulador: {msg}"}
     except Exception as e:
-        return {"status": "error", "message": f"Erro ao iniciar simulador: {str(e)}"}
+        return {"status": "error", "message": f"Erro interno ao iniciar simulador: {str(e)}"}
 
 @router.post("/simulator/stop")
 async def stop_simulator():
     try:
-        subprocess.run(["docker-compose", "stop"], cwd=SIMULATOR_DIR, check=True)
-        return {"status": "success", "message": "Simulador SNMP parado com sucesso!"}
+        success, msg = run_compose_command(["stop"])
+        if success:
+            return {"status": "success", "message": "Simulador SNMP parado com sucesso!"}
+        return {"status": "error", "message": f"Erro ao parar simulador: {msg}"}
     except Exception as e:
-        return {"status": "error", "message": f"Erro ao parar simulador: {str(e)}"}
+        return {"status": "error", "message": f"Erro interno ao parar simulador: {str(e)}"}
 
 @router.get("/simulator/status")
 async def simulator_status():
     try:
-        result = subprocess.run(["docker", "ps", "--filter", "name=snmpsim_pi", "--format", "{{.Status}}"], capture_output=True, text=True, check=True)
-        status = result.stdout.strip()
-        is_running = status.startswith("Up")
-        return {"is_running": is_running, "status": status if is_running else "Parado"}
+        success, stdout = run_compose_command(["ps"])
+        if success:
+            is_running = "Up" in stdout or "running" in stdout.lower()
+            return {"is_running": is_running, "status": "Up" if is_running else "Parado"}
+        return {"is_running": False, "status": "Erro/Parado"}
     except Exception as e:
         return {"is_running": False, "status": "Erro/Parado"}
 
