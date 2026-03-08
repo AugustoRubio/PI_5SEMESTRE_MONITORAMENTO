@@ -1,8 +1,17 @@
 import os
 import subprocess
 from fastapi import APIRouter
+from dotenv import load_dotenv
+
+# Carrega as variáveis do .env
+load_dotenv()
 
 router = APIRouter()
+
+# Tenta detectar o executável do docker compose automaticamente se não estiver no env
+DOCKER_COMPOSE_EXEC = os.getenv("DOCKER_COMPOSE_EXECUTABLE")
+if not DOCKER_COMPOSE_EXEC:
+    DOCKER_COMPOSE_EXEC = "docker compose"
 
 # Helper function to update snmprec files
 def update_snmprec_file(file_path: str, updates: dict):
