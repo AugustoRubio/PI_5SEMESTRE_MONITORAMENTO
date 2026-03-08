@@ -54,7 +54,7 @@ SIMULATOR_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 @router.post("/simulator/start")
 async def start_simulator():
     try:
-        subprocess.run(["docker-compose", "up", "-d"], cwd=SIMULATOR_DIR, check=True)
+        subprocess.run(["docker", "compose", "up", "-d"], cwd=SIMULATOR_DIR, check=True)
         return {"status": "success", "message": "Simulador SNMP iniciado com sucesso!"}
     except Exception as e:
         return {"status": "error", "message": f"Erro ao iniciar simulador: {str(e)}"}
