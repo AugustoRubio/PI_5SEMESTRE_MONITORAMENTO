@@ -28,35 +28,48 @@
                     <a class="nav-link" href="/"><i class="bi bi-house-door"></i> Dashboard</a>
                 </li>
                 
-                <!-- Menu Dropdown: Simulações -->
+                <!-- Menu: Simulação Intranet -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="simulacoesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-controller"></i> Simulações
+                    <a class="nav-link dropdown-toggle text-primary" href="#" id="intranetDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-server"></i> Simulação Intranet
                     </a>
-                    <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="simulacoesDropdown">
-                        <li><a class="dropdown-item" href="/devices"><i class="bi bi-router"></i> Dispositivos SNMP</a></li>
-                        <li><a class="dropdown-item text-danger" href="/attacks"><i class="bi bi-crosshair"></i> Ataques (Red Team)</a></li>
-                                                <li><a class="dropdown-item text-primary" href="/simulation"><i class="bi bi-robot"></i> Simulação & Estresse</a></li>
+                    <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="intranetDropdown">
+                        <li><a class="dropdown-item" href="/stress"><i class="bi bi-activity"></i> Testes de Estresse</a></li>
+                        <li><a class="dropdown-item" href="/simulation"><i class="bi bi-people"></i> Simulação de Uso Real</a></li>
                     </ul>
                 </li>
 
-                <!-- Menu Dropdown: Sistema -->
+                <!-- Menu: Simulação de Ataques -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-danger" href="#" id="ataquesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-shield-slash"></i> Simulação de Ataques
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="ataquesDropdown">
+                        <li><a class="dropdown-item" href="/attacks"><i class="bi bi-key"></i> Força Bruta (Brute Force)</a></li>
+                    </ul>
+                </li>
+
+                <!-- Menu: Simulação de Data Center -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-success" href="#" id="datacenterDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-hdd-network"></i> Simulação Data Center
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="datacenterDropdown">
+                        <li><a class="dropdown-item" href="/devices"><i class="bi bi-cpu"></i> Dispositivos (SNMP)</a></li>
+                    </ul>
+                </li>
+
+                <!-- Menu: Sistema -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="sistemaDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-gear"></i> Sistema
                     </a>
                     <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="sistemaDropdown">
                         <li><a class="dropdown-item text-warning" href="/config"><i class="bi bi-sliders"></i> Configurações</a></li>
-                        <li><a class="dropdown-item text-info" href="/admin"><i class="bi bi-people"></i> Usuários</a></li>
+                        <li><a class="dropdown-item text-info" href="/admin"><i class="bi bi-person-badge"></i> Usuários</a></li>
                     </ul>
                 </li>
 
-                <li class="nav-item">
-                    <a class="nav-link" href="/docs" target="_blank"><i class="bi bi-file-earmark-code"></i> API Docs</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/simulation"><i class="bi bi-robot"></i> Simulações</a>
-                </li>
                 <li class="nav-item">
                     <a class="nav-link text-secondary" href="#" onclick="logout()"><i class="bi bi-box-arrow-right"></i> Sair</a>
                 </li>
