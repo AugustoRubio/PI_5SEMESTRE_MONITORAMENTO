@@ -179,7 +179,12 @@
     async function viewLogs() {
         const logsContainer = document.getElementById('simulatorLogsContainer');
         logsContainer.textContent = "Carregando logs...";
-        const modal = new bootstrap.Modal(document.getElementById('simulatorLogsModal'));
+        
+        const modalElement = document.getElementById('simulatorLogsModal');
+        let modal = bootstrap.Modal.getInstance(modalElement);
+        if (!modal) {
+            modal = new bootstrap.Modal(modalElement);
+        }
         modal.show();
 
         try {
