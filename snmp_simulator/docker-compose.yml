@@ -3,7 +3,7 @@ services:
     image: tandrup/snmpsim
     container_name: snmpsim_pi
     ports:
-      - "161:161/udp"
+      - "10161:161/udp"
     volumes:
       - ./data:/usr/snmpsim/data
     restart: unless-stopped

@@ -103,7 +103,7 @@ async def start_simulator():
 @router.post("/simulator/stop")
 async def stop_simulator():
     try:
-        success, msg = run_compose_command(["stop"])
+        success, msg = run_compose_command(["down"])
         if success:
             return {"status": "success", "message": "Simulador SNMP parado com sucesso!"}
         return {"status": "error", "message": f"Erro ao parar simulador: {msg}"}
