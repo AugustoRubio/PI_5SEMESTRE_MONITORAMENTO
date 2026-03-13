@@ -73,11 +73,14 @@ def run_compose_command(args_list):
     if env_cmd:
         commands_to_try.insert(0, env_cmd)
 
+    env_vars = os.environ.copy()
+    env_vars["DOCKER_API_VERSION"] = "1.41"
+
     last_err = None
     for base in commands_to_try:
         try:
             cmd = base + args_list
-            result = subprocess.run(cmd, cwd=SIMULATOR_DIR, capture_output=True, text=True, check=True)
+            result = subprocess.run(cmd, cwd=SIMULATOR_DIR, capture_output=True, text=True, check=True, env=env_vars)
             return True, result.stdout
         except FileNotFoundError as e:
             last_err = e

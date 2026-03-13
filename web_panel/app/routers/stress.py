@@ -75,6 +75,9 @@ async def run_docker_command(args: str, env=None):
     """Executa um comando docker compose tentando v2 e v1 como fallback."""
     global DOCKER_COMPOSE_EXEC
     
+    run_env = os.environ.copy() if env is None else env.copy()
+    run_env["DOCKER_API_VERSION"] = "1.41"
+    
     commands_to_try = [DOCKER_COMPOSE_EXEC, "docker-compose", "/usr/local/bin/docker-compose", "/usr/libexec/docker/cli-plugins/docker-compose"]
     last_error = ""
 
@@ -83,7 +86,7 @@ async def run_docker_command(args: str, env=None):
             full_cmd = f'{cmd} -f "{DOCKER_COMPOSE_PATH}" {args}'
             proc = await asyncio.create_subprocess_shell(
                 full_cmd,
-                env=env,
+                env=run_env,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )

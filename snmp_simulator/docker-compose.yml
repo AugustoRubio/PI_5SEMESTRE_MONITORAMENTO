@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   snmpsim:
     image: tandrup/snmpsim
