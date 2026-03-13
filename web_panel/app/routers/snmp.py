@@ -182,7 +182,14 @@ async def simulate_power_fail():
     updates = {
         "1.3.6.1.2.1.33.1.2.1.0": "3",  # batteryLow or discharging
         "1.3.6.1.2.1.33.1.2.4.0": "85", # Simulating immediate drop
-        "1.3.6.1.2.1.33.1.4.1.0": "60"  # 60 seconds on battery
+        "1.3.6.1.2.1.33.1.4.1.0": "60", # 60 seconds on battery
+        
+        # OIDs Específicos da APC
+        "1.3.6.1.4.1.318.1.1.1.2.1.1.0": "3",  # upsBasicBatteryStatus = onBattery
+        "1.3.6.1.4.1.318.1.1.1.2.2.1.0": "85", # upsAdvBatteryCapacity = 85%
+        "1.3.6.1.4.1.318.1.1.1.2.1.2.0": "6000", # upsBasicBatteryTimeOnBattery (60s em centésimos)
+        "1.3.6.1.4.1.318.1.1.1.3.3.4.0": "4",  # upsAdvInputLineFailCause = blackout
+        "1.3.6.1.4.1.318.1.1.1.3.3.1.0": "0"   # upsAdvInputVoltage = 0v
     }
     
     success = update_snmprec_file(UPS_SNMPREC, updates)
@@ -195,7 +202,14 @@ async def simulate_power_restore():
     updates = {
         "1.3.6.1.2.1.33.1.2.1.0": "2",  # batteryNormal
         "1.3.6.1.2.1.33.1.2.4.0": "100", # Fully charged
-        "1.3.6.1.2.1.33.1.4.1.0": "0"    # Online
+        "1.3.6.1.2.1.33.1.4.1.0": "0",   # Online
+        
+        # OIDs Específicos da APC
+        "1.3.6.1.4.1.318.1.1.1.2.1.1.0": "2",  # upsBasicBatteryStatus = normal
+        "1.3.6.1.4.1.318.1.1.1.2.2.1.0": "100", # upsAdvBatteryCapacity = 100%
+        "1.3.6.1.4.1.318.1.1.1.2.1.2.0": "0", # upsBasicBatteryTimeOnBattery = 0s
+        "1.3.6.1.4.1.318.1.1.1.3.3.4.0": "1",  # upsAdvInputLineFailCause = noTransfer
+        "1.3.6.1.4.1.318.1.1.1.3.3.1.0": "120" # upsAdvInputVoltage = 120v
     }
     
     success = update_snmprec_file(UPS_SNMPREC, updates)
