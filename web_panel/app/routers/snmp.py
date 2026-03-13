@@ -121,6 +121,16 @@ async def simulator_status():
     except Exception as e:
         return {"is_running": False, "status": "Erro/Parado"}
 
+@router.get("/simulator/logs")
+async def simulator_logs():
+    try:
+        success, stdout = run_compose_command(["logs", "--tail=50"])
+        if success:
+            return {"status": "success", "logs": stdout}
+        return {"status": "error", "message": f"Erro ao buscar logs: {stdout}"}
+    except Exception as e:
+        return {"status": "error", "message": f"Erro interno ao buscar logs: {str(e)}"}
+
 @router.post("/temperature/increase")
 async def increase_temperature():
     current_temp = float(get_snmprec_value(TEMP_SNMPREC, "1.3.6.1.4.1.2021.255.1.0") or 22)

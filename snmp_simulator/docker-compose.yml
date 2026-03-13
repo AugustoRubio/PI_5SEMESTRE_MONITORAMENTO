@@ -13,7 +13,7 @@ services:
       - "snmpsimd.py"
       - "--agent-udpv4-endpoint=0.0.0.0:161"
       - "--process-user=snmpsim"
-      - "--process-group=snmpsim"
+      - "--process-group=nogroup"
       - "--data-dir=/usr/snmpsim/data"
 
 networks:
