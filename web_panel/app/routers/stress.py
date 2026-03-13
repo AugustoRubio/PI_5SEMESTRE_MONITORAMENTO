@@ -75,7 +75,7 @@ async def run_docker_command(args: str, env=None):
     """Executa um comando docker compose tentando v2 e v1 como fallback."""
     global DOCKER_COMPOSE_EXEC
     
-    commands_to_try = [DOCKER_COMPOSE_EXEC, "docker-compose", "/usr/local/bin/docker-compose"]
+    commands_to_try = [DOCKER_COMPOSE_EXEC, "docker-compose", "/usr/local/bin/docker-compose", "/usr/libexec/docker/cli-plugins/docker-compose"]
     last_error = ""
 
     for cmd in commands_to_try:

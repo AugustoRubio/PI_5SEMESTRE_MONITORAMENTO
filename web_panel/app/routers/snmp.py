@@ -61,11 +61,18 @@ ROUTER_SNMPREC = os.path.join(os.path.dirname(__file__), "../../../snmp_simulato
 SIMULATOR_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../snmp_simulator"))
 
 def run_compose_command(args_list):
+    docker_env = os.getenv("DOCKER_COMPOSE_EXECUTABLE")
+    env_cmd = docker_env.split() if docker_env else []
+
     commands_to_try = [
         ["docker", "compose"],
         ["docker-compose"],
-        ["/usr/local/bin/docker-compose"]
+        ["/usr/local/bin/docker-compose"],
+        ["/usr/libexec/docker/cli-plugins/docker-compose"]
     ]
+    if env_cmd:
+        commands_to_try.insert(0, env_cmd)
+
     last_err = None
     for base in commands_to_try:
         try:
