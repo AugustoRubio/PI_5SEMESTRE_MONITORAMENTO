@@ -10,6 +10,7 @@ services:
     networks:
       - sim_snmp_net
     command:
+      - "snmpsimd.py"
       - "--agent-udpv4-endpoint=0.0.0.0:161"
       - "--process-user=snmpsim"
       - "--process-group=snmpsim"
