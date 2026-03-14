@@ -1,0 +1,132 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 8881c0d144b14fd2af33355590c9666d
+      name: 'Templates/Power'
+  templates:
+    - uuid: 888a311353804eccbbbdde588e5bde1a
+      template: 'Template APC Simulado SNMP'
+      name: 'Template APC Simulado SNMP'
+      description: 'Template criado sob medida para monitorar o Nobreak APC Simulado, sem erros de "No Such Instance".'
+      groups:
+        - name: 'Templates/Power'
+      items:
+        - uuid: 888b52152fcb4ca68275cc6a88cdef36
+          name: 'Nobreak: Status da Bateria'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.318.1.1.1.2.1.1.0'
+          key: upsBasicBatteryStatus
+          delay: 30s
+          history: 7d
+          value_type: UNSIGNED
+          description: 'Status atual da bateria (2=normal, 3=onBattery)'
+          valuemap:
+            name: 'APC Battery Status'
+          tags:
+            - tag: Application
+              value: Power
+          triggers:
+            - uuid: 99911111111111111111111111111111
+              expression: 'last(/Template APC Simulado SNMP/upsBasicBatteryStatus)=3'
+              name: 'Nobreak: Operando na Bateria'
+              priority: HIGH
+              description: 'O nobreak perdeu energia da rede e está operando na bateria.'
+
+        - uuid: 88864d380735443db8e6384cad55d025
+          name: 'Nobreak: Capacidade da Bateria (%)'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.318.1.1.1.2.2.1.0'
+          key: upsAdvBatteryCapacity
+          delay: 1m
+          history: 7d
+          value_type: FLOAT
+          units: '%'
+          description: 'Capacidade restante da bateria em porcentagem.'
+          tags:
+            - tag: Application
+              value: Power
+          triggers:
+            - uuid: 99922222222222222222222222222222
+              expression: 'last(/Template APC Simulado SNMP/upsAdvBatteryCapacity)<20'
+              name: 'Nobreak: Capacidade da bateria muito baixa (< 20%)'
+              priority: HIGH
+
+        - uuid: 8889c949a7514a52b4adcc1162988602
+          name: 'Nobreak: Tempo Restante de Bateria (Ticks)'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.318.1.1.1.2.2.3.0'
+          key: upsAdvBatteryRunTimeRemaining
+          delay: 1m
+          history: 7d
+          value_type: UNSIGNED
+          description: 'Tempo restante de funcionamento na bateria (em ticks).'
+          tags:
+            - tag: Application
+              value: Power
+
+        - uuid: 8884e41c180c4977ba3176d4c31eb2c4
+          name: 'Nobreak: Voltagem de Entrada (V)'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.318.1.1.1.3.3.1.0'
+          key: upsAdvInputVoltage
+          delay: 30s
+          history: 7d
+          value_type: FLOAT
+          units: 'V'
+          description: 'Tensão de entrada atual (Volts).'
+          tags:
+            - tag: Application
+              value: Power
+
+        - uuid: 888d364a803264888a6fea7b58a7324fc
+          name: 'Nobreak: Voltagem de Saída (V)'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.318.1.1.1.4.1.1.0'
+          key: upsAdvOutputVoltage
+          delay: 30s
+          history: 7d
+          value_type: FLOAT
+          units: 'V'
+          description: 'Tensão de saída atual (Volts).'
+          tags:
+            - tag: Application
+              value: Power
+
+        - uuid: 888e1821c6c3436f814a74acd7655ce5
+          name: 'Nobreak: Carga de Saída (%)'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.318.1.1.1.4.3.3.0'
+          key: upsAdvOutputLoad
+          delay: 1m
+          history: 7d
+          value_type: FLOAT
+          units: '%'
+          description: 'Porcentagem de carga atual suportada pelo nobreak.'
+          tags:
+            - tag: Application
+              value: Power
+
+        - uuid: 888f1821c6c3436f814a74acd7655ce5
+          name: 'Nobreak: Corrente de Saída (A)'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.318.1.1.1.4.3.4.0'
+          key: upsAdvOutputCurrent
+          delay: 1m
+          history: 7d
+          value_type: FLOAT
+          units: 'A'
+          description: 'Corrente de saída (Amperes).'
+          tags:
+            - tag: Application
+              value: Power
+
+      valuemaps:
+        - uuid: 88800000000000000000000000000000
+          name: 'APC Battery Status'
+          mappings:
+            - value: '1'
+              newvalue: Unknown
+            - value: '2'
+              newvalue: Normal
+            - value: '3'
+              newvalue: On Battery
