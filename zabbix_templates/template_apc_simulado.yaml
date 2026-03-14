@@ -119,6 +119,49 @@ zabbix_export:
           tags:
             - tag: Application
               value: Power
+        - uuid: db3b3cd727534b3b8c67e39db7e1e78a
+          name: 'Nobreak: Tempo de Atividade (Uptime)'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.2.1.1.3.0'
+          key: sysUpTime
+          delay: 1m
+          history: 7d
+          value_type: UNSIGNED
+          units: uptime
+          description: 'Tempo desde a última reinicialização do serviço SNMP.'
+          preprocessing:
+            - type: MULTIPLIER
+              parameters:
+                - '0.01'
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: ecc73af29b964b1e8b0ce01b7583e4ff
+              expression: 'last(/Template APC Simulado SNMP/sysUpTime)<10m'
+              name: 'Nobreak: Foi reiniciado recentemente (uptime < 10m)'
+              priority: INFO
+
+        - uuid: 2fe9336a332b4fbd959bcf11f45a8749
+          name: 'Nobreak: Status do Agente SNMP'
+          type: INTERNAL
+          key: 'zabbix[host,snmp,available]'
+          delay: 1m
+          history: 7d
+          value_type: UNSIGNED
+          description: 'Disponibilidade do agente SNMP (1 = disponível, 0 = indisponível).'
+          valuemap:
+            name: 'SNMP Availability'
+          tags:
+            - tag: Application
+              value: Status
+          triggers:
+            - uuid: 57c1d0bbc1b3415e9c98a9b8d859e066
+              expression: 'max(/Template APC Simulado SNMP/zabbix[host,snmp,available],3m)=0'
+              name: 'Nobreak: Agente SNMP Inalcançável'
+              priority: HIGH
+
+
 
       valuemaps:
         - uuid: 136d0d79d69a43149770acf61439ea08
@@ -130,3 +173,38 @@ zabbix_export:
               newvalue: Normal
             - value: '3'
               newvalue: On Battery
+        - uuid: 58fc850100e0464a96ccfb6f515fd568
+          name: 'SNMP Availability'
+          mappings:
+            - value: '0'
+              newvalue: Inativo
+            - value: '1'
+              newvalue: Disponível
+            - value: '2'
+              newvalue: Desconhecido
+
+      graphs:
+        - uuid: 5e1276bedbe84ac8b3c22cc27c5d0ed6
+          name: 'Nobreak: Voltagens de Entrada e Saída'
+          graph_items:
+            - color: 1A7C11
+              item:
+                host: 'Template APC Simulado SNMP'
+                key: upsAdvInputVoltage
+            - sortorder: '1'
+              color: 2774A4
+              item:
+                host: 'Template APC Simulado SNMP'
+                key: upsAdvOutputVoltage
+        - uuid: d390a2afe6af408ba0ec1763a2dee679
+          name: 'Nobreak: Capacidade e Carga'
+          graph_items:
+            - color: F63100
+              item:
+                host: 'Template APC Simulado SNMP'
+                key: upsAdvBatteryCapacity
+            - sortorder: '1'
+              color: A54F10
+              item:
+                host: 'Template APC Simulado SNMP'
+                key: upsAdvOutputLoad
