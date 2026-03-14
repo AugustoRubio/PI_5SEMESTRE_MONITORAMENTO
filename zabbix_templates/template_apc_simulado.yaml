@@ -183,28 +183,28 @@ zabbix_export:
             - value: '2'
               newvalue: Desconhecido
 
-      graphs:
-        - uuid: 5e1276bedbe84ac8b3c22cc27c5d0ed6
-          name: 'Nobreak: Voltagens de Entrada e Saída'
-          graph_items:
-            - color: 1A7C11
-              item:
-                host: 'Template APC Simulado SNMP'
-                key: upsAdvInputVoltage
-            - sortorder: '1'
-              color: 2774A4
-              item:
-                host: 'Template APC Simulado SNMP'
-                key: upsAdvOutputVoltage
-        - uuid: d390a2afe6af408ba0ec1763a2dee679
-          name: 'Nobreak: Capacidade e Carga'
-          graph_items:
-            - color: F63100
-              item:
-                host: 'Template APC Simulado SNMP'
-                key: upsAdvBatteryCapacity
-            - sortorder: '1'
-              color: A54F10
-              item:
-                host: 'Template APC Simulado SNMP'
-                key: upsAdvOutputLoad
+  graphs:
+    - uuid: 5e1276bedbe84ac8b3c22cc27c5d0ed6
+      name: 'Nobreak: Voltagens de Entrada e Saída'
+      graph_items:
+        - color: 1A7C11
+          item:
+            host: 'Template APC Simulado SNMP'
+            key: upsAdvInputVoltage
+        - sortorder: '1'
+          color: 2774A4
+          item:
+            host: 'Template APC Simulado SNMP'
+            key: upsAdvOutputVoltage
+    - uuid: d390a2afe6af408ba0ec1763a2dee679
+      name: 'Nobreak: Capacidade e Carga'
+      graph_items:
+        - color: F63100
+          item:
+            host: 'Template APC Simulado SNMP'
+            key: upsAdvBatteryCapacity
+        - sortorder: '1'
+          color: A54F10
+          item:
+            host: 'Template APC Simulado SNMP'
+            key: upsAdvOutputLoad
