@@ -41,12 +41,20 @@
                 <p><strong>Bateria Atual:</strong> <span id="battery-level">100%</span></p>
                 <p class="text-muted small">Simule uma queda de energia para testar se o Zabbix gera o alerta de "Operando na Bateria" e se o nível da bateria começa a cair.</p>
                 
-                <div class="d-grid gap-2">
+                <div class="d-grid gap-2 mb-2">
                     <button class="btn btn-dark" onclick="simulatePowerEvent('fail')">
                         <i class="bi bi-lightning-charge-fill"></i> Simular Queda de Energia
                     </button>
                     <button class="btn btn-success" onclick="simulatePowerEvent('restore')">
                         <i class="bi bi-plug-fill"></i> Restaurar Energia
+                    </button>
+                </div>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-warning text-dark" onclick="simulateUpsLoadEvent('high')">
+                        <i class="bi bi-battery-charging"></i> Simular Alta Carga (98%)
+                    </button>
+                    <button class="btn btn-info text-dark" onclick="simulateUpsLoadEvent('normal')">
+                        <i class="bi bi-battery-half"></i> Normalizar Carga
                     </button>
                 </div>
             </div>
@@ -67,13 +75,25 @@
                 </h3>
                 <p class="text-muted small">Altere a temperatura para forçar o Zabbix a disparar um alerta de "Temperatura Crítica no Datacenter".</p>
                 
-                <div class="d-flex justify-content-center gap-3">
-                    <button class="btn btn-danger" onclick="changeTemperature('up')">
-                        <i class="bi bi-arrow-up-circle"></i> Aumentar (+5°C)
-                    </button>
-                    <button class="btn btn-primary" onclick="changeTemperature('down')">
-                        <i class="bi bi-arrow-down-circle"></i> Diminuir (-5°C)
-                    </button>
+                <div class="d-grid gap-2 mb-2">
+                    <div class="btn-group w-100" role="group">
+                        <button class="btn btn-danger w-50" onclick="changeTemperature('up')">
+                            <i class="bi bi-thermometer-sun"></i> Temp (+5°C)
+                        </button>
+                        <button class="btn btn-primary w-50" onclick="changeTemperature('down')">
+                            <i class="bi bi-thermometer-snow"></i> Temp (-5°C)
+                        </button>
+                    </div>
+                </div>
+                <div class="d-grid gap-2">
+                    <div class="btn-group w-100" role="group">
+                        <button class="btn btn-warning w-50" onclick="changeHumidity('up')">
+                            <i class="bi bi-droplet-fill"></i> Umi (+10%)
+                        </button>
+                        <button class="btn btn-info w-50" onclick="changeHumidity('down')">
+                            <i class="bi bi-droplet-half"></i> Umi (-10%)
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -232,6 +252,41 @@
                 }
             } else {
                 alert('Erro ao comunicar com a API.');
+            }
+        } catch (error) {
+            alert('Erro de conexão.');
+        }
+    }
+
+    async function simulateUpsLoadEvent(action) {
+        const endpoint = action === 'high' ? '/api/snmp/ups/high-load' : '/api/snmp/ups/normal-load';
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            if (response.ok) {
+                alert(action === 'high' ? 'Alta carga simulada (98%).' : 'Carga do Nobreak normalizada.');
+            } else {
+                alert('Erro ao comunicar com a API.');
+            }
+        } catch (error) {
+            alert('Erro de conexão.');
+        }
+    }
+
+    async function changeHumidity(direction) {
+        const endpoint = direction === 'up' ? '/api/snmp/humidity/increase' : '/api/snmp/humidity/decrease';
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                alert(data.message);
+            } else {
+                alert('Erro ao atualizar simulador.');
             }
         } catch (error) {
             alert('Erro de conexão.');

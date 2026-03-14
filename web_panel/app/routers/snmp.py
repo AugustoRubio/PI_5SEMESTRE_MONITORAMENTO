@@ -147,7 +147,9 @@ async def increase_temperature():
         "1.3.6.1.4.1.2021.255.3.0": status
     }
     
+    # Atualiza tanto o sensor dedicado quanto a probe do nobreak APC (para Zabbix)
     success = update_snmprec_file(TEMP_SNMPREC, updates)
+    update_snmprec_file(UPS_SNMPREC, {"1.3.6.1.4.1.318.1.1.25.1.2.1.3.1.1": str(int(new_temp))})
     if success:
         return {"status": "success", "message": f"Temperatura aumentada para {new_temp}°C no simulador."}
     return {"status": "error", "message": "Falha ao atualizar o simulador."}
@@ -169,6 +171,7 @@ async def decrease_temperature():
     }
     
     success = update_snmprec_file(TEMP_SNMPREC, updates)
+    update_snmprec_file(UPS_SNMPREC, {"1.3.6.1.4.1.318.1.1.25.1.2.1.3.1.1": str(int(new_temp))})
     if success:
         return {"status": "success", "message": f"Temperatura diminuída para {new_temp}°C no simulador."}
     return {"status": "error", "message": "Falha ao atualizar o simulador."}
@@ -215,6 +218,50 @@ async def simulate_power_restore():
     success = update_snmprec_file(UPS_SNMPREC, updates)
     if success:
         return {"status": "success", "message": "Energia restaurada. Nobreak em modo online."}
+    return {"status": "error", "message": "Falha ao atualizar o simulador."}
+
+
+@router.post("/humidity/increase")
+async def increase_humidity():
+    # Usaremos uma base simples via TEMP_SNMPREC ou direto no Nobreak
+    current_hum = float(get_snmprec_value(UPS_SNMPREC, "1.3.6.1.4.1.318.1.1.25.1.2.2.3.1.1") or 45)
+    new_hum = min(current_hum + 10, 100)
+    
+    success = update_snmprec_file(UPS_SNMPREC, {"1.3.6.1.4.1.318.1.1.25.1.2.2.3.1.1": str(int(new_hum))})
+    if success:
+        return {"status": "success", "message": f"Umidade aumentada para {new_hum}% no simulador."}
+    return {"status": "error", "message": "Falha ao atualizar o simulador."}
+
+@router.post("/humidity/decrease")
+async def decrease_humidity():
+    current_hum = float(get_snmprec_value(UPS_SNMPREC, "1.3.6.1.4.1.318.1.1.25.1.2.2.3.1.1") or 45)
+    new_hum = max(current_hum - 10, 0)
+    
+    success = update_snmprec_file(UPS_SNMPREC, {"1.3.6.1.4.1.318.1.1.25.1.2.2.3.1.1": str(int(new_hum))})
+    if success:
+        return {"status": "success", "message": f"Umidade diminuída para {new_hum}% no simulador."}
+    return {"status": "error", "message": "Falha ao atualizar o simulador."}
+
+@router.post("/ups/high-load")
+async def simulate_ups_high_load():
+    updates = {
+        "1.3.6.1.4.1.318.1.1.1.4.3.3.0": "98", # upsAdvOutputLoad = 98%
+        "1.3.6.1.4.1.318.1.1.1.4.3.4.0": "25"  # upsAdvOutputCurrent = 25A
+    }
+    success = update_snmprec_file(UPS_SNMPREC, updates)
+    if success:
+        return {"status": "success", "message": "Alta carga simulada (98%)."}
+    return {"status": "error", "message": "Falha ao atualizar o simulador."}
+
+@router.post("/ups/normal-load")
+async def simulate_ups_normal_load():
+    updates = {
+        "1.3.6.1.4.1.318.1.1.1.4.3.3.0": "15", # upsAdvOutputLoad = 15%
+        "1.3.6.1.4.1.318.1.1.1.4.3.4.0": "10"  # upsAdvOutputCurrent = 10A
+    }
+    success = update_snmprec_file(UPS_SNMPREC, updates)
+    if success:
+        return {"status": "success", "message": "Carga normalizada (15%)."}
     return {"status": "error", "message": "Falha ao atualizar o simulador."}
 
 @router.post("/router/cpu-spike")
