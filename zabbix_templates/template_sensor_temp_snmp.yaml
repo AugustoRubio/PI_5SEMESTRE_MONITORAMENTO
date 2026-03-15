@@ -1,0 +1,87 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: 0c1bb62c72c543ba945b6dbfaefd9f2a
+      name: 'Templates/Datacenter'
+  templates:
+    - uuid: bb95b6a7a28448ea92c5bb74421b5cf0
+      template: 'Template Sensor Temp Umidade - SNMP'
+      name: 'Template Sensor Temp Umidade - SNMP'
+      groups:
+        - name: 'Templates/Datacenter'
+      items:
+        - uuid: 4a2d1d0c9f1345d3a1f8db11c2a1c6a0
+          name: 'Datacenter: Temperatura'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.2021.255.1.0'
+          key: datacenter.temperature
+          delay: 30s
+          history: 7d
+          value_type: FLOAT
+          units: '°C'
+          description: 'Temperatura atual do datacenter.'
+          tags:
+            - tag: Application
+              value: Environment
+          triggers:
+            - uuid: a8d5db0f210d48a3bf29b8214db25af2
+              expression: 'last(/Template Sensor Temp Umidade - SNMP/datacenter.temperature)>=30'
+              name: 'Datacenter: Temperatura CRÍTICA (>= 30°C)'
+              priority: HIGH
+              description: 'O datacenter está superaquecendo.'
+            - uuid: 8d7b32c6a2ab46a782b135b75a1d0f59
+              expression: 'last(/Template Sensor Temp Umidade - SNMP/datacenter.temperature)<=15'
+              name: 'Datacenter: Temperatura MUITO FRIA (<= 15°C)'
+              priority: WARNING
+              description: 'O datacenter está mais frio que o normal, possível falha no ar condicionado (desperdiçando energia).'
+
+        - uuid: e27b14d2ab3247c49987a05dbdb8efb5
+          name: 'Datacenter: Umidade'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.2021.255.2.0'
+          key: datacenter.humidity
+          delay: 30s
+          history: 7d
+          value_type: FLOAT
+          units: '%'
+          description: 'Umidade atual do datacenter.'
+          tags:
+            - tag: Application
+              value: Environment
+          triggers:
+            - uuid: c6ed1c23a1f54b679b380a96fbb5cdbc
+              expression: 'last(/Template Sensor Temp Umidade - SNMP/datacenter.humidity)>80'
+              name: 'Datacenter: Umidade muito ALTA (> 80%)'
+              priority: HIGH
+              description: 'Risco de condensação nos equipamentos.'
+            - uuid: 7abdf451f2bc4e5da3c285d30bc9882a
+              expression: 'last(/Template Sensor Temp Umidade - SNMP/datacenter.humidity)<30'
+              name: 'Datacenter: Umidade muito BAIXA (< 30%)'
+              priority: WARNING
+              description: 'Risco de energia estática.'
+
+        - uuid: 9ab09d949c5e42a9a14bc19f18b321a8
+          name: 'Datacenter: Status Geral do Sensor'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.2021.255.3.0'
+          key: datacenter.sensor.status
+          delay: 30s
+          history: 7d
+          value_type: UNSIGNED
+          description: 'Status geral computado pelo sensor (1=Normal, 2=Alerta, 3=Crítico).'
+          valuemap:
+            name: 'Sensor Status Map'
+          tags:
+            - tag: Application
+              value: Environment
+
+      valuemaps:
+        - uuid: f8a9b2b512c544c9b132890d235c5c10
+          name: 'Sensor Status Map'
+          mappings:
+            - value: '1'
+              newvalue: 'Normal'
+            - value: '2'
+              newvalue: 'Alerta'
+            - value: '3'
+              newvalue: 'Crítico'
