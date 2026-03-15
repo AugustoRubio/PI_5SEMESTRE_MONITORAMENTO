@@ -1,0 +1,15 @@
+services:
+  bruteforce:
+    build: .
+    environment:
+      - TARGET_URL=${TARGET_URL:-https://10.10.100.4/login}
+      - LOGIN_TYPE=${LOGIN_TYPE:-student}
+      - CONCURRENCY=${CONCURRENCY:-10}
+    # Para o docker gerar requests de brute force com X-Forwarded-For aleatório e evitar cache/limites
+    networks:
+      - bf_net
+    restart: "no"
+
+networks:
+  bf_net:
+    driver: bridge
