@@ -262,5 +262,44 @@ async def simulate_ups_normal_load():
         return {"status": "success", "message": "Carga normalizada (15%)."}
     return {"status": "error", "message": "Falha ao atualizar o simulador."}
 
+@router.get("/devices/status")
+async def get_devices_status():
+    is_running = False
+    try:
+        success, stdout = run_compose_command(["ps"])
+        if success:
+            is_running = "Up" in stdout or "running" in stdout.lower()
+    except Exception:
+        pass
+
+    if not is_running:
+        return {
+            "is_running": False,
+            "ups": {"status": "DESLIGADO (Simulador Off)", "status_code": "secondary", "battery_level": "--%"},
+            "sensor": {"status": "DESLIGADO (Simulador Off)", "status_code": "secondary", "temperature": "--", "humidity": "--"}
+        }
+
+    ups_batt_status = get_snmprec_value(UPS_SNMPREC, "1.3.6.1.4.1.318.1.1.1.2.1.1.0") or "2"
+    ups_capacity = get_snmprec_value(UPS_SNMPREC, "1.3.6.1.4.1.318.1.1.1.2.2.1.0") or "100"
+    
+    temp = get_snmprec_value(TEMP_SNMPREC, "1.3.6.1.4.1.2021.255.1.0") or "22"
+    hum = get_snmprec_value(TEMP_SNMPREC, "1.3.6.1.4.1.2021.255.2.0") or "45"
+    sensor_status = get_snmprec_value(TEMP_SNMPREC, "1.3.6.1.4.1.2021.255.3.0") or "1"
+    
+    return {
+        "is_running": True,
+        "ups": {
+            "status": "ONLINE (Rede Elétrica)" if ups_batt_status == "2" else "BATERIA (Queda de Energia)",
+            "status_code": "success" if ups_batt_status == "2" else "danger",
+            "battery_level": f"{ups_capacity}%"
+        },
+        "sensor": {
+            "temperature": temp,
+            "humidity": hum,
+            "status": "NORMAL" if sensor_status == "1" else ("ALERTA" if sensor_status == "2" else "CRÍTICO"),
+            "status_code": "primary" if sensor_status == "1" else ("warning text-dark" if sensor_status == "2" else "danger")
+        }
+    }
+
 
 

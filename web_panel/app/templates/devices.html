@@ -125,6 +125,8 @@
 
 {% block scripts %}
 <script>
+    let statusTimeout;
+
     // Controle do Simulador Docker
     async function startSimulator() {
         try {
@@ -145,20 +147,36 @@
     }
 
     async function checkSimulatorStatus() {
+        if(statusTimeout) clearTimeout(statusTimeout);
         try {
-            const response = await fetch('/api/snmp/simulator/status', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+            const response = await fetch('/api/snmp/devices/status', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
             if (response.ok) {
                 const data = await response.json();
                 const badge = document.getElementById('simulatorBadge');
                 if (data.is_running) {
                     badge.className = 'badge bg-success';
-                    badge.textContent = 'Status: ' + data.status;
+                    badge.textContent = 'Status: Up';
                 } else {
                     badge.className = 'badge bg-secondary';
-                    badge.textContent = 'Status: ' + data.status;
+                    badge.textContent = 'Status: Parado';
                 }
+
+                // Update UPS
+                const upsBadge = document.getElementById('status-ups');
+                upsBadge.className = 'badge bg-' + data.ups.status_code;
+                upsBadge.textContent = 'Status: ' + data.ups.status;
+                document.getElementById('battery-level').textContent = data.ups.battery_level;
+
+                // Update Sensor
+                const tempBadge = document.getElementById('status-temp');
+                tempBadge.className = 'badge bg-' + data.sensor.status_code;
+                tempBadge.textContent = 'Status: ' + data.sensor.status;
+                document.getElementById('current-temp').textContent = data.sensor.temperature;
+                document.getElementById('current-hum').textContent = data.sensor.humidity;
             }
         } catch (error) { console.error(error); }
+
+        statusTimeout = setTimeout(checkSimulatorStatus, 2000);
     }
 
     async function viewLogs() {
@@ -201,18 +219,9 @@
             });
             
             if (response.ok) {
-                const statusBadge = document.getElementById('status-ups');
-                const batteryLevel = document.getElementById('battery-level');
-                
                 if (action === 'fail') {
-                    statusBadge.className = 'badge bg-danger';
-                    statusBadge.textContent = 'Status: BATERIA (Queda de Energia)';
-                    batteryLevel.textContent = '98% (Descarregando...)';
                     alert('Queda de energia simulada! Verifique o Zabbix.');
                 } else {
-                    statusBadge.className = 'badge bg-success';
-                    statusBadge.textContent = 'Status: ONLINE (Rede Elétrica)';
-                    batteryLevel.textContent = '100% (Carregando...)';
                     alert('Energia restaurada!');
                 }
             } else {
@@ -230,9 +239,7 @@
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
-            if (response.ok) {
-                alert(action === 'high' ? 'Alta carga simulada (98%).' : 'Carga do Nobreak normalizada.');
-            } else {
+            if (!response.ok) {
                 alert('Erro ao comunicar com a API.');
             }
         } catch (error) {
@@ -247,10 +254,7 @@
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
-            const data = await response.json();
-            if (response.ok) {
-                alert(data.message);
-            } else {
+            if (!response.ok) {
                 alert('Erro ao atualizar simulador.');
             }
         } catch (error) {
@@ -267,31 +271,7 @@
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
             });
             
-            if (response.ok) {
-                const tempSpan = document.getElementById('current-temp');
-                const statusBadge = document.getElementById('status-temp');
-                let currentTemp = parseFloat(tempSpan.textContent);
-                
-                if (direction === 'up') {
-                    currentTemp += 5.0;
-                } else {
-                    currentTemp -= 5.0;
-                }
-                
-                tempSpan.textContent = currentTemp.toFixed(1);
-                
-                if (currentTemp >= 30.0) {
-                    statusBadge.className = 'badge bg-danger';
-                    statusBadge.textContent = 'Status: CRÍTICO (Superaquecimento)';
-                } else if (currentTemp <= 15.0) {
-                    statusBadge.className = 'badge bg-warning text-dark';
-                    statusBadge.textContent = 'Status: ALERTA (Muito Frio)';
-                } else {
-                    statusBadge.className = 'badge bg-primary';
-                    statusBadge.textContent = 'Status: NORMAL';
-                }
-                
-            } else {
+            if (!response.ok) {
                 alert('Erro ao comunicar com a API.');
             }
         } catch (error) {
