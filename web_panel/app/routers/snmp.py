@@ -223,21 +223,20 @@ async def simulate_power_restore():
 
 @router.post("/humidity/increase")
 async def increase_humidity():
-    # Usaremos uma base simples via TEMP_SNMPREC ou direto no Nobreak
-    current_hum = float(get_snmprec_value(UPS_SNMPREC, "1.3.6.1.4.1.318.1.1.25.1.2.2.3.1.1") or 45)
+    current_hum = float(get_snmprec_value(TEMP_SNMPREC, "1.3.6.1.4.1.2021.255.2.0") or 45)
     new_hum = min(current_hum + 10, 100)
     
-    success = update_snmprec_file(UPS_SNMPREC, {"1.3.6.1.4.1.318.1.1.25.1.2.2.3.1.1": str(int(new_hum))})
+    success = update_snmprec_file(TEMP_SNMPREC, {"1.3.6.1.4.1.2021.255.2.0": str(int(new_hum))})
     if success:
         return {"status": "success", "message": f"Umidade aumentada para {new_hum}% no simulador."}
     return {"status": "error", "message": "Falha ao atualizar o simulador."}
 
 @router.post("/humidity/decrease")
 async def decrease_humidity():
-    current_hum = float(get_snmprec_value(UPS_SNMPREC, "1.3.6.1.4.1.318.1.1.25.1.2.2.3.1.1") or 45)
+    current_hum = float(get_snmprec_value(TEMP_SNMPREC, "1.3.6.1.4.1.2021.255.2.0") or 45)
     new_hum = max(current_hum - 10, 0)
     
-    success = update_snmprec_file(UPS_SNMPREC, {"1.3.6.1.4.1.318.1.1.25.1.2.2.3.1.1": str(int(new_hum))})
+    success = update_snmprec_file(TEMP_SNMPREC, {"1.3.6.1.4.1.2021.255.2.0": str(int(new_hum))})
     if success:
         return {"status": "success", "message": f"Umidade diminuída para {new_hum}% no simulador."}
     return {"status": "error", "message": "Falha ao atualizar o simulador."}
