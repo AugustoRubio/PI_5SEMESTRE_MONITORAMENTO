@@ -57,7 +57,6 @@ def get_snmprec_value(file_path: str, target_oid: str):
 
 TEMP_SNMPREC = os.path.join(os.path.dirname(__file__), "../../../snmp_simulator/data/sensor_temp.snmprec")
 UPS_SNMPREC = os.path.join(os.path.dirname(__file__), "../../../snmp_simulator/data/nobreak.snmprec")
-ROUTER_SNMPREC = os.path.join(os.path.dirname(__file__), "../../../snmp_simulator/data/router_core.snmprec")
 SIMULATOR_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../snmp_simulator"))
 
 def run_compose_command(args_list):
@@ -263,47 +262,5 @@ async def simulate_ups_normal_load():
         return {"status": "success", "message": "Carga normalizada (15%)."}
     return {"status": "error", "message": "Falha ao atualizar o simulador."}
 
-@router.post("/router/cpu-spike")
-async def simulate_router_cpu_spike():
-    updates = {
-        "1.3.6.1.2.1.25.3.3.1.2.1": "99"  # 99% CPU load
-    }
-    
-    success = update_snmprec_file(ROUTER_SNMPREC, updates)
-    if success:
-        return {"status": "success", "message": "Pico de CPU simulado no Roteador."}
-    return {"status": "error", "message": "Falha ao atualizar o simulador."}
 
-@router.post("/router/cpu-normal")
-async def simulate_router_cpu_normal():
-    updates = {
-        "1.3.6.1.2.1.25.3.3.1.2.1": "15"  # 15% CPU load
-    }
-    
-    success = update_snmprec_file(ROUTER_SNMPREC, updates)
-    if success:
-        return {"status": "success", "message": "CPU do Roteador normalizada."}
-    return {"status": "error", "message": "Falha ao atualizar o simulador."}
-
-@router.post("/router/link-down")
-async def simulate_router_link_down():
-    updates = {
-        "1.3.6.1.2.1.2.2.1.8.1": "2"  # 2 = down
-    }
-    
-    success = update_snmprec_file(ROUTER_SNMPREC, updates)
-    if success:
-        return {"status": "success", "message": "Queda de link (Interface GigabitEthernet0/0) simulada."}
-    return {"status": "error", "message": "Falha ao atualizar o simulador."}
-
-@router.post("/router/link-up")
-async def simulate_router_link_up():
-    updates = {
-        "1.3.6.1.2.1.2.2.1.8.1": "1"  # 1 = up
-    }
-    
-    success = update_snmprec_file(ROUTER_SNMPREC, updates)
-    if success:
-        return {"status": "success", "message": "Link do Roteador restabelecido."}
-    return {"status": "error", "message": "Falha ao atualizar o simulador."}
 

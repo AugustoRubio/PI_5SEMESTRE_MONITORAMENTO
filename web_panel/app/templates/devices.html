@@ -98,39 +98,7 @@
     </div>
 </div>
 
-<div class="row">
-    <!-- Card: Roteador Core -->
-    <div class="col-md-6 mb-4">
-        <div class="card border-primary h-100">
-            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">Roteador Core Principal</h5>
-                <span class="badge bg-success" id="status-router">Link: UP / CPU: Normal</span>
-            </div>
-            <div class="card-body">
-                <p><strong>CPU Load:</strong> <span id="router-cpu">15%</span></p>
-                <p><strong>Interface GigabitEthernet0/0:</strong> <span id="router-link">UP</span></p>
-                <p class="text-muted small">Simule pico de CPU ou queda de link na interface principal para testar os alertas do Zabbix no Core da rede.</p>
-                
-                <div class="d-grid gap-2 mb-2">
-                    <button class="btn btn-warning" onclick="simulateRouterEvent('cpu-spike')">
-                        <i class="bi bi-cpu-fill"></i> Simular Pico de CPU (99%)
-                    </button>
-                    <button class="btn btn-outline-secondary" onclick="simulateRouterEvent('cpu-normal')">
-                        <i class="bi bi-cpu"></i> Normalizar CPU
-                    </button>
-                </div>
-                <div class="d-grid gap-2">
-                    <button class="btn btn-danger" onclick="simulateRouterEvent('link-down')">
-                        <i class="bi bi-ethernet"></i> Simular Queda de Link (Down)
-                    </button>
-                    <button class="btn btn-success" onclick="simulateRouterEvent('link-up')">
-                        <i class="bi bi-ethernet"></i> Restaurar Link (Up)
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <!-- Modal para Logs do Simulador -->
 <div class="modal fade" id="simulatorLogsModal" tabindex="-1" aria-labelledby="simulatorLogsModalLabel" aria-hidden="true">
@@ -331,51 +299,6 @@
         }
     }
 
-    async function simulateRouterEvent(action) {
-        let endpoint = '';
-        if (action === 'cpu-spike') endpoint = '/api/snmp/router/cpu-spike';
-        else if (action === 'cpu-normal') endpoint = '/api/snmp/router/cpu-normal';
-        else if (action === 'link-down') endpoint = '/api/snmp/router/link-down';
-        else if (action === 'link-up') endpoint = '/api/snmp/router/link-up';
 
-        try {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-            });
-            
-            if (response.ok) {
-                const statusBadge = document.getElementById('status-router');
-                const cpuSpan = document.getElementById('router-cpu');
-                const linkSpan = document.getElementById('router-link');
-                
-                if (action === 'cpu-spike') {
-                    cpuSpan.textContent = '99% (Crítico)';
-                    statusBadge.className = 'badge bg-danger';
-                    statusBadge.textContent = 'Link: ' + linkSpan.textContent.split(' ')[0] + ' / CPU: ALTA';
-                    alert('Pico de CPU simulado no roteador.');
-                } else if (action === 'cpu-normal') {
-                    cpuSpan.textContent = '15%';
-                    statusBadge.className = linkSpan.textContent.includes('DOWN') ? 'badge bg-danger' : 'badge bg-success';
-                    statusBadge.textContent = 'Link: ' + linkSpan.textContent.split(' ')[0] + ' / CPU: Normal';
-                    alert('CPU do roteador normalizada.');
-                } else if (action === 'link-down') {
-                    linkSpan.textContent = 'DOWN (Falha)';
-                    statusBadge.className = 'badge bg-danger';
-                    statusBadge.textContent = 'Link: DOWN / CPU: ' + (cpuSpan.textContent.includes('99') ? 'ALTA' : 'Normal');
-                    alert('Queda de link simulada!');
-                } else if (action === 'link-up') {
-                    linkSpan.textContent = 'UP';
-                    statusBadge.className = cpuSpan.textContent.includes('99') ? 'badge bg-danger' : 'badge bg-success';
-                    statusBadge.textContent = 'Link: UP / CPU: ' + (cpuSpan.textContent.includes('99') ? 'ALTA' : 'Normal');
-                    alert('Link restaurado!');
-                }
-            } else {
-                alert('Erro ao comunicar com a API.');
-            }
-        } catch (error) {
-            alert('Erro de conexão.');
-        }
-    }
 </script>
 {% endblock %}
