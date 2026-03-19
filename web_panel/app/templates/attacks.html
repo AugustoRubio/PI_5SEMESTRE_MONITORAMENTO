@@ -16,7 +16,10 @@
         <div class="card border-primary h-100">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0"><i class="bi bi-shield-lock"></i> Brute Force (Intranet)</h5>
-                <span class="badge bg-dark" id="status-bf">Status: INATIVO</span>
+                <div class="d-flex gap-2">
+                    <span id="simulatorBadge" class="badge bg-dark">Docker: Verificando...</span>
+                    <span class="badge bg-dark" id="status-bf">Status: INATIVO</span>
+                </div>
             </div>
             <div class="card-body">
                 <p><strong>Alvo Base:</strong> Servidor da Intranet (https://10.10.100.4)</p>
@@ -150,30 +153,45 @@
 
     async function pollBFStatus() {
         const statusBadge = document.getElementById('status-bf');
+        const simulatorBadge = document.getElementById('simulatorBadge');
         const logsDiv = document.getElementById('bf-logs');
         
-        const interval = setInterval(async () => {
+        setInterval(async () => {
             try {
                 const response = await fetch(`/api/bruteforce/status`, {
                     headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
                 });
                 const data = await response.json();
                 
+                // Status do Ataque (Executando ou Inativo)
                 if (data.is_running) {
                     statusBadge.className = 'badge bg-danger blink';
                     statusBadge.textContent = 'Status: EXECUTANDO';
                     document.getElementById('bf-progress').style.display = 'block';
+                    logsDiv.innerHTML = data.logs.map(log => `<div>${log}</div>`).join('');
                 } else {
                     statusBadge.className = 'badge bg-dark';
                     statusBadge.textContent = 'Status: INATIVO';
-                    clearInterval(interval);
                 }
-                
-                logsDiv.innerHTML = data.logs.map(log => `<div>${log}</div>`).join('');
+
+                // Status do Docker (Unificado com SNMP)
+                // Usamos o retorno da API de status para saber se o container base está Up
+                const dockerResp = await fetch('/api/snmp/simulator/status', {
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                const dockerData = await dockerResp.json();
+                if (dockerData.is_running) {
+                    simulatorBadge.className = 'badge bg-success';
+                    simulatorBadge.textContent = 'Docker: UP';
+                } else {
+                    simulatorBadge.className = 'badge bg-secondary';
+                    simulatorBadge.textContent = 'Docker: OFF';
+                }
+
             } catch (e) {
-                clearInterval(interval);
+                console.error("Erro ao atualizar status:", e);
             }
-        }, 1000);
+        }, 2000);
     }
 
     async function pollSecurityMetrics() {
