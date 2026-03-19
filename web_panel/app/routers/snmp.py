@@ -96,8 +96,8 @@ async def start_simulator():
         if success:
             return {"status": "success", "message": "Simulador SNMP iniciado com sucesso!"}
             
-        if "error during connect" in msg.lower() or "daemon" in msg.lower() or "cannot connect to the docker daemon" in msg.lower() or "is the docker daemon running" in msg.lower():
-            return {"status": "error", "message": "Erro: O Docker não está iniciado. Inicie o Docker Desktop/serviço e tente novamente."}
+        if "error during connect" in msg.lower() or "daemon" in msg.lower() or "cannot connect to the docker daemon" in msg.lower() or "is the docker daemon running" in msg.lower() or "permission denied" in msg.lower():
+            return {"status": "error", "message": "Erro de conexão com o Docker. Verifique se o daemon está rodando (systemctl status docker) e se o usuário tem permissão (está no grupo docker)."}
             
         return {"status": "error", "message": f"Erro ao iniciar simulador: {msg}"}
     except Exception as e:

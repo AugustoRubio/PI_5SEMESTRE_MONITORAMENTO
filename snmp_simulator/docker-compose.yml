@@ -16,9 +16,19 @@ services:
       - "--process-group=nogroup"
       - "--data-dir=/usr/snmpsim/data"
 
+  bruteforce:
+    build: ../bruteforce_simulator
+    container_name: bruteforce_pi
+    networks:
+      - bf_net
+    command: ["tail", "-f", "/dev/null"]
+    restart: unless-stopped
+
 networks:
   sim_snmp_net:
     driver: bridge
     ipam:
       config:
         - subnet: 10.200.101.0/24
+  bf_net:
+    driver: bridge

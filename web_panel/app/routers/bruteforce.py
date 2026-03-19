@@ -9,9 +9,6 @@ import time
 
 router = APIRouter()
 
-DOCKER_COMPOSE_EXEC = os.getenv("DOCKER_COMPOSE_EXECUTABLE", "docker compose")
-
-BF_SIMULATOR_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../bruteforce_simulator"))
 SNMP_REC_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../snmp_simulator/data/security_monitor.snmprec"))
 
 def update_snmp_file(metrics, is_attacking=False):
@@ -27,42 +24,24 @@ def update_snmp_file(metrics, is_attacking=False):
     except Exception as e:
         print(f"Erro ao atualizar SNMP: {e}")
 
-def run_compose_command(args_list, env_vars=None):
-    docker_env = os.getenv("DOCKER_COMPOSE_EXECUTABLE")
-    env_cmd = docker_env.split() if docker_env else []
-
-    commands_to_try = [
-        ["docker", "compose"],
-        ["docker-compose"],
-        ["/usr/local/bin/docker-compose"],
-        ["/usr/libexec/docker/cli-plugins/docker-compose"]
-    ]
-    if env_cmd:
-        commands_to_try.insert(0, env_cmd)
-
-    environ = os.environ.copy()
-    environ["DOCKER_API_VERSION"] = "1.41"
-    if env_vars:
-        environ.update(env_vars)
-
-    last_err = None
-    for base in commands_to_try:
-        try:
-            cmd = base + args_list
-            result = subprocess.run(cmd, cwd=BF_SIMULATOR_DIR, capture_output=True, text=True, check=True, env=environ)
-            return True, result.stdout
-        except FileNotFoundError as e:
-            last_err = e
-            continue
-        except subprocess.CalledProcessError as e:
-            return False, e.stderr
-
-    raise FileNotFoundError(f"Docker compose não encontrado. Último erro: {last_err}")
-
 class BFConfig(BaseModel):
     target_url: str = "https://10.10.100.4/login"
     login_type: str = "student"
     duration: int = 60 # seconds
+
+def is_container_running(container_name="bruteforce_pi"):
+    try:
+        result = subprocess.run(["docker", "inspect", "-f", "{{.State.Running}}", container_name], capture_output=True, text=True)
+        return result.stdout.strip() == "true"
+    except Exception:
+        return False
+
+def is_attack_running(container_name="bruteforce_pi"):
+    try:
+        result = subprocess.run(["docker", "exec", container_name, "pgrep", "-f", "attack.py"], capture_output=True, text=True)
+        return bool(result.stdout.strip())
+    except Exception:
+        return False
 
 async def sync_snmp_task(duration, target_url):
     base_url = target_url.split("/login")[0]
@@ -70,13 +49,7 @@ async def sync_snmp_task(duration, target_url):
     
     async with httpx.AsyncClient(verify=False) as client:
         while time.time() < end_time:
-            # Check if container is still running
-            try:
-                success, stdout = run_compose_command(["ps"])
-                is_running = success and ("Up" in stdout or "running" in stdout.lower())
-                if not is_running:
-                    break
-            except Exception:
+            if not is_attack_running():
                 break
                 
             try:
@@ -87,9 +60,9 @@ async def sync_snmp_task(duration, target_url):
                 pass
             await asyncio.sleep(2)
             
-        # Final sync and stop docker if it was timeout
+        # Final sync and stop attack if it was timeout
         try:
-            run_compose_command(["down"])
+            subprocess.run(["docker", "exec", "bruteforce_pi", "pkill", "-f", "attack.py"], capture_output=True)
             m_resp = await client.get(f"{base_url}/security/metrics", timeout=3.0)
             if m_resp.status_code == 200:
                 update_snmp_file(m_resp.json(), is_attacking=False)
@@ -98,64 +71,61 @@ async def sync_snmp_task(duration, target_url):
 
 @router.post("/start")
 async def start_bf(config: BFConfig, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
-    try:
-        success, stdout = run_compose_command(["ps"])
-        if success and ("Up" in stdout or "running" in stdout.lower()):
-            raise HTTPException(status_code=400, detail="Simulação já em execução.")
-    except Exception:
-        pass
+    if not is_container_running():
+        raise HTTPException(status_code=500, detail="Erro: O simulador não está ligado. Por favor, inicie o Docker na aba de Gerenciamento Docker primeiro.")
+        
+    if is_attack_running():
+        raise HTTPException(status_code=400, detail="A simulação de ataque já está em execução.")
     
-    env_vars = {
-        "TARGET_URL": config.target_url,
-        "LOGIN_TYPE": config.login_type,
-        "CONCURRENCY": "15" # Simula o stress pedindo para 15 threads baterem na intranet simultaneamente
-    }
+    # Prepara o comando para executar o script no background dentro do contêiner já existente
+    cmd = [
+        "docker", "exec", "-d",
+        "-e", f"TARGET_URL={config.target_url}",
+        "-e", f"LOGIN_TYPE={config.login_type}",
+        "-e", "CONCURRENCY=15",
+        "bruteforce_pi",
+        "sh", "-c", "python attack.py > /tmp/attack.log 2>&1"
+    ]
     
     try:
-        success, msg = run_compose_command(["up", "-d", "--build"], env_vars=env_vars)
-        if not success:
-            if "error during connect" in msg.lower() or "daemon" in msg.lower() or "cannot connect to the docker daemon" in msg.lower() or "is the docker daemon running" in msg.lower():
-                raise HTTPException(status_code=500, detail="Erro: O Docker não está iniciado. Por favor, inicie o serviço do Docker (Docker Desktop) e tente novamente.")
-            raise HTTPException(status_code=500, detail=f"Erro ao iniciar simulador Docker: {msg}")
-    except HTTPException:
-        raise
+        # Limpa logs antigos
+        subprocess.run(["docker", "exec", "bruteforce_pi", "sh", "-c", "> /tmp/attack.log"], capture_output=True, check=False)
+        # Executa o novo ataque
+        subprocess.run(cmd, capture_output=True, text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao iniciar o script de ataque: {e.stderr}")
     except Exception as e:
-        if "Docker compose não encontrado" in str(e):
-             raise HTTPException(status_code=500, detail="Erro: O Docker/Docker Compose não foi encontrado no sistema. O Docker está instalado e no PATH?")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Erro de conexão com o docker: {str(e)}")
         
     background_tasks.add_task(sync_snmp_task, config.duration, config.target_url)
-    return {"status": "success", "message": f"Ataque de brute force ({config.login_type}) iniciado via Docker."}
+    return {"status": "success", "message": f"Ataque de brute force ({config.login_type}) iniciado via Docker unificado."}
 
 @router.post("/stop")
 async def stop_bf(current_user: dict = Depends(get_current_user)):
+    if not is_container_running():
+        raise HTTPException(status_code=500, detail="Contêiner não está rodando.")
+        
     try:
-        success, msg = run_compose_command(["down"])
-        if success:
-            return {"status": "success", "message": "Sinal de parada enviado ao simulador."}
-        else:
-            raise HTTPException(status_code=500, detail=f"Erro ao parar o simulador: {msg}")
+        # Mata o processo do Python que roda o ataque
+        subprocess.run(["docker", "exec", "bruteforce_pi", "pkill", "-f", "attack.py"], capture_output=True, text=True)
+        return {"status": "success", "message": "Ataque parado com sucesso."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/status")
 async def get_bf_status(current_user: dict = Depends(get_current_user)):
-    is_running = False
+    is_running = is_attack_running()
     logs = []
     
-    try:
-        success, stdout = run_compose_command(["ps"])
-        is_running = success and ("Up" in stdout or "running" in stdout.lower())
-        
-        if is_running:
-            success_logs, logs_out = run_compose_command(["logs", "--tail=15"])
-            if success_logs:
-                # Pegar as últimas 15 linhas não-vazias de traz para frente
-                lines = [line.strip() for line in logs_out.split('\n') if line.strip()]
+    if is_running or is_container_running():
+        try:
+            result = subprocess.run(["docker", "exec", "bruteforce_pi", "tail", "-n", "15", "/tmp/attack.log"], capture_output=True, text=True)
+            if result.returncode == 0:
+                lines = [line.strip() for line in result.stdout.split('\n') if line.strip()]
                 logs = lines[-15:]
-                logs.reverse() # Mostrar o mais recente primeiro na interface
-    except Exception:
-        pass
+                logs.reverse()
+        except Exception:
+            pass
             
     return {"is_running": is_running, "logs": logs}
 
