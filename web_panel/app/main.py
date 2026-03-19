@@ -38,6 +38,10 @@ async def read_root(request: Request):
 async def devices_page(request: Request):
     return templates.TemplateResponse("devices.html", {"request": request, "title": "Gerenciamento de Dispositivos"})
 
+@app.get("/docker_manager", response_class=HTMLResponse)
+async def docker_manager_page(request: Request):
+    return templates.TemplateResponse("docker_manager.html", {"request": request, "title": "Gerenciamento Docker"})
+
 @app.get("/attacks", response_class=HTMLResponse)
 async def attacks_page(request: Request):
     return templates.TemplateResponse("attacks.html", {"request": request, "title": "Central de Ataques"})

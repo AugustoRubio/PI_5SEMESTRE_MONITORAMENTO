@@ -8,26 +8,6 @@
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card bg-dark text-white border-secondary">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-hdd-network"></i> Servidor SNMP (Docker)</h5>
-                <span id="simulatorBadge" class="badge bg-secondary">Verificando...</span>
-            </div>
-            <div class="card-body">
-                <p>Controle o contêiner <code>snmpsim</code> que roda a simulação no servidor do painel.</p>
-                <div class="d-flex gap-3">
-                    <button class="btn btn-success" onclick="startSimulator()"><i class="bi bi-play-fill"></i> Iniciar Simulador</button>
-                    <button class="btn btn-danger" onclick="stopSimulator()"><i class="bi bi-stop-fill"></i> Parar Simulador</button>
-                    <button class="btn btn-info text-white" onclick="viewLogs()"><i class="bi bi-card-text"></i> Ver Logs</button>
-                    <button class="btn btn-outline-light" onclick="checkSimulatorStatus()"><i class="bi bi-arrow-clockwise"></i> Atualizar Status</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div class="row">
     <!-- Card: Nobreak (UPS) -->
     <div class="col-md-6 mb-4">
@@ -98,53 +78,11 @@
     </div>
 </div>
 
-
-
-<!-- Modal para Logs do Simulador -->
-<div class="modal fade" id="simulatorLogsModal" tabindex="-1" aria-labelledby="simulatorLogsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content bg-dark text-white border-secondary">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title" id="simulatorLogsModalLabel"><i class="bi bi-terminal"></i> Logs do Simulador SNMP</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0">
-                <pre id="simulatorLogsContainer" class="p-3 m-0" style="font-size: 0.85em; color: #adbac7; background-color: #0d1117; min-height: 300px;">Carregando logs...</pre>
-            </div>
-            <div class="modal-footer border-secondary">
-                <button type="button" class="btn btn-outline-info btn-sm" onclick="viewLogs()">
-                    <i class="bi bi-arrow-clockwise"></i> Atualizar Logs
-                </button>
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% endblock %}
 
 {% block scripts %}
 <script>
     let statusTimeout;
-
-    // Controle do Simulador Docker
-    async function startSimulator() {
-        try {
-            const response = await fetch('/api/snmp/simulator/start', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
-            const data = await response.json();
-            alert(data.message);
-            checkSimulatorStatus();
-        } catch (error) { alert("Erro de conexão."); }
-    }
-
-    async function stopSimulator() {
-        try {
-            const response = await fetch('/api/snmp/simulator/stop', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
-            const data = await response.json();
-            alert(data.message);
-            checkSimulatorStatus();
-        } catch (error) { alert("Erro de conexão."); }
-    }
 
     async function checkSimulatorStatus() {
         if(statusTimeout) clearTimeout(statusTimeout);
@@ -152,15 +90,7 @@
             const response = await fetch('/api/snmp/devices/status', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
             if (response.ok) {
                 const data = await response.json();
-                const badge = document.getElementById('simulatorBadge');
-                if (data.is_running) {
-                    badge.className = 'badge bg-success';
-                    badge.textContent = 'Status: Up';
-                } else {
-                    badge.className = 'badge bg-secondary';
-                    badge.textContent = 'Status: Parado';
-                }
-
+                
                 // Update UPS
                 const upsBadge = document.getElementById('status-ups');
                 upsBadge.className = 'badge bg-' + data.ups.status_code;
@@ -179,35 +109,8 @@
         statusTimeout = setTimeout(checkSimulatorStatus, 2000);
     }
 
-    async function viewLogs() {
-        const logsContainer = document.getElementById('simulatorLogsContainer');
-        logsContainer.textContent = "Carregando logs...";
-        
-        const modalElement = document.getElementById('simulatorLogsModal');
-        let modal = bootstrap.Modal.getInstance(modalElement);
-        if (!modal) {
-            modal = new bootstrap.Modal(modalElement);
-        }
-        modal.show();
-
-        try {
-            const response = await fetch('/api/snmp/simulator/logs', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
-            const data = await response.json();
-            if (response.ok && data.status === "success") {
-                logsContainer.textContent = data.logs || "Sem logs no momento.";
-            } else {
-                logsContainer.textContent = "Erro ao buscar logs: " + (data.message || "Erro desconhecido");
-            }
-        } catch (error) { 
-            logsContainer.textContent = "Erro de conexão ao buscar logs.";
-        }
-    }
-
     // Checa o status ao carregar a página
     document.addEventListener('DOMContentLoaded', checkSimulatorStatus);
-
-    // Funções para atualizar a interface visualmente
-    // Elas farão chamadas reais para a API do Painel.
 
     async function simulatePowerEvent(action) {
         const endpoint = action === 'fail' ? '/api/snmp/ups/power-fail' : '/api/snmp/ups/power-restore';
@@ -278,7 +181,6 @@
             alert('Erro de conexão.');
         }
     }
-
 
 </script>
 {% endblock %}
