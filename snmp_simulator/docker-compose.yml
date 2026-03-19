@@ -20,7 +20,7 @@ services:
     build: ../bruteforce_simulator
     container_name: bruteforce_pi
     networks:
-      - bf_net
+      - sim_snmp_net
     command: ["tail", "-f", "/dev/null"]
     restart: unless-stopped
 
@@ -30,5 +30,3 @@ networks:
     ipam:
       config:
         - subnet: 10.200.101.0/24
-  bf_net:
-    driver: bridge
