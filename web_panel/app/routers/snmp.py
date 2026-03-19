@@ -95,8 +95,14 @@ async def start_simulator():
         success, msg = run_compose_command(["up", "-d"])
         if success:
             return {"status": "success", "message": "Simulador SNMP iniciado com sucesso!"}
+            
+        if "error during connect" in msg.lower() or "daemon" in msg.lower() or "cannot connect to the docker daemon" in msg.lower() or "is the docker daemon running" in msg.lower():
+            return {"status": "error", "message": "Erro: O Docker não está iniciado. Inicie o Docker Desktop/serviço e tente novamente."}
+            
         return {"status": "error", "message": f"Erro ao iniciar simulador: {msg}"}
     except Exception as e:
+        if "Docker compose não encontrado" in str(e):
+            return {"status": "error", "message": "Erro: O Docker/Docker Compose não foi encontrado no sistema. O Docker está instalado e no PATH?"}
         return {"status": "error", "message": f"Erro interno ao iniciar simulador: {str(e)}"}
 
 @router.post("/simulator/stop")

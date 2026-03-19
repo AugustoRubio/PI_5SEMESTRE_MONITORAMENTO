@@ -114,8 +114,14 @@ async def start_bf(config: BFConfig, background_tasks: BackgroundTasks, current_
     try:
         success, msg = run_compose_command(["up", "-d", "--build"], env_vars=env_vars)
         if not success:
+            if "error during connect" in msg.lower() or "daemon" in msg.lower() or "cannot connect to the docker daemon" in msg.lower() or "is the docker daemon running" in msg.lower():
+                raise HTTPException(status_code=500, detail="Erro: O Docker não está iniciado. Por favor, inicie o serviço do Docker (Docker Desktop) e tente novamente.")
             raise HTTPException(status_code=500, detail=f"Erro ao iniciar simulador Docker: {msg}")
+    except HTTPException:
+        raise
     except Exception as e:
+        if "Docker compose não encontrado" in str(e):
+             raise HTTPException(status_code=500, detail="Erro: O Docker/Docker Compose não foi encontrado no sistema. O Docker está instalado e no PATH?")
         raise HTTPException(status_code=500, detail=str(e))
         
     background_tasks.add_task(sync_snmp_task, config.duration, config.target_url)
