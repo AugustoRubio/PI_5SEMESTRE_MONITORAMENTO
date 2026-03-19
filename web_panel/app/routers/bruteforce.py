@@ -14,6 +14,7 @@ SNMP_REC_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.
 def update_snmp_file(metrics, is_attacking=False):
     try:
         lines = [
+            "1.3.6.1.2.1.1.5.0|4|Monitoramento de Seguranca Intranet",
             f"1.3.6.1.4.1.99999.1.1.0|66|{metrics.get('total_failures', 0)}",
             f"1.3.6.1.4.1.99999.1.2.0|66|{metrics.get('failures_last_hour', 0)}",
             f"1.3.6.1.4.1.99999.1.3.0|66|{metrics.get('active_ips', 0)}",
