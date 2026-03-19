@@ -29,19 +29,24 @@ class BFConfig(BaseModel):
     login_type: str = "student"
     duration: int = 60 # seconds
 
+def run_docker_cmd(args_list):
+    for base in [["docker"], ["/usr/bin/docker"], ["/usr/local/bin/docker"]]:
+        try:
+            cmd = base + args_list
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            return result.returncode == 0, result.stdout if result.returncode == 0 else result.stderr
+        except FileNotFoundError:
+            continue
+    return False, "Comando docker não encontrado no PATH."
+
 def is_container_running(container_name="bruteforce_pi"):
-    try:
-        result = subprocess.run(["docker", "inspect", "-f", "{{.State.Running}}", container_name], capture_output=True, text=True)
-        return result.stdout.strip() == "true"
-    except Exception:
-        return False
+    success, out = run_docker_cmd(["inspect", "-f", "{{.State.Running}}", container_name])
+    return success and out.strip() == "true"
 
 def is_attack_running(container_name="bruteforce_pi"):
-    try:
-        result = subprocess.run(["docker", "exec", container_name, "pgrep", "-f", "attack.py"], capture_output=True, text=True)
-        return bool(result.stdout.strip())
-    except Exception:
-        return False
+    # grep '[a]ttack.py' impede que o próprio processo do grep seja capturado
+    success, out = run_docker_cmd(["exec", container_name, "sh", "-c", "ps | grep '[a]ttack.py'"])
+    return success and bool(out.strip())
 
 async def sync_snmp_task(duration, target_url):
     base_url = target_url.split("/login")[0]
@@ -62,7 +67,7 @@ async def sync_snmp_task(duration, target_url):
             
         # Final sync and stop attack if it was timeout
         try:
-            subprocess.run(["docker", "exec", "bruteforce_pi", "pkill", "-f", "attack.py"], capture_output=True)
+            run_docker_cmd(["exec", "bruteforce_pi", "pkill", "-f", "attack.py"])
             m_resp = await client.get(f"{base_url}/security/metrics", timeout=3.0)
             if m_resp.status_code == 200:
                 update_snmp_file(m_resp.json(), is_attacking=False)
@@ -72,14 +77,14 @@ async def sync_snmp_task(duration, target_url):
 @router.post("/start")
 async def start_bf(config: BFConfig, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     if not is_container_running():
-        raise HTTPException(status_code=500, detail="Erro: O simulador não está ligado. Por favor, inicie o Docker na aba de Gerenciamento Docker primeiro.")
+        raise HTTPException(status_code=500, detail="Erro: O simulador Datacenter/Bruteforce não está rodando. Por favor, inicie-o na aba de Gerenciamento Docker primeiro.")
         
     if is_attack_running():
         raise HTTPException(status_code=400, detail="A simulação de ataque já está em execução.")
     
     # Prepara o comando para executar o script no background dentro do contêiner já existente
     cmd = [
-        "docker", "exec", "-d",
+        "exec", "-d",
         "-e", f"TARGET_URL={config.target_url}",
         "-e", f"LOGIN_TYPE={config.login_type}",
         "-e", "CONCURRENCY=15",
@@ -87,15 +92,13 @@ async def start_bf(config: BFConfig, background_tasks: BackgroundTasks, current_
         "sh", "-c", "python attack.py > /tmp/attack.log 2>&1"
     ]
     
-    try:
-        # Limpa logs antigos
-        subprocess.run(["docker", "exec", "bruteforce_pi", "sh", "-c", "> /tmp/attack.log"], capture_output=True, check=False)
-        # Executa o novo ataque
-        subprocess.run(cmd, capture_output=True, text=True, check=True)
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao iniciar o script de ataque: {e.stderr}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro de conexão com o docker: {str(e)}")
+    # Limpa logs antigos no contêiner
+    run_docker_cmd(["exec", "bruteforce_pi", "sh", "-c", "> /tmp/attack.log"])
+    
+    # Executa o novo ataque
+    success, msg = run_docker_cmd(cmd)
+    if not success:
+        raise HTTPException(status_code=500, detail=f"Erro ao iniciar o script de ataque: {msg}")
         
     background_tasks.add_task(sync_snmp_task, config.duration, config.target_url)
     return {"status": "success", "message": f"Ataque de brute force ({config.login_type}) iniciado via Docker unificado."}
@@ -103,14 +106,15 @@ async def start_bf(config: BFConfig, background_tasks: BackgroundTasks, current_
 @router.post("/stop")
 async def stop_bf(current_user: dict = Depends(get_current_user)):
     if not is_container_running():
-        raise HTTPException(status_code=500, detail="Contêiner não está rodando.")
+        raise HTTPException(status_code=500, detail="Contêiner Docker não está rodando.")
         
-    try:
-        # Mata o processo do Python que roda o ataque
-        subprocess.run(["docker", "exec", "bruteforce_pi", "pkill", "-f", "attack.py"], capture_output=True, text=True)
+    success, msg = run_docker_cmd(["exec", "bruteforce_pi", "pkill", "-f", "attack.py"])
+    if success:
         return {"status": "success", "message": "Ataque parado com sucesso."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    else:
+        # Se pkill não encontrou o processo, ele falha com código 1. 
+        # Assumimos que o ataque já estava parado.
+        return {"status": "success", "message": "Nenhum ataque ativo para parar."}
 
 @router.get("/status")
 async def get_bf_status(current_user: dict = Depends(get_current_user)):
@@ -118,14 +122,11 @@ async def get_bf_status(current_user: dict = Depends(get_current_user)):
     logs = []
     
     if is_running or is_container_running():
-        try:
-            result = subprocess.run(["docker", "exec", "bruteforce_pi", "tail", "-n", "15", "/tmp/attack.log"], capture_output=True, text=True)
-            if result.returncode == 0:
-                lines = [line.strip() for line in result.stdout.split('\n') if line.strip()]
-                logs = lines[-15:]
-                logs.reverse()
-        except Exception:
-            pass
+        success, out = run_docker_cmd(["exec", "bruteforce_pi", "tail", "-n", "15", "/tmp/attack.log"])
+        if success:
+            lines = [line.strip() for line in out.split('\n') if line.strip()]
+            logs = lines[-15:]
+            logs.reverse()
             
     return {"is_running": is_running, "logs": logs}
 
