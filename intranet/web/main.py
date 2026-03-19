@@ -238,7 +238,8 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     if db is None:
         return RedirectResponse(url="/setup")
         
-    ip = request.client.host
+    forwarded_ip = request.headers.get("X-Forwarded-For")
+    ip = forwarded_ip.split(",")[0].strip() if forwarded_ip else request.client.host
     now = int(time.time())
     
     # Check for block (5 failures in last 60 seconds)
