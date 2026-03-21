@@ -109,12 +109,11 @@ async def stop_bf(current_user: dict = Depends(get_current_user)):
     if not is_container_running():
         raise HTTPException(status_code=500, detail="Contêiner Docker não está rodando.")
         
-    success, msg = run_docker_cmd(["exec", "bruteforce_pi", "pkill", "-f", "attack.py"])
+    # Adicionado 'sh -c pkill -9' para garantir a morte instantânea do processo
+    success, msg = run_docker_cmd(["exec", "bruteforce_pi", "sh", "-c", "pkill -9 -f attack.py"])
     if success:
-        return {"status": "success", "message": "Ataque parado com sucesso."}
+        return {"status": "success", "message": "Ataque parado com sucesso e CPU liberada."}
     else:
-        # Se pkill não encontrou o processo, ele falha com código 1. 
-        # Assumimos que o ataque já estava parado.
         return {"status": "success", "message": "Nenhum ataque ativo para parar."}
 
 @router.get("/status")
