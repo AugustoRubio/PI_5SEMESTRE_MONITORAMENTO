@@ -21,7 +21,15 @@ services:
     container_name: bruteforce_pi
     networks:
       - sim_snmp_net
-    command: ["tail", "-f", "/dev/null"]
+    volumes:
+      # A MÁGICA ACONTECE AQUI: O Python salvará o arquivo na mesma pasta ./data do host
+      - ./data:/data
+    environment:
+      # Passamos o caminho exato para o script em Python saber onde salvar
+      - SNMPREC_PATH=/data/security_monitor.snmprec
+      - TARGET_URL=https://10.10.100.4/login
+      - CONCURRENCY=10
+    # A linha 'command: ["tail"...]' foi removida para o CMD do Dockerfile assumir o controle
     restart: unless-stopped
 
 networks:
