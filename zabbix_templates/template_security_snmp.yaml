@@ -22,7 +22,7 @@ zabbix_export:
           tags:
             - tag: Application
               value: Security
-        
+              
         - uuid: e2a64d380735443db8e6384cad55d025
           name: 'Segurança: Falhas de Login (Última 1h)'
           type: SNMP_AGENT
@@ -37,11 +37,11 @@ zabbix_export:
               value: Security
           triggers:
             - uuid: 6aed27a8de934ab08df5098465515b67
-              expression: 'last(/Template Security Monitoring - Brute Force/security.login.failures.1h)>50'
+              expression: 'last(/Template Security Monitoring - Brute Force/security.login.failures.1h)>50 and (max(/Template Security Monitoring - Brute Force/security.login.failures.total,5m)>min(/Template Security Monitoring - Brute Force/security.login.failures.total,5m))'
               name: 'Segurança: Alto volume de falhas de login detectado'
               priority: HIGH
-              description: 'Mais de 50 falhas de login em 1 hora podem indicar um ataque de força bruta persistente.'
-
+              description: 'Mais de 50 falhas em 1h. O alerta desligará automaticamente se o total de falhas estagnar por 5 minutos.'
+              
         - uuid: bc49c949a7514a52b4adcc1162988602
           name: 'Segurança: IPs Atacantes Ativos'
           type: SNMP_AGENT
@@ -50,11 +50,11 @@ zabbix_export:
           delay: 30s
           history: 7d
           value_type: UNSIGNED
-          description: 'Número de endereços IP únicos que tentaram login nos últimos 5 minutos.'
+          description: 'Número de endereços IP únicos que tentaram login recentemente.'
           tags:
             - tag: Application
               value: Security
-
+              
         - uuid: bd44e41c180c4977ba3176d4c31eb2c4
           name: 'Segurança: Status de Simulação de Ataque'
           type: SNMP_AGENT
@@ -63,7 +63,7 @@ zabbix_export:
           delay: 10s
           history: 7d
           value_type: UNSIGNED
-          description: 'Indica se uma simulação de Brute Force está sendo executada pelo painel (0=Inativo, 1=Ativo).'
+          description: 'Indica se uma simulação de Brute Force está sendo executada.'
           valuemap:
             name: 'Attack Status Map'
           tags:
@@ -75,7 +75,21 @@ zabbix_export:
               name: 'Segurança: Simulação de Brute Force em execução'
               priority: WARNING
               manual_close: 'YES'
-
+              
+        - uuid: 10d364a803264888a6fea7b58a7324aa
+          name: 'Segurança: Lista de IPs Atacantes'
+          type: SNMP_AGENT
+          snmp_oid: '1.3.6.1.4.1.99999.1.5.0'
+          key: security.active.ips.list
+          delay: 30s
+          history: 7d
+          trends: '0'
+          value_type: TEXT
+          description: 'Lista em texto dos IPs identificados no ataque atual para uso em Dashboards.'
+          tags:
+            - tag: Application
+              value: Security
+              
       valuemaps:
         - uuid: 9f5e1821c6c3436f814a74acd7655ce5
           name: 'Attack Status Map'

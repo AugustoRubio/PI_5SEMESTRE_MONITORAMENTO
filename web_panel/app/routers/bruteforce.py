@@ -12,13 +12,22 @@ router = APIRouter()
 SNMP_REC_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../snmp_simulator/data/security_monitor.snmprec"))
 
 def update_snmp_file(metrics, is_attacking=False):
+    # Extrai os IPs únicos das tentativas recentes
+    recent = metrics.get('recent_failed_attempts', [])
+    ips = list(set([str(att.get('ip', '')) for att in recent if att.get('ip')]))
+    
+    # Formata como uma string separada por vírgulas. Se vazio, envia "Nenhum"
+    ip_str = ", ".join(ips) if ips else "Nenhum"
+
     try:
         lines = [
             "1.3.6.1.2.1.1.5.0|4|Monitoramento de Seguranca Intranet",
             f"1.3.6.1.4.1.99999.1.1.0|66|{metrics.get('total_failures', 0)}",
             f"1.3.6.1.4.1.99999.1.2.0|66|{metrics.get('failures_last_hour', 0)}",
             f"1.3.6.1.4.1.99999.1.3.0|66|{metrics.get('active_ips', 0)}",
-            f"1.3.6.1.4.1.99999.1.4.0|66|{1 if is_attacking else 0}"
+            f"1.3.6.1.4.1.99999.1.4.0|66|{1 if is_attacking else 0}",
+            # NOVO OID: Enviando a string de IPs em texto (Código 4)
+            f"1.3.6.1.4.1.99999.1.5.0|4|{ip_str}"
         ]
         with open(SNMP_REC_PATH, "w") as f:
             f.write("\n".join(lines) + "\n")
