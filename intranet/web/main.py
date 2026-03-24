@@ -12,6 +12,7 @@ import datetime
 
 import urllib.parse
 from passlib.context import CryptContext
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # Carrega as variáveis do .env no início para persistir após reinícios
 env_path = os.path.join(os.path.dirname(__file__), ".env")
@@ -143,6 +144,7 @@ if DB_USER and DB_PASSWORD:
     init_db(SQLALCHEMY_DATABASE_URL)
 
 app = FastAPI(title="Intranet Faculdade")
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if not os.path.exists(static_dir):
@@ -238,8 +240,7 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     if db is None:
         return RedirectResponse(url="/setup")
         
-    forwarded_ip = request.headers.get("X-Forwarded-For")
-    ip = forwarded_ip.split(",")[0].strip() if forwarded_ip else request.client.host
+    ip = request.client.host
     now = int(time.time())
     
     # Check for block (5 failures in last 60 seconds)
