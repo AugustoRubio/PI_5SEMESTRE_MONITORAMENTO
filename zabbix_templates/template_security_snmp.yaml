@@ -86,6 +86,15 @@ zabbix_export:
           trends: '0'
           value_type: TEXT
           description: 'Lista em texto dos IPs identificados no ataque atual para uso em Dashboards.'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  if (value.trim() === 'Nenhum') {
+                      throw new Error('Sem ataque rodando');
+                  }
+                  return value;
+              error_handler: DISCARD_VALUE
           tags:
             - tag: Application
               value: Security
