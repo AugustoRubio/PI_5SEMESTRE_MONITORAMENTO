@@ -6,18 +6,22 @@ from app.auth import get_current_user
 import httpx
 import asyncio
 import time
+import re
 
 router = APIRouter()
 
 SNMP_REC_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../snmp_simulator/data/security_monitor.snmprec"))
 
-def update_snmp_file(metrics, is_attacking=False):
-    # Extrai os IPs únicos das tentativas recentes
-    recent = metrics.get('recent_failed_attempts', [])
-    ips = list(set([str(att.get('ip', '')) for att in recent if att.get('ip')]))
+def update_snmp_file(metrics, is_attacking=False, fake_ips=None):
+    if fake_ips:
+        ips = fake_ips
+    else:
+        # Extrai os IPs únicos das tentativas recentes
+        recent = metrics.get('recent_failed_attempts', [])
+        ips = list(set([str(att.get('ip', '')) for att in recent if att.get('ip')]))
     
-    # Formata como uma string separada por vírgulas. Se vazio, envia "Nenhum"
-    ip_str = ", ".join(ips) if ips else "Nenhum"
+    # Formata como uma string separada por vírgulas limitando a 10 para o SNMP não truncar
+    ip_str = ", ".join(ips[:10]) if ips else "Nenhum"
 
     try:
         lines = [
@@ -33,6 +37,14 @@ def update_snmp_file(metrics, is_attacking=False):
             f.write("\n".join(lines) + "\n")
     except Exception as e:
         print(f"Erro ao atualizar SNMP: {e}")
+
+def get_fake_ips_from_log():
+    success, log_out = run_docker_cmd(["exec", "bruteforce_pi", "tail", "-n", "100", "/tmp/attack.log"])
+    if success:
+        found_ips = re.findall(r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b', log_out)
+        # Filtra os IPs para pegar somente os de "internet", ignorando IPs locais
+        return list(set([ip for ip in found_ips if not ip.startswith("10.") and not ip.startswith("192.") and ip != "127.0.0.1"]))
+    return []
 
 class BFConfig(BaseModel):
     target_url: str = "https://10.10.100.4/login"
@@ -70,7 +82,8 @@ async def sync_snmp_task(duration, target_url):
             try:
                 m_resp = await client.get(f"{base_url}/security/metrics", timeout=3.0)
                 if m_resp.status_code == 200:
-                    update_snmp_file(m_resp.json(), is_attacking=True)
+                    fake_ips = get_fake_ips_from_log()
+                    update_snmp_file(m_resp.json(), is_attacking=True, fake_ips=fake_ips)
             except:
                 pass
             await asyncio.sleep(2)
@@ -80,7 +93,7 @@ async def sync_snmp_task(duration, target_url):
             run_docker_cmd(["exec", "bruteforce_pi", "pkill", "-f", "attack.py"])
             m_resp = await client.get(f"{base_url}/security/metrics", timeout=3.0)
             if m_resp.status_code == 200:
-                update_snmp_file(m_resp.json(), is_attacking=False)
+                update_snmp_file(m_resp.json(), is_attacking=False, fake_ips=None)
         except:
             pass
 
@@ -144,6 +157,16 @@ async def get_metrics(target_api: str):
     try:
         async with httpx.AsyncClient(verify=False) as client:
             response = await client.get(f"{target_api}/security/metrics", timeout=3.0)
-            return response.json()
+            data = response.json()
+            
+            # Intercepta e substitui os IPs locais (192.168.1.1) pelos do log para exibição correta
+            fake_ips = get_fake_ips_from_log()
+            if fake_ips:
+                recent = data.get('recent_failed_attempts', [])
+                for i, attempt in enumerate(recent):
+                    # Substitui circularmente com os IPs encontrados
+                    attempt['ip'] = fake_ips[i % len(fake_ips)]
+                    
+            return data
     except Exception as e:
         return {"error": str(e)}
