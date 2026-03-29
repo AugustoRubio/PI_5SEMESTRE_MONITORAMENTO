@@ -8,6 +8,7 @@ import asyncio
 import time
 import re
 import random
+import json
 
 router = APIRouter()
 
@@ -210,3 +211,23 @@ async def get_metrics(target_api: str):
             return data
     except Exception as e:
         return {"error": str(e)}
+
+@router.get("/docker/stats")
+async def get_docker_stats():
+    """
+    Endpoint para o Zabbix ler o consumo de CPU/RAM dos containers via HTTP Agent.
+    Retorna um array JSON facilitando o LLD (Low-Level Discovery) do Zabbix.
+    """
+    success, out = run_docker_cmd(["stats", "--no-stream", "--format", '{"name":"{{.Name}}", "cpu":"{{.CPUPerc}}", "mem":"{{.MemPerc}}"}'])
+    data = []
+    if success and out.strip():
+        for line in out.strip().split('\n'):
+            if line.strip():
+                try:
+                    c = json.loads(line)
+                    c['cpu'] = float(c['cpu'].replace('%', ''))
+                    c['mem'] = float(c['mem'].replace('%', ''))
+                    data.append(c)
+                except Exception:
+                    pass
+    return data
