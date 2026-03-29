@@ -79,7 +79,10 @@ def is_attack_running(container_name="bruteforce_pi"):
     return success and bool(out.strip())
 
 async def sync_snmp_task(duration, target_url):
-    base_url = target_url.split("/login")[0]
+    # Garante que a extração da URL base funcione para qualquer alvo do modo dinâmico
+    # Ex: 'https://10.10.100.4/admin/login' -> 'https://10.10.100.4'
+    parts = target_url.split('/')
+    base_url = f"{parts[0]}//{parts[2]}"
     end_time = time.time() + duration
     
     async with httpx.AsyncClient(verify=False) as client:
