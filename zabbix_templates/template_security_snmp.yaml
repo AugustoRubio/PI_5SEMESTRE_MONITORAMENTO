@@ -93,7 +93,8 @@ zabbix_export:
                   if (value.trim() === 'Nenhum') {
                       throw new Error('Sem ataque rodando');
                   }
-                  return value;
+                  // Formata a lista para o Zabbix exibir com quebras de linha reais
+                  return value.split(', ').join('\n');
               error_handler: DISCARD_VALUE
           tags:
             - tag: Application
