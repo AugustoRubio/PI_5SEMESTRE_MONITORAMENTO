@@ -84,7 +84,7 @@ zabbix_export:
           delay: 30s
           history: 7d
           trends: '0'
-          value_type: TEXT
+          value_type: CHAR
           description: 'Lista em texto dos IPs identificados no ataque atual para uso em Dashboards.'
           preprocessing:
             - type: JAVASCRIPT
@@ -106,7 +106,7 @@ zabbix_export:
           delay: 30s
           history: 7d
           trends: '0'
-          value_type: TEXT
+          value_type: CHAR
           description: 'Página/URL alvo da simulação de Brute Force atual onde os usuários estão sendo bloqueados.'
           preprocessing:
             - type: JAVASCRIPT
