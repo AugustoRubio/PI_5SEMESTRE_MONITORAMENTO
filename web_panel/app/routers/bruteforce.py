@@ -197,3 +197,4 @@ async def get_metrics(target_api: str):
             return data
     except Exception as e:
         return {"error": str(e)}
+
