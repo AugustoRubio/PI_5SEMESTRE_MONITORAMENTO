@@ -24,23 +24,20 @@ def update_snmp_file(metrics, is_attacking=False, fake_ips=None, target_url="Nen
             recent = metrics.get('recent_failed_attempts', [])
             ips = list(set([str(att.get('ip', '')) for att in recent if att.get('ip')]))
     
-    # Formata separando por quebras de linha (\n) para o Zabbix colocar um embaixo do outro
-    ip_str = "\n".join(ips[:10]) if ips else "Nenhum"
-
-    # Converte para hexadecimal, pois o arquivo .snmprec quebra se houver \n no texto puro
-    ip_hex = ip_str.encode('utf-8').hex()
+    # VOLTANDO AO BÁSICO: Formato de texto simples, separado por vírgula.
+    # Este é o formato mais compatível para o snmpsim e para o Grafana.
+    ip_str = ", ".join(ips[:10]) if ips else "Nenhum"
     
     target_str = target_url if is_attacking else "Nenhum"
 
     try:
         lines = [
             "1.3.6.1.2.1.1.5.0|4|Monitoramento de Seguranca Intranet",
-            f"1.3.6.1.4.1.99999.1.1.0|66|{metrics.get('total_failures', 0)}",
-            f"1.3.6.1.4.1.99999.1.2.0|66|{metrics.get('failures_last_hour', 0)}",
-            f"1.3.6.1.4.1.99999.1.3.0|66|{metrics.get('active_ips', 0)}",
+            f"1.3.6.1.4.1.99999.1.1.0|66|{metrics.get('total_failures') or 0}",
+            f"1.3.6.1.4.1.99999.1.2.0|66|{metrics.get('failures_last_hour') or 0}",
+            f"1.3.6.1.4.1.99999.1.3.0|66|{metrics.get('active_ips') or 0}",
             f"1.3.6.1.4.1.99999.1.4.0|66|{1 if is_attacking else 0}",
-            # Utilizando tipo 4x (Hex) para permitir o envio da quebra de linha ao Zabbix
-            f"1.3.6.1.4.1.99999.1.5.0|4x|{ip_hex}",
+            f"1.3.6.1.4.1.99999.1.5.0|4|{ip_str}",
             # Novo OID: Enviando o alvo atual (URL)
             f"1.3.6.1.4.1.99999.1.6.0|4|{target_str}"
         ]
