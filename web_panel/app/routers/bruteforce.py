@@ -119,9 +119,9 @@ async def start_bf(config: BFConfig, background_tasks: BackgroundTasks, current_
     # Nova lógica do Modo Dinâmico
     if config.login_type.lower() == "dinamico":
         opcoes = [
-            ("https://10.10.100.4/login", "student"),
-            ("https://10.10.100.4/admin/login", "admin"),
-            ("https://10.10.100.4/teacher/login", "teacher")
+            ("https://10.10.100.4/login?type=student", "student"),
+            ("https://10.10.100.4/login?type=admin", "admin"),
+            ("https://10.10.100.4/login?type=professor", "professor")
         ]
         alvo_escolhido = random.choice(opcoes)
         config.target_url = alvo_escolhido[0]
