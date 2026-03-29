@@ -165,6 +165,7 @@ async def stop_bf(current_user: dict = Depends(get_current_user)):
     else:
         return {"status": "success", "message": "Nenhum ataque ativo para parar."}
 
+
 @router.get("/status")
 async def get_bf_status(current_user: dict = Depends(get_current_user)):
     is_running = is_attack_running()

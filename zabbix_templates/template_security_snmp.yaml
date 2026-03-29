@@ -130,3 +130,4 @@ zabbix_export:
               newvalue: Inativo
             - value: '1'
               newvalue: ATACANDO
+              
