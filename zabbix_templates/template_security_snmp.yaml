@@ -91,9 +91,9 @@ zabbix_export:
               parameters:
                 - |
                   if (value.trim() === 'Nenhum') {
-                  return 'Nenhum';
+                      return 'Nenhum';
                   }
-              return value.split(', ').join('\n');
+                  return value.split(', ').join('\n');
           tags:
             - tag: Application
               value: Security
@@ -113,7 +113,7 @@ zabbix_export:
               parameters:
                 - |
                   if (value.trim() === 'Nenhum') {
-                  return 'Nenhum';
+                      return 'Nenhum';
                   }
                   return value;
           tags:
