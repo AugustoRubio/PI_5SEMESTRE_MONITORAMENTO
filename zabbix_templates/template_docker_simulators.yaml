@@ -23,8 +23,8 @@ zabbix_export:
           delay: 30s
           history: '0'
           value_type: TEXT
-          verify_peer: '0'
-          verify_host: '0'
+          verify_peer: 0
+          verify_host: 0
           description: 'Coleta o JSON bruto com o status de todos os containers ativos.'
           tags:
             - tag: Application
