@@ -79,6 +79,13 @@
                         </div>
                     </div>
                 </div>
+                
+                <div class="alert alert-dark border-secondary p-2 mb-3" role="alert">
+                    <div class="d-flex justify-content-between">
+                        <small><strong>Alvo Atual:</strong> <span id="metric-target" class="text-info">Nenhum</span></small>
+                        <small><strong>Top Usuários:</strong> <span id="metric-top-users" class="text-warning">Nenhum</span></small>
+                    </div>
+                </div>
 
                 <h6>Últimos Acessos Negados:</h6>
                 <div class="table-responsive">
@@ -224,6 +231,10 @@
 
                 document.getElementById('metric-total-failures').textContent = data.total_failures;
                 document.getElementById('metric-hour-failures').textContent = data.failures_last_hour;
+                
+                // Atualiza Alvo e Usuários no Painel
+                document.getElementById('metric-target').textContent = data.current_target || "Nenhum";
+                document.getElementById('metric-top-users').textContent = (data.top_users && data.top_users.length > 0) ? data.top_users.join(', ') : "Nenhum";
                 
                 const tbody = document.getElementById('security-logs-body');
                 if (data.recent_failed_attempts.length > 0) {

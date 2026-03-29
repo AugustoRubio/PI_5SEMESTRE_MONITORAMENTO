@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, Form, Depends, Cookie
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Table
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Table, func, desc
 from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 from dotenv import load_dotenv
 import os
@@ -194,11 +194,21 @@ def security_metrics(db: Session = Depends(get_db)):
     recent_logs = db.query(LoginAttempt).filter(LoginAttempt.success == 0).order_by(LoginAttempt.timestamp.desc()).limit(10).all()
     logs = [{"ip": l.ip_address, "user": l.username, "time": datetime.datetime.fromtimestamp(l.timestamp).strftime("%H:%M:%S")} for l in recent_logs]
 
+    # Top 3 usuarios mais atacados na ultima hora
+    top_users_query = db.query(LoginAttempt.username, func.count(LoginAttempt.id).label('total')) \
+        .filter(LoginAttempt.success == 0, LoginAttempt.timestamp > now - 3600) \
+        .group_by(LoginAttempt.username) \
+        .order_by(desc('total')) \
+        .limit(3) \
+        .all()
+    top_users = [u[0] for u in top_users_query]
+
     return {
         "total_failures": total_failures,
         "failures_last_hour": failures_last_hour,
         "active_ips": active_ips,
         "recent_failed_attempts": logs,
+        "top_users": top_users,
         "system_time": now
     }
 
@@ -251,6 +261,15 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     ).count()
     
     if recent_failures >= 5:
+        # MITIGAÇÃO DE TIMING ATTACK E GERAÇÃO DE CARGA (CPU):
+        # Força o servidor a calcular um hash mesmo se o IP estiver bloqueado.
+        # Assim o atacante não consegue adivinhar que foi bloqueado pelo tempo de resposta,
+        # e sua máquina Intranet gera gráficos de alto consumo de CPU no Zabbix!
+        try:
+            pwd_context.verify("dummy_password", "$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2")
+        except:
+            pass
+            
         # Record attempt even if blocked to prolong the block if they keep trying
         new_attempt = LoginAttempt(ip_address=ip, username=username, timestamp=now, success=0)
         db.add(new_attempt)

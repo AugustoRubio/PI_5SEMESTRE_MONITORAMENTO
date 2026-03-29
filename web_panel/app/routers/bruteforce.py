@@ -28,6 +28,9 @@ def update_snmp_file(metrics, is_attacking=False, fake_ips=None, target_url="Nen
     # Este é o formato mais compatível para o snmpsim e para o Grafana.
     ip_str = ", ".join(ips[:10]) if ips else "Nenhum"
     
+    top_users = metrics.get('top_users', [])
+    top_users_str = ", ".join(top_users) if (is_attacking and top_users) else "Nenhum"
+
     target_str = target_url if is_attacking else "Nenhum"
 
     try:
@@ -39,12 +42,20 @@ def update_snmp_file(metrics, is_attacking=False, fake_ips=None, target_url="Nen
             f"1.3.6.1.4.1.99999.1.4.0|66|{1 if is_attacking else 0}",
             f"1.3.6.1.4.1.99999.1.5.0|4|{ip_str}",
             # Novo OID: Enviando o alvo atual (URL)
-            f"1.3.6.1.4.1.99999.1.6.0|4|{target_str}"
+            f"1.3.6.1.4.1.99999.1.6.0|4|{target_str}",
+            # Novo OID: Top Usuários Atacados
+            f"1.3.6.1.4.1.99999.1.7.0|4|{top_users_str}"
         ]
         with open(SNMP_REC_PATH, "w") as f:
             f.write("\n".join(lines) + "\n")
     except Exception as e:
         print(f"Erro ao atualizar SNMP: {e}")
+
+def get_attack_target_from_log():
+    success, log_out = run_docker_cmd(["exec", "bruteforce_pi", "sh", "-c", "grep 'Alvo/Página Atacada:' /tmp/attack.log | tail -n 1"])
+    if success and log_out.strip():
+        return log_out.split("Atacada: ")[-1].strip()
+    return "Nenhum"
 
 def get_fake_ips_from_log():
     success, log_out = run_docker_cmd(["exec", "bruteforce_pi", "tail", "-n", "100", "/tmp/attack.log"])
@@ -186,6 +197,8 @@ async def get_metrics(target_api: str):
             response = await client.get(f"{target_api}/security/metrics", timeout=3.0)
             data = response.json()
             
+            data['current_target'] = get_attack_target_from_log() if is_attack_running() else "Nenhum"
+
             # Intercepta e substitui os IPs locais (192.168.1.1) pelos do log para exibição correta
             fake_ips = get_fake_ips_from_log()
             if fake_ips:
