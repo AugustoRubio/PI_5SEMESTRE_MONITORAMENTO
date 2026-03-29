@@ -91,10 +91,9 @@ zabbix_export:
               parameters:
                 - |
                   if (value.trim() === 'Nenhum') {
-                      throw new Error('Sem ataque rodando');
+                  return 'Nenhum';
                   }
-                  return value;
-              error_handler: DISCARD_VALUE
+              return value.split(', ').join('\n');
           tags:
             - tag: Application
               value: Security
@@ -114,10 +113,9 @@ zabbix_export:
               parameters:
                 - |
                   if (value.trim() === 'Nenhum') {
-                      throw new Error('Sem ataque rodando');
+                  return 'Nenhum';
                   }
                   return value;
-              error_handler: DISCARD_VALUE
           tags:
             - tag: Application
               value: Security
