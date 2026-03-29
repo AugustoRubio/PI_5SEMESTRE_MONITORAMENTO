@@ -7,12 +7,13 @@ import httpx
 import asyncio
 import time
 import re
+import random
 
 router = APIRouter()
 
 SNMP_REC_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../snmp_simulator/data/security_monitor.snmprec"))
 
-def update_snmp_file(metrics, is_attacking=False, fake_ips=None):
+def update_snmp_file(metrics, is_attacking=False, fake_ips=None, target_url="Nenhum"):
     ips = []
     # Somente coleta e exibe os IPs se o ataque estiver rodando
     if is_attacking:
@@ -28,6 +29,8 @@ def update_snmp_file(metrics, is_attacking=False, fake_ips=None):
 
     # Converte para hexadecimal, pois o arquivo .snmprec quebra se houver \n no texto puro
     ip_hex = ip_str.encode('utf-8').hex()
+    
+    target_str = target_url if is_attacking else "Nenhum"
 
     try:
         lines = [
@@ -37,7 +40,9 @@ def update_snmp_file(metrics, is_attacking=False, fake_ips=None):
             f"1.3.6.1.4.1.99999.1.3.0|66|{metrics.get('active_ips', 0)}",
             f"1.3.6.1.4.1.99999.1.4.0|66|{1 if is_attacking else 0}",
             # Utilizando tipo 4x (Hex) para permitir o envio da quebra de linha ao Zabbix
-            f"1.3.6.1.4.1.99999.1.5.0|4x|{ip_hex}"
+            f"1.3.6.1.4.1.99999.1.5.0|4x|{ip_hex}",
+            # Novo OID: Enviando o alvo atual (URL)
+            f"1.3.6.1.4.1.99999.1.6.0|4|{target_str}"
         ]
         with open(SNMP_REC_PATH, "w") as f:
             f.write("\n".join(lines) + "\n")
@@ -89,7 +94,7 @@ async def sync_snmp_task(duration, target_url):
                 m_resp = await client.get(f"{base_url}/security/metrics", timeout=3.0)
                 if m_resp.status_code == 200:
                     fake_ips = get_fake_ips_from_log()
-                    update_snmp_file(m_resp.json(), is_attacking=True, fake_ips=fake_ips)
+                    update_snmp_file(m_resp.json(), is_attacking=True, fake_ips=fake_ips, target_url=target_url)
             except:
                 pass
             await asyncio.sleep(2)
@@ -99,7 +104,7 @@ async def sync_snmp_task(duration, target_url):
             run_docker_cmd(["exec", "bruteforce_pi", "pkill", "-f", "attack.py"])
             m_resp = await client.get(f"{base_url}/security/metrics", timeout=3.0)
             if m_resp.status_code == 200:
-                update_snmp_file(m_resp.json(), is_attacking=False, fake_ips=None)
+                update_snmp_file(m_resp.json(), is_attacking=False, fake_ips=None, target_url="Nenhum")
         except:
             pass
 
@@ -111,6 +116,25 @@ async def start_bf(config: BFConfig, background_tasks: BackgroundTasks, current_
     if is_attack_running():
         raise HTTPException(status_code=400, detail="A simulação de ataque já está em execução.")
     
+    # Nova lógica do Modo Dinâmico
+    if config.login_type.lower() == "dinamico":
+        opcoes = [
+            ("https://10.10.100.4/login", "student"),
+            ("https://10.10.100.4/admin/login", "admin"),
+            ("https://10.10.100.4/teacher/login", "teacher")
+        ]
+        alvo_escolhido = random.choice(opcoes)
+        config.target_url = alvo_escolhido[0]
+        config.login_type = alvo_escolhido[1]
+
+    # Cabeçalho para enriquecer os logs no Painel
+    log_header = (
+        f"echo '[*] --- INICIANDO SIMULAÇÃO DE BRUTE FORCE ---' > /tmp/attack.log && "
+        f"echo '[*] Alvo/Página Atacada: {config.target_url}' >> /tmp/attack.log && "
+        f"echo '[*] Perfil de Usuário: {config.login_type}' >> /tmp/attack.log && "
+        f"echo '[*] Status: Os IPs abaixo estão tentando acesso e sendo bloqueados nesta página:' >> /tmp/attack.log && "
+    )
+
     # Prepara o comando para executar o script no background dentro do contêiner já existente
     cmd = [
         "exec", "-d",
@@ -118,11 +142,8 @@ async def start_bf(config: BFConfig, background_tasks: BackgroundTasks, current_
         "-e", f"LOGIN_TYPE={config.login_type}",
         "-e", "CONCURRENCY=15",
         "bruteforce_pi",
-        "sh", "-c", "python attack.py > /tmp/attack.log 2>&1"
+        "sh", "-c", f"{log_header} python attack.py >> /tmp/attack.log 2>&1"
     ]
-    
-    # Limpa logs antigos no contêiner
-    run_docker_cmd(["exec", "bruteforce_pi", "sh", "-c", "> /tmp/attack.log"])
     
     # Executa o novo ataque
     success, msg = run_docker_cmd(cmd)
