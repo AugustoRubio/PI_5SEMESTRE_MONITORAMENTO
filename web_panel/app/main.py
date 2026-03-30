@@ -47,8 +47,12 @@ async def get_docker_stats_public():
             if line.strip():
                 try:
                     c = json.loads(line)
-                    c['cpu'] = float(c['cpu'].replace('%', ''))
-                    c['mem'] = float(c['mem'].replace('%', ''))
+                    cpu_val = c.get('cpu', '').replace('%', '').strip()
+                    mem_val = c.get('mem', '').replace('%', '').strip()
+                    
+                    # Trata o caso de containers da botnet recém-criados que mostram '--'
+                    c['cpu'] = float(cpu_val) if cpu_val and cpu_val != '--' else 0.0
+                    c['mem'] = float(mem_val) if mem_val and mem_val != '--' else 0.0
                     data.append(c)
                 except Exception:
                     pass
