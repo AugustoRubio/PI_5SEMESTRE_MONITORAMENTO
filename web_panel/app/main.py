@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from app.routers import snmp, attacks, auth, admin, stress, simulation, bruteforce
+from app.routers import snmp, attacks, auth, admin, stress, simulation, bruteforce, web_traffic
 from app.auth import get_current_user
 import os
 import subprocess
@@ -27,6 +27,7 @@ app.include_router(admin.router, prefix="/api/admin", tags=["Administração"], 
 app.include_router(stress.router, prefix="/api/stress", tags=["Estresse"], dependencies=[Depends(get_current_user)])
 app.include_router(simulation.router, prefix="/api/simulation", tags=["Simulação"], dependencies=[Depends(get_current_user)])
 app.include_router(bruteforce.router, prefix="/api/bruteforce", tags=["Brute Force"], dependencies=[Depends(get_current_user)])
+app.include_router(web_traffic.router, prefix="/api/traffic", tags=["Tráfego Web"], dependencies=[Depends(get_current_user)])
 
 @app.get("/api/docker/stats/public")
 async def get_docker_stats_public():
@@ -93,3 +94,7 @@ async def stress_page(request: Request):
 @app.get("/simulation", response_class=HTMLResponse)
 async def simulation_page(request: Request):
     return templates.TemplateResponse("simulation.html", {"request": request, "title": "Simulação de Uso"})
+
+@app.get("/traffic", response_class=HTMLResponse)
+async def traffic_page(request: Request):
+    return templates.TemplateResponse("traffic.html", {"request": request, "title": "Simulador de Tráfego Web"})

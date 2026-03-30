@@ -1,0 +1,10 @@
+# Lista de URLs para Simulação de Acesso (Um por linha)
+# Comentários começam com '#' e são ignorados
+
+# 1. Teste Oficial de IDS (Gera alerta de "GPL ATTACK_RESPONSE id check returned root")
+http://testmynids.org/uid/index.html
+
+# 2. Teste EICAR (Arquivo de teste oficial mundial de antivírus, simula download de malware)
+https://secure.eicar.org/eicar.com.txt
+
+# 3. Você pode adicionar outros domínios aqui que sua empresa/faculdade bloquearia
