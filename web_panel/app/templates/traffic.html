@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2><i class="bi bi-globe"></i> Simulador de Tráfego Web (Wazuh/Zabbix)</h2>
+        <p class="text-muted">Configure e dispare acessos automatizados a sites restritos a partir de uma máquina Linux remota. Ferramenta projetada para gerar tráfego visível em sistemas de monitoramento da rede.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Configurações e URLs -->
+    <div class="col-md-6 mb-4">
+        <div class="card border-primary h-100">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="bi bi-gear"></i> Configurações do Simulador</h5>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-2">Defina as credenciais SSH da máquina Ubuntu alvo. O bot Docker enviará comandos para ela.</p>
+                <form id="traffic-config-form" onsubmit="event.preventDefault(); startTraffic();">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Endereço IP do Alvo (Ubuntu)</label>
+                        <input type="text" id="target_ip" class="form-control" value="192.168.1.50" required>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Usuário SSH</label>
+                            <input type="text" id="target_user" class="form-control" value="ubuntu" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Senha SSH</label>
+                            <input type="password" id="target_pass" class="form-control" placeholder="Obrigatório" required>
+                        </div>
+                    </div>
+                </form>
+                
+                <hr class="my-4">
+                
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0 fw-bold"><i class="bi bi-list-ul"></i> Lista de URLs Alvo (urls.txt)</h6>
+                    <button class="btn btn-sm btn-outline-primary fw-bold" onclick="saveUrls()">
+                        <i class="bi bi-save"></i> Salvar URLs
+                    </button>
+                </div>
+                <p class="text-muted small mb-2">Insira as URLs para simulação, uma por linha. Estas alterações persistem diretamente nos arquivos do <code>web_traffic_simulator</code>.</p>
+                <textarea id="urls_list" class="form-control" rows="6" placeholder="http://malicious-site.com&#10;http://example.com" style="font-family: monospace; font-size: 0.9em; background-color: #f8f9fa;"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controle e Logs -->
+    <div class="col-md-6 mb-4">
+        <div class="card border-dark h-100">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="bi bi-terminal"></i> Controle de Execução</h5>
+                <div class="d-flex gap-2">
+                    <span id="dockerBadge" class="badge bg-secondary">Docker: Verificando...</span>
+                    <span id="statusBadge" class="badge bg-secondary">Status: INATIVO</span>
+                </div>
+            </div>
+            <div class="card-body d-flex flex-column">
+                <div class="d-grid gap-2 mb-3">
+                    <button class="btn btn-success fw-bold" id="start-btn" onclick="startTraffic()">
+                        <i class="bi bi-play-fill"></i> Iniciar Geração de Tráfego
+                    </button>
+                    <button class="btn btn-danger fw-bold" id="stop-btn" onclick="stopTraffic()">
+                        <i class="bi bi-stop-fill"></i> Parar Tráfego
+                    </button>
+                </div>
+
+                <h6 class="mt-3"><i class="bi bi-card-text"></i> Logs em Tempo Real:</h6>
+                <div id="traffic-logs" class="bg-dark text-light p-3 border border-secondary rounded flex-grow-1" style="min-height: 250px; max-height: 350px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 0.85rem;">
+                    <span class="text-muted">Aguardando dados...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function loadConfig() {
+        const config = JSON.parse(localStorage.getItem('config_traffic') || '{}');
+        if (config.ip) document.getElementById('target_ip').value = config.ip;
+        if (config.user) document.getElementById('target_user').value = config.user;
+        if (config.pass) document.getElementById('target_pass').value = config.pass;
+    }
+
+    function saveConfigLocal() {
+        const config = {
+            ip: document.getElementById('target_ip').value,
+            user: document.getElementById('target_user').value,
+            pass: document.getElementById('target_pass').value
+        };
+        localStorage.setItem('config_traffic', JSON.stringify(config));
+    }
+
+    async function loadUrls() {
+        try {
+            const response = await fetch('/api/traffic/urls', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }});
+            if (response.ok) {
+                const data = await response.json();
+                document.getElementById('urls_list').value = data.urls;
+            }
+        } catch(e) { console.error('Erro ao carregar URLs:', e); }
+    }
+
+    async function saveUrls() {
+        const btn = event.currentTarget;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...';
+        btn.disabled = true;
+
+        const urls = document.getElementById('urls_list').value;
+        try {
+            const response = await fetch('/api/traffic/urls', {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ urls: urls })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                btn.innerHTML = '<i class="bi bi-check-lg"></i> Salvo!';
+                btn.classList.replace('btn-outline-primary', 'btn-success');
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.classList.replace('btn-success', 'btn-outline-primary');
+                    btn.disabled = false;
+                }, 2000);
+            } else {
+                alert(data.detail || 'Erro ao salvar URLs');
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        } catch(e) { 
+            alert('Erro de conexão ao salvar URLs.');
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    }
+
+    async function startTraffic() {
+        saveConfigLocal(); // Salva estado das configs
+        const config = {
+            target_ip: document.getElementById('target_ip').value,
+            target_user: document.getElementById('target_user').value,
+            target_pass: document.getElementById('target_pass').value
+        };
+
+        const logsDiv = document.getElementById('traffic-logs');
+        logsDiv.innerHTML = '<div class="text-info"><span class="spinner-border spinner-border-sm"></span> Conectando via SSH...</div>';
+
+        try {
+            const response = await fetch('/api/traffic/start', {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            });
+            const data = await response.json();
+            if(!response.ok) {
+                logsDiv.innerHTML = `<div class="text-danger fw-bold"><i class="bi bi-exclamation-triangle"></i> Erro: ${data.detail}</div>`;
+            }
+            pollStatus();
+        } catch(e) { 
+            logsDiv.innerHTML = `<div class="text-danger fw-bold"><i class="bi bi-exclamation-triangle"></i> Erro de conexão com o servidor.</div>`;
+        }
+    }
+
+    async function stopTraffic() {
+        try {
+            const response = await fetch('/api/traffic/stop', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await response.json();
+            if(!response.ok) alert(data.detail);
+            pollStatus();
+        } catch(e) { alert('Erro de conexão ao parar.'); }
+    }
+
+    async function pollStatus() {
+        try {
+            const response = await fetch('/api/traffic/status', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            });
+            const data = await response.json();
+            
+            const statusBadge = document.getElementById('statusBadge');
+            const dockerBadge = document.getElementById('dockerBadge');
+            const logsDiv = document.getElementById('traffic-logs');
+
+            // Verifica Status Docker
+            if (data.is_docker_running) {
+                dockerBadge.className = 'badge bg-success';
+                dockerBadge.textContent = 'Docker: UP';
+            } else {
+                dockerBadge.className = 'badge bg-danger';
+                dockerBadge.textContent = 'Docker: OFF';
+            }
+
+            // Verifica Status Simulação
+            if (data.is_running) {
+                statusBadge.className = 'badge bg-danger blink';
+                statusBadge.textContent = 'Status: EXECUTANDO';
+                
+                if (data.logs && data.logs.length > 0) {
+                    logsDiv.innerHTML = data.logs.map(log => {
+                        if (log.includes('[*]')) return `<div class="text-info fw-bold mb-1">${log}</div>`;
+                        if (log.includes('[+]')) return `<div class="text-success fw-bold mb-1">${log}</div>`;
+                        if (log.includes('[-]')) return `<div class="text-warning fw-bold mb-1">${log}</div>`;
+                        if (log.includes('[!]')) return `<div class="text-danger fw-bold mb-1">${log}</div>`;
+                        if (log.includes('Resposta HTTP: 200')) return `<div class="text-success ps-2">${log}</div>`;
+                        if (log.includes('Acessando:')) return `<div class="text-light ps-2"><i class="bi bi-arrow-right-short text-secondary"></i> ${log}</div>`;
+                        return `<div class="text-light ps-2">${log}</div>`;
+                    }).join('');
+                    logsDiv.scrollTop = logsDiv.scrollHeight;
+                }
+            } else {
+                statusBadge.className = 'badge bg-dark';
+                statusBadge.textContent = 'Status: INATIVO';
+            }
+        } catch(e) {}
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadConfig();
+        loadUrls();
+        pollStatus();
+        setInterval(pollStatus, 2000); // Polling constante para os logs e badges
+    });
+</script>
+<style>
+    .blink { animation: blinker 1.5s linear infinite; }
+    @keyframes blinker { 50% { opacity: 0; } }
+</style>
+{% endblock %}

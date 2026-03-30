@@ -1,5 +1,6 @@
 import os
 import subprocess
+import tempfile
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from app.auth import get_current_user
@@ -10,6 +11,12 @@ class TrafficConfig(BaseModel):
     target_ip: str = "192.168.1.100"
     target_user: str = "ubuntu"
     target_pass: str = "senha"
+
+class URLsConfig(BaseModel):
+    urls: str
+
+# Caminho absoluto para o arquivo urls.txt que fica fora da pasta do painel web
+URLS_FILE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../web_traffic_simulator/urls.txt"))
 
 def run_docker_cmd(args_list):
     for base in [["docker"], ["/usr/bin/docker"], ["/usr/local/bin/docker"]]:
@@ -68,13 +75,43 @@ async def stop_traffic(current_user: dict = Depends(get_current_user)):
 
 @router.get("/status")
 async def get_traffic_status(current_user: dict = Depends(get_current_user)):
+    docker_running = is_container_running()
     is_running = is_bot_running()
     logs = []
     
-    if is_running or is_container_running():
-        success, out = run_docker_cmd(["exec", "web_traffic_bot", "tail", "-n", "15", "/tmp/traffic.log"])
+    if is_running or docker_running:
+        success, out = run_docker_cmd(["exec", "web_traffic_bot", "tail", "-n", "20", "/tmp/traffic.log"])
         if success:
             logs = [line.strip() for line in out.split('\n') if line.strip()]
-            logs.reverse() # Mostra os logs mais recentes no topo
             
-    return {"is_running": is_running, "logs": logs}
+    return {
+        "is_docker_running": docker_running,
+        "is_running": is_running, 
+        "logs": logs
+    }
+
+@router.get("/urls")
+async def get_urls(current_user: dict = Depends(get_current_user)):
+    try:
+        with open(URLS_FILE_PATH, "r", encoding="utf-8") as f:
+            return {"urls": f.read()}
+    except FileNotFoundError:
+        return {"urls": ""}
+
+@router.post("/urls")
+async def save_urls(config: URLsConfig, current_user: dict = Depends(get_current_user)):
+    try:
+        os.makedirs(os.path.dirname(URLS_FILE_PATH), exist_ok=True)
+        with open(URLS_FILE_PATH, "w", encoding="utf-8") as f:
+            f.write(config.urls)
+            
+        if is_container_running():
+            with tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8') as tmp:
+                tmp.write(config.urls)
+                tmp_path = tmp.name
+            run_docker_cmd(["cp", tmp_path, "web_traffic_bot:/app/urls.txt"])
+            os.remove(tmp_path)
+            
+        return {"status": "success", "message": "Lista de URLs salva e injetada no simulador com sucesso!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao salvar URLs: {str(e)}")
