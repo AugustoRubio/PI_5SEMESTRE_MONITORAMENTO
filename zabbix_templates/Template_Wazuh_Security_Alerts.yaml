@@ -1,0 +1,38 @@
+zabbix_export:
+  version: '6.0'
+  date: '2023-11-01T00:00:00Z'
+  groups:
+    - name: 'Templates/Security'
+  templates:
+    - template: 'Template Wazuh Security Alerts'
+      name: 'Template Wazuh Security Alerts'
+      description: 'Template para receber alertas de segurança do Wazuh via Zabbix Trapper. Focado em detecção de tráfego web malicioso e syscheck (integridade).'
+      groups:
+        - name: 'Templates/Security'
+      items:
+        - name: 'Wazuh Alert: Malicious Web Traffic'
+          type: TRAPPER
+          key: wazuh.alert.web_traffic
+          value_type: TEXT
+          description: 'Recebe alertas do Wazuh sobre acessos a URLs bloqueadas/maliciosas simuladas.'
+          tags:
+            - tag: Application
+              value: Wazuh
+          triggers:
+            - expression: 'length(last(/Template Wazuh Security Alerts/wazuh.alert.web_traffic))>0 and nodata(/Template Wazuh Security Alerts/wazuh.alert.web_traffic,2m)=0'
+              name: 'Wazuh: Acesso a site malicioso detectado na rede'
+              priority: HIGH
+              manual_close: 'YES'
+        - name: 'Wazuh Alert: File Integrity (Syscheck)'
+          type: TRAPPER
+          key: wazuh.alert.syscheck
+          value_type: TEXT
+          description: 'Recebe alertas de criação/modificação de arquivos maliciosos, como payload de EICAR.'
+          tags:
+            - tag: Application
+              value: Wazuh
+          triggers:
+            - expression: 'length(last(/Template Wazuh Security Alerts/wazuh.alert.syscheck))>0 and nodata(/Template Wazuh Security Alerts/wazuh.alert.syscheck,2m)=0'
+              name: 'Wazuh: Arquivo suspeito criado/modificado (Syscheck)'
+              priority: WARNING
+              manual_close: 'YES'
