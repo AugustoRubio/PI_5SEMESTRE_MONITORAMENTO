@@ -11,20 +11,18 @@ zabbix_export:
       groups:
         - name: 'Templates/Docker'
       macros:
-        - macro: '{$API_URL}'
-          value: 'https://{HOST.CONN}:8443/api/bruteforce/docker/stats'
-          description: 'URL do endpoint de stats do Painel Web FastAPI'
+        - macro: '{$API_PORT}'
+          value: '8443'
+          description: 'Porta do Painel Web FastAPI'
       items:
         - uuid: f7a9b2b512c544c9b132890d235c5d23
           name: 'Docker: Stats Raw Data'
           type: HTTP_AGENT
           key: docker.stats.raw
-          url: '{$API_URL}'
+          url: 'https://{HOST.CONN}:{$API_PORT}/api/docker/stats/public'
           delay: 30s
           history: '0'
           value_type: TEXT
-          verify_peer: 0
-          verify_host: 0
           description: 'Coleta o JSON bruto com o status de todos os containers ativos.'
           tags:
             - tag: Application
