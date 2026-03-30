@@ -33,7 +33,7 @@ zabbix_export:
           type: DEPENDENT
           key: docker.containers.discovery
           delay: '0'
-          lifetime: 15m
+          lifetime: 1h
           master_item:
             key: docker.stats.raw
           lld_macro_paths:
