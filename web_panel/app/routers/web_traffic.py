@@ -8,7 +8,7 @@ from app.auth import get_current_user
 router = APIRouter()
 
 class TrafficConfig(BaseModel):
-    target_ip: str = "192.168.1.100"
+    target_ip: str = "10.10.2.253"
     target_user: str = "ubuntu"
     target_pass: str = "senha"
 

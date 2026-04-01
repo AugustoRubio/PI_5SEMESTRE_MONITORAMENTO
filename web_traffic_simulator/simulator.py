@@ -35,7 +35,22 @@ def simulate_traffic():
         try:
             print(f"[*] Tentando conectar em {TARGET_IP}...")
             ssh.connect(TARGET_IP, username=TARGET_USER, password=TARGET_PASS, timeout=15)
-            print("[+] Conexão SSH estabelecida com sucesso! Iniciando navegação...\n")
+            print("[+] Conexão SSH estabelecida com sucesso!")
+            
+            # Verificação automática de requisitos (curl)
+            print("[*] Verificando dependências (curl) na máquina destino...")
+            # Verifica se o curl existe; se não, passa a senha para o sudo e instala silenciosamente
+            check_cmd = f"which curl || (echo '{TARGET_PASS}' | sudo -S apt-get update -qq && echo '{TARGET_PASS}' | sudo -S apt-get install -y curl -qq)"
+            stdin, stdout, stderr = ssh.exec_command(check_cmd)
+            exit_status = stdout.channel.recv_exit_status() # Aguarda a conclusão do comando
+            
+            if exit_status == 0:
+                print("[+] Requisitos prontos.")
+            else:
+                err_msg = stderr.read().decode().strip()
+                print(f"[-] Aviso: Pode ter havido um problema ao instalar o curl. Erro: {err_msg}")
+            
+            print("[*] Iniciando navegação...\n")
             
             while True:
                 # Recarrega a lista de URLs para pegar mudanças feitas no painel web sem reiniciar
