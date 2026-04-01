@@ -10,6 +10,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY simulator.py .
 COPY urls.txt .
 
-# Inicia o simulador automaticamente com o container.
-# Ele irá tentar conectar via SSH no alvo configurado no docker-compose.yml
-CMD ["python", "-u", "simulator.py"]
+# Mantém o container ocioso em background aguardando comandos do web_panel via docker exec
+CMD ["tail", "-f", "/dev/null"]

@@ -32,6 +32,14 @@ services:
     command: ["tail", "-f", "/dev/null"]
     restart: unless-stopped
 
+  traffic_bot:
+    build: ../web_traffic_simulator
+    container_name: web_traffic_bot
+    restart: unless-stopped
+    # Permite acesso à rede do host para facilitar o roteamento SSH até a VM Ubuntu no GNS3
+    network_mode: "host"
+    command: ["tail", "-f", "/dev/null"]
+
 networks:
   sim_snmp_net:
     driver: bridge
