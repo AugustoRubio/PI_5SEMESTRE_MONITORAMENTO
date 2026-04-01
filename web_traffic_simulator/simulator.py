@@ -20,40 +20,54 @@ def load_urls():
 def simulate_traffic():
     urls = load_urls()
     if not urls:
-        print("Nenhuma URL para acessar. Encerrando.")
-        return
+        print("Nenhuma URL para acessar. Aguardando urls.txt...")
+        while not urls:
+            time.sleep(10)
+            urls = load_urls()
 
     print(f"[*] Iniciando Bot de Tráfego Web...")
-    print(f"[*] Conectando via SSH em {TARGET_USER}@{TARGET_IP}...")
+    print(f"[*] Alvo: {TARGET_USER}@{TARGET_IP}")
     
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    
-    try:
-        ssh.connect(TARGET_IP, username=TARGET_USER, password=TARGET_PASS, timeout=10)
-        print("[+] Conexão SSH estabelecida com sucesso! Iniciando navegação...\n")
+    while True:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         
-        while True:
-            url = random.choice(urls)
-            # Simula um navegador real. -s (silent), -L (follow redirects), -m 15 (timeout de 15s), -o /dev/null (descarta o arquivo baixado)
-            user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
-            cmd = f'curl -s -L -m 15 -A "{user_agent}" -o /dev/null -w "%{{http_code}}" "{url}"'
+        try:
+            print(f"[*] Tentando conectar em {TARGET_IP}...")
+            ssh.connect(TARGET_IP, username=TARGET_USER, password=TARGET_PASS, timeout=15)
+            print("[+] Conexão SSH estabelecida com sucesso! Iniciando navegação...\n")
             
-            print(f"Acessando: {url}")
-            stdin, stdout, stderr = ssh.exec_command(cmd)
-            http_code = stdout.read().decode().strip()
-            print(f"Resposta HTTP: {http_code} | Aguardando próximo acesso...")
-            
-            # Pausa de 5 a 15 segundos para simular a leitura humana da página e não causar DDoS
-            time.sleep(random.randint(5, 15))
-            
-    except KeyboardInterrupt:
-        print("\n[!] Simulação interrompida.")
-    except Exception as e:
-        print(f"[!] Erro na conexão ou execução: {e}")
-    finally:
-        ssh.close()
-        print("[-] Conexão SSH encerrada.")
+            while True:
+                # Recarrega a lista de URLs para pegar mudanças feitas no painel web sem reiniciar
+                urls = load_urls()
+                if not urls:
+                    print("[!] Lista de URLs vazia. Aguardando...")
+                    time.sleep(10)
+                    continue
+
+                url = random.choice(urls)
+                # Simula um navegador real. -s (silent), -L (follow redirects), -m 15 (timeout de 15s), -o /dev/null (descarta o arquivo baixado)
+                user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+                cmd = f'curl -s -L -m 15 -A "{user_agent}" -o /dev/null -w "%{{http_code}}" "{url}"'
+                
+                print(f"Acessando: {url}")
+                stdin, stdout, stderr = ssh.exec_command(cmd)
+                http_code = stdout.read().decode().strip()
+                print(f"Resposta HTTP: {http_code} | Aguardando próximo acesso...")
+                
+                # Pausa de 5 a 15 segundos para simular a leitura humana da página e não causar DDoS
+                time.sleep(random.randint(5, 15))
+                
+        except KeyboardInterrupt:
+            print("\n[!] Simulação interrompida pelo usuário.")
+            break
+        except Exception as e:
+            print(f"[!] Erro na conexão ou execução: {e}")
+            print("[*] Reiniciando em 30 segundos...")
+            time.sleep(30)
+        finally:
+            ssh.close()
+            print("[-] Conexão SSH encerrada.")
 
 if __name__ == "__main__":
     simulate_traffic()
