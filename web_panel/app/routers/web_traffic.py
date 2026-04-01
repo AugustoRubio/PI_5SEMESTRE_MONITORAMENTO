@@ -38,7 +38,7 @@ def is_bot_running(container_name="web_traffic_bot"):
     return success and bool(out.strip())
 
 @router.post("/start")
-async def start_traffic(config: TrafficConfig, current_user: dict = Depends(get_current_user)):
+def start_traffic(config: TrafficConfig, current_user: dict = Depends(get_current_user)):
     if not is_container_running():
         raise HTTPException(status_code=500, detail="Erro: O contêiner web_traffic_bot não está rodando. Vá até a aba Gerenciamento Docker e inicie os Simuladores Unificados.")
         
@@ -74,7 +74,7 @@ async def stop_traffic(current_user: dict = Depends(get_current_user)):
         return {"status": "success", "message": "Nenhum bot ativo para parar."}
 
 @router.get("/status")
-async def get_traffic_status(current_user: dict = Depends(get_current_user)):
+def get_traffic_status(current_user: dict = Depends(get_current_user)):
     docker_running = is_container_running()
     is_running = is_bot_running()
     logs = []

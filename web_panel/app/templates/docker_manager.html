@@ -18,8 +18,8 @@
             <div class="card-body">
                 <p>Controle os contêineres unificados (<code>snmpsim_pi</code>, <code>bruteforce_pi</code> e <code>web_traffic_bot</code>) que executam no servidor.</p>
                 <div class="d-flex gap-3">
-                    <button class="btn btn-success" onclick="startSimulator()"><i class="bi bi-play-fill"></i> Iniciar Simuladores</button>
-                    <button class="btn btn-danger" onclick="stopSimulator()"><i class="bi bi-stop-fill"></i> Parar Simuladores</button>
+                    <button id="btn-start" class="btn btn-success" onclick="startSimulator()"><i class="bi bi-play-fill"></i> Iniciar Simuladores</button>
+                    <button id="btn-stop" class="btn btn-danger" onclick="stopSimulator()"><i class="bi bi-stop-fill"></i> Parar Simuladores</button>
                     <button class="btn btn-info text-white" onclick="viewLogs()"><i class="bi bi-card-text"></i> Ver Logs</button>
                     <button class="btn btn-outline-light" onclick="checkSimulatorStatus()"><i class="bi bi-arrow-clockwise"></i> Atualizar Status</button>
                 </div>
@@ -54,22 +54,49 @@
 <script>
     let statusTimeout;
 
+    function setButtonLoading(btnId, isLoading, originalHtml) {
+        const btn = document.getElementById(btnId);
+        if (isLoading) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processando...';
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+
     async function startSimulator() {
+        const btnId = 'btn-start';
+        const originalHtml = '<i class="bi bi-play-fill"></i> Iniciar Simuladores';
+        setButtonLoading(btnId, true, originalHtml);
+        
         try {
             const response = await fetch('/api/snmp/simulator/start', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
             const data = await response.json();
             alert(data.message);
             checkSimulatorStatus();
-        } catch (error) { alert("Erro de conexão."); }
+        } catch (error) { 
+            alert("Erro de conexão ao iniciar os simuladores."); 
+        } finally {
+            setButtonLoading(btnId, false, originalHtml);
+        }
     }
 
     async function stopSimulator() {
+        const btnId = 'btn-stop';
+        const originalHtml = '<i class="bi bi-stop-fill"></i> Parar Simuladores';
+        setButtonLoading(btnId, true, originalHtml);
+        
         try {
             const response = await fetch('/api/snmp/simulator/stop', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
             const data = await response.json();
             alert(data.message);
             checkSimulatorStatus();
-        } catch (error) { alert("Erro de conexão."); }
+        } catch (error) { 
+            alert("Erro de conexão ao parar os simuladores."); 
+        } finally {
+            setButtonLoading(btnId, false, originalHtml);
+        }
     }
 
     async function checkSimulatorStatus() {

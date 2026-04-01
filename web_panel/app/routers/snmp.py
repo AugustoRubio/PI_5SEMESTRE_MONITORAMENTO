@@ -113,7 +113,7 @@ async def stop_simulator():
         return {"status": "error", "message": f"Erro interno ao parar simulador: {str(e)}"}
 
 @router.get("/simulator/status")
-async def simulator_status():
+def simulator_status():
     try:
         success, stdout = run_compose_command(["ps"])
         if success:
@@ -266,7 +266,7 @@ async def simulate_ups_normal_load():
     return {"status": "error", "message": "Falha ao atualizar o simulador."}
 
 @router.get("/devices/status")
-async def get_devices_status():
+def get_devices_status():
     is_running = False
     try:
         success, stdout = run_compose_command(["ps"])
