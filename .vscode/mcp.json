@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "vexp": {
+      "type": "stdio",
+      "command": "C:\\Users\\AugustoRubio\\AppData\\Roaming\\npm\\node_modules\\vexp-cli\\node_modules\\@vexp\\core-win32-x64\\bin\\vexp-core.exe",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}
