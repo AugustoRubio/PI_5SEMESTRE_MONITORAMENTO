@@ -1,10 +1,27 @@
-# Lista de URLs para Simulação de Acesso (Um por linha)
-# Comentários começam com '#' e são ignorados
+# Lista de URLs para Simulação de Monitoramento (Wazuh/IDS/IPS)
+# Estas URLs simulam padrões de ataque comuns para disparar alertas
 
-# 1. Teste Oficial de IDS (Gera alerta de "GPL ATTACK_RESPONSE id check returned root")
+# 1. Teste de Resposta IDS (GPL ATTACK_RESPONSE - Padrão 'uid=0(root)')
 http://testmynids.org/uid/index.html
 
-# 2. Teste EICAR (Arquivo de teste oficial mundial de antivírus, simula download de malware)
+# 2. Simulação de LFI (Local File Inclusion) - Tentativa de ler /etc/passwd
+http://www.google.com/?file=../../../../etc/passwd
+http://10.10.2.253/index.php?page=../../etc/shadow
+
+# 3. Simulação de SQL Injection (Tentativa de quebra de query)
+http://www.bing.com/search?q=1' OR '1'='1
+http://example.com/login?user=admin'--
+
+# 4. Simulação de XSS (Cross-Site Scripting)
+http://example.com/search?q=<script>alert('XSS_Test')</script>
+
+# 5. Simulação de Execução de Comandos (RCE)
+http://example.com/api?cmd=cat%20/etc/passwd
+http://example.com/status?host=8.8.8.8;ls%20-la
+
+# 6. Teste EICAR (Simulação de Download de Malware - Somente se houver Proxy/SSL Inspection)
 https://secure.eicar.org/eicar.com.txt
 
-# 3. Você pode adicionar outros domínios aqui que sua empresa/faculdade bloquearia
+# 7. Domínios comumente usados para testes de Phishing/Malware (Safe Test)
+http://www.vicar.com
+http://www.amtso.org/check-desktop-compressed-malware-download/
