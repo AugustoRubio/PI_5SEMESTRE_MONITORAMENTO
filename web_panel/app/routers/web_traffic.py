@@ -87,7 +87,7 @@ def get_traffic_status(current_user: dict = Depends(get_current_user)):
     logs = []
     
     if is_running or docker_running:
-        success, out = run_docker_cmd(["exec", "web_traffic_bot", "tail", "-n", "20", "/tmp/traffic.log"])
+        success, out = run_docker_cmd(["exec", "web_traffic_bot", "tail", "-n", "150", "/tmp/traffic.log"])
         if success:
             logs = [line.strip() for line in out.split('\n') if line.strip()]
             
