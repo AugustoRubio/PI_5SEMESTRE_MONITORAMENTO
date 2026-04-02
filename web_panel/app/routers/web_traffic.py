@@ -17,6 +17,7 @@ class URLsConfig(BaseModel):
 
 # Caminho absoluto para o arquivo urls.txt que fica fora da pasta do painel web
 URLS_FILE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../web_traffic_simulator/urls.txt"))
+SIMULATOR_FILE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../web_traffic_simulator/simulator.py"))
 
 def run_docker_cmd(args_list):
     for base in [["docker"], ["/usr/bin/docker"], ["/usr/local/bin/docker"]]:
@@ -45,6 +46,10 @@ def start_traffic(config: TrafficConfig, current_user: dict = Depends(get_curren
     if is_bot_running():
         raise HTTPException(status_code=400, detail="O bot de tráfego já está em execução na máquina destino.")
     
+    # Atualiza o script no container antes de rodar
+    if os.path.exists(SIMULATOR_FILE_PATH):
+        run_docker_cmd(["cp", SIMULATOR_FILE_PATH, "web_traffic_bot:/app/simulator.py"])
+
     # Prepara o comando para executar o script de SSH em background dentro do container
     cmd = [
         "exec", "-d",
