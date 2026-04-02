@@ -46,9 +46,11 @@ def start_traffic(config: TrafficConfig, current_user: dict = Depends(get_curren
     if is_bot_running():
         raise HTTPException(status_code=400, detail="O bot de tráfego já está em execução na máquina destino.")
     
-    # Atualiza o script no container antes de rodar
+    # Atualiza o script e a lista de URLs no container antes de rodar
     if os.path.exists(SIMULATOR_FILE_PATH):
         run_docker_cmd(["cp", SIMULATOR_FILE_PATH, "web_traffic_bot:/app/simulator.py"])
+    if os.path.exists(URLS_FILE_PATH):
+        run_docker_cmd(["cp", URLS_FILE_PATH, "web_traffic_bot:/app/urls.txt"])
 
     # Prepara o comando para executar o script de SSH em background dentro do container
     cmd = [
