@@ -2,9 +2,9 @@ FROM python:3.11-alpine
 
 WORKDIR /app
 
-# Invalidação de cache explícita para garantir instalação do pymysql
+# Invalidação de cache explícita para garantir instalação do pymysql e aiohttp
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir requests pymysql
+    pip install --no-cache-dir requests pymysql aiohttp aiomysql
 
 COPY src/bot.py /app/bot.py
 

@@ -58,129 +58,128 @@ async def perform_simulation(config: SimConfig):
         
     simulation_status["logs"].insert(0, "Iniciando simulação completa...")
 
-    delay = 5.0 if config.profile == "calm" else 0.05
+    # Reduz drasticamente o delay e cria fator de concorrência/loop
+    delay = 1.0 if config.profile == "calm" else 0.01
+    batch_size = 1 if config.profile == "calm" else 20
     end_time = time.time() + config.duration
 
     while time.time() < end_time and simulation_status["is_running"]:
-        action = random.choice(["create_student", "create_professor", "create_class", "edit", "delete", "enroll_student", "add_grade", "add_attendance"])
-
+        actions_in_this_loop = 0
         try:
             with conn.cursor() as cursor:
-                if action == "create_student":
-                    name = f"{SIM_MARKER} Aluno_{random_string(4)}"
-                    reg = f"SIM-{random.randint(1000, 99999)}"
-                    # Criptografa a senha simulada usando a hash exata que a intranet espera
-                    # Para não adicionar a dependência do passlib aqui, pode-se usar um hash bcrypt fixo de 'sim'
-                    # ou salvar uma hash gerada previamente. $2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2 é hash de 'sim'
-                    cursor.execute("INSERT INTO students (name, registration, password, course) VALUES (%s, %s, '$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2', 'Simulação')", (name, reg))
-                    conn.commit()
-                    log_msg = f"Criou aluno: {name} (Senha: sim)"
+                for _ in range(batch_size):
+                    action = random.choice(["create_student", "create_professor", "create_class", "edit", "delete", "enroll_student", "add_grade", "add_attendance"])
 
-                elif action == "create_professor":
-                    name = f"{SIM_MARKER} Prof_{random_string(4)}"
-                    usr = f"sim_pr_{random_string(3)}"
-                    cursor.execute("INSERT INTO professors (username, password, name, department) VALUES (%s, '$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2', %s, 'Simulação')", (usr, name))
-                    conn.commit()
-                    log_msg = f"Criou professor: {name} (Senha: sim)"
+                    if action == "create_student":
+                        name = f"{SIM_MARKER} Aluno_{random_string(4)}"
+                        reg = f"SIM-{random.randint(1000, 99999)}"
+                        cursor.execute("INSERT INTO students (name, registration, password, course) VALUES (%s, %s, '$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2', 'Simulação')", (name, reg))
+                        log_msg = f"Criou aluno: {name} (Senha: sim)"
 
-                elif action == "create_class":
-                    cursor.execute("SELECT id FROM professors WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
-                    prof = cursor.fetchone()
-                    prof_id = prof['id'] if prof else None
-                    name = f"{SIM_MARKER} Turma_{random_string(3)}"
-                    cursor.execute("INSERT INTO classes (name, professor_id) VALUES (%s, %s)", (name, prof_id))
-                    conn.commit()
-                    log_msg = f"Criou turma: {name}"
+                    elif action == "create_professor":
+                        name = f"{SIM_MARKER} Prof_{random_string(4)}"
+                        usr = f"sim_pr_{random_string(3)}"
+                        cursor.execute("INSERT INTO professors (username, password, name, department) VALUES (%s, '$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2', %s, 'Simulação')", (usr, name))
+                        log_msg = f"Criou professor: {name} (Senha: sim)"
 
-                elif action == "edit":
-                    table = random.choice(['students', 'professors', 'classes'])
-                    col_name = "username" if table == "professors" else "name"
-                    cursor.execute(f"SELECT id, {col_name} FROM {table} WHERE {col_name} LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
-                    result = cursor.fetchone()
-                    if result:
-                        new_name = f"{SIM_MARKER} Edit_{random_string(3)}"
-                        cursor.execute(f"UPDATE {table} SET {col_name} = %s WHERE id = %s", (new_name, result['id']))
-                        conn.commit()
-                        log_msg = f"Editou {table} ID {result['id']} -> {new_name}"
-                    else:
-                        log_msg = f"Tentou editar {table}, mas nada encontrado."
+                    elif action == "create_class":
+                        cursor.execute("SELECT id FROM professors WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
+                        prof = cursor.fetchone()
+                        prof_id = prof['id'] if prof else None
+                        name = f"{SIM_MARKER} Turma_{random_string(3)}"
+                        cursor.execute("INSERT INTO classes (name, professor_id) VALUES (%s, %s)", (name, prof_id))
+                        log_msg = f"Criou turma: {name}"
 
-                elif action == "delete":
-                    table = random.choice(['students', 'professors', 'classes'])
-                    col_name = "username" if table == "professors" else "name"
-                    cursor.execute(f"SELECT id FROM {table} WHERE {col_name} LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
-                    result = cursor.fetchone()
-                    if result:
-                        try:
-                            cursor.execute(f"DELETE FROM {table} WHERE id = %s", (result['id'],))
-                            conn.commit()
-                            log_msg = f"Deletou de {table} ID {result['id']}"
-                        except:
-                            log_msg = f"Ignorado erro de FK ao deletar {table} ID {result['id']}"
-                    else:
-                        log_msg = f"Tentou deletar {table}, mas nada encontrado."
-
-                elif action == "enroll_student":
-                    cursor.execute("SELECT id FROM students WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
-                    st = cursor.fetchone()
-                    cursor.execute("SELECT id FROM classes WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
-                    cls = cursor.fetchone()
-                    if st and cls:
-                        st_id, cls_id = st['id'], cls['id']
-                        cursor.execute("SELECT * FROM student_class WHERE student_id=%s AND class_id=%s", (st_id, cls_id))
-                        if not cursor.fetchone():
-                            cursor.execute("INSERT INTO student_class (student_id, class_id) VALUES (%s, %s)", (st_id, cls_id))
-                            conn.commit()
-                            log_msg = f"Vinculou Estudante ID {st_id} à Turma ID {cls_id}"
+                    elif action == "edit":
+                        table = random.choice(['students', 'professors', 'classes'])
+                        col_name = "username" if table == "professors" else "name"
+                        cursor.execute(f"SELECT id, {col_name} FROM {table} WHERE {col_name} LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
+                        result = cursor.fetchone()
+                        if result:
+                            new_name = f"{SIM_MARKER} Edit_{random_string(3)}"
+                            cursor.execute(f"UPDATE {table} SET {col_name} = %s WHERE id = %s", (new_name, result['id']))
+                            log_msg = f"Editou {table} ID {result['id']} -> {new_name}"
                         else:
-                            log_msg = "Vínculo já existente, ignorado."
-                    else:
-                        log_msg = "Tentou vincular aluno a turma, mas faltam dados."
+                            log_msg = f"Tentou editar {table}, mas nada encontrado."
 
-                elif action == "add_grade":
-                    cursor.execute("""
-                        SELECT sc.student_id, sc.class_id 
-                        FROM student_class sc
-                        JOIN students s ON sc.student_id = s.id 
-                        WHERE s.name LIKE %s 
-                        ORDER BY RAND() LIMIT 1
-                    """, (f"{SIM_MARKER}%",))
-                    rel = cursor.fetchone()
-                    if rel:
-                        grade_val = str(round(random.uniform(2.0, 10.0), 1))
-                        desc = random.choice(["Prova 1", "Prova 2", "Trabalho", "Seminário", "Projeto Final"])
-                        cursor.execute("INSERT INTO grades (student_id, class_id, value, description) VALUES (%s, %s, %s, %s)", 
-                                       (rel['student_id'], rel['class_id'], grade_val, desc))
-                        conn.commit()
-                        log_msg = f"Lançou nota {grade_val} para Aluno ID {rel['student_id']} (Turma {rel['class_id']})"
-                    else:
-                        log_msg = "Tentou lançar nota, mas nenhum aluno matriculado."
+                    elif action == "delete":
+                        table = random.choice(['students', 'professors', 'classes'])
+                        col_name = "username" if table == "professors" else "name"
+                        cursor.execute(f"SELECT id FROM {table} WHERE {col_name} LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
+                        result = cursor.fetchone()
+                        if result:
+                            try:
+                                cursor.execute(f"DELETE FROM {table} WHERE id = %s", (result['id'],))
+                                log_msg = f"Deletou de {table} ID {result['id']}"
+                            except:
+                                log_msg = f"Ignorado erro de FK ao deletar {table} ID {result['id']}"
+                        else:
+                            log_msg = f"Tentou deletar {table}, mas nada encontrado."
 
-                elif action == "add_attendance":
-                    cursor.execute("""
-                        SELECT sc.student_id, sc.class_id 
-                        FROM student_class sc
-                        JOIN students s ON sc.student_id = s.id 
-                        WHERE s.name LIKE %s 
-                        ORDER BY RAND() LIMIT 1
-                    """, (f"{SIM_MARKER}%",))
-                    rel = cursor.fetchone()
-                    if rel:
-                        date_str = f"2026-03-{random.randint(1,28):02d}"
-                        cursor.execute("INSERT INTO attendances (student_id, class_id, date, absent) VALUES (%s, %s, %s, 1)", 
-                                       (rel['student_id'], rel['class_id'], date_str))
-                        conn.commit()
-                        log_msg = f"Registrou falta para Aluno ID {rel['student_id']} (Turma {rel['class_id']})"
-                    else:
-                        log_msg = "Tentou registrar falta, mas nenhum aluno matriculado."
+                    elif action == "enroll_student":
+                        cursor.execute("SELECT id FROM students WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
+                        st = cursor.fetchone()
+                        cursor.execute("SELECT id FROM classes WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
+                        cls = cursor.fetchone()
+                        if st and cls:
+                            st_id, cls_id = st['id'], cls['id']
+                            cursor.execute("SELECT * FROM student_class WHERE student_id=%s AND class_id=%s", (st_id, cls_id))
+                            if not cursor.fetchone():
+                                cursor.execute("INSERT INTO student_class (student_id, class_id) VALUES (%s, %s)", (st_id, cls_id))
+                                log_msg = f"Vinculou Estudante ID {st_id} à Turma ID {cls_id}"
+                            else:
+                                log_msg = "Vínculo já existente, ignorado."
+                        else:
+                            log_msg = "Tentou vincular aluno a turma, mas faltam dados."
 
-                simulation_status["actions_performed"] += 1
-                simulation_status["logs"].insert(0, log_msg)
+                    elif action == "add_grade":
+                        cursor.execute("""
+                            SELECT sc.student_id, sc.class_id 
+                            FROM student_class sc
+                            JOIN students s ON sc.student_id = s.id 
+                            WHERE s.name LIKE %s 
+                            ORDER BY RAND() LIMIT 1
+                        """, (f"{SIM_MARKER}%",))
+                        rel = cursor.fetchone()
+                        if rel:
+                            grade_val = str(round(random.uniform(2.0, 10.0), 1))
+                            desc = random.choice(["Prova 1", "Prova 2", "Trabalho", "Seminário", "Projeto Final"])
+                            cursor.execute("INSERT INTO grades (student_id, class_id, value, description) VALUES (%s, %s, %s, %s)", 
+                                           (rel['student_id'], rel['class_id'], grade_val, desc))
+                            log_msg = f"Lançou nota {grade_val} para Aluno ID {rel['student_id']} (Turma {rel['class_id']})"
+                        else:
+                            log_msg = "Tentou lançar nota, mas nenhum aluno matriculado."
 
+                    elif action == "add_attendance":
+                        cursor.execute("""
+                            SELECT sc.student_id, sc.class_id 
+                            FROM student_class sc
+                            JOIN students s ON sc.student_id = s.id 
+                            WHERE s.name LIKE %s 
+                            ORDER BY RAND() LIMIT 1
+                        """, (f"{SIM_MARKER}%",))
+                        rel = cursor.fetchone()
+                        if rel:
+                            date_str = f"2026-03-{random.randint(1,28):02d}"
+                            cursor.execute("INSERT INTO attendances (student_id, class_id, date, absent) VALUES (%s, %s, %s, 1)", 
+                                           (rel['student_id'], rel['class_id'], date_str))
+                            log_msg = f"Registrou falta para Aluno ID {rel['student_id']} (Turma {rel['class_id']})"
+                        else:
+                            log_msg = "Tentou registrar falta, mas nenhum aluno matriculado."
+
+                    actions_in_this_loop += 1
+                
+                # Executa o commit de todos os 20 comandos deste batch de uma só vez
+                conn.commit()
+                simulation_status["actions_performed"] += actions_in_this_loop
+                
+                # Registra só o último log do batch para não poluir demais a memória visual
+                simulation_status["logs"].insert(0, f"(Lote de {batch_size}) {log_msg}")
                 if len(simulation_status["logs"]) > 15:
                     simulation_status["logs"].pop()
+                    
         except Exception as e:
-            simulation_status["logs"].insert(0, f"Falha na ação: {str(e)}")
+            simulation_status["logs"].insert(0, f"Falha na ação do lote: {str(e)[:60]}")
             if len(simulation_status["logs"]) > 15:
                 simulation_status["logs"].pop()
             
