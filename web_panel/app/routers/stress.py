@@ -184,7 +184,12 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
             
         try:
             while time.time() < end_time and stress_status["is_running"]:
-                await asyncio.sleep(3)
+                for _ in range(3):
+                    if not stress_status["is_running"]: break
+                    await asyncio.sleep(1)
+                    
+                if not stress_status["is_running"]: break
+                
                 # Estimativa de requisições baseada na escala
                 new_reqs = int(preset_config.get('scale', 1) * random.uniform(20, 50))
                 stress_status["requests_sent"] += new_reqs
