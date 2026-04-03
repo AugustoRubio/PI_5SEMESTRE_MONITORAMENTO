@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  billing_api:
+    build: .
+    # Escabilidade Horizontal: Subimos 3 instâncias desse microsserviço
+    deploy:
+      replicas: 3
+    networks:
+      - billing_net
+
+  billing_lb:
+    image: nginx:alpine
+    ports:
+      - "9000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - billing_api
+    networks:
+      - billing_net
+
+networks:
+  billing_net:
+    driver: bridge

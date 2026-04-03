@@ -9,9 +9,11 @@
     <style>
         body { background-color: #f8f9fa; }
         .sidebar { min-height: 100vh; background: #198754; color: white; }
-        .sidebar a { color: white; text-decoration: none; padding: 10px 15px; display: block; border-radius: 5px; margin-bottom: 5px; }
-        .sidebar a:hover { background: rgba(255,255,255,0.1); }
+        .sidebar a { color: white; text-decoration: none; padding: 10px 15px; display: block; border-radius: 5px; margin-bottom: 5px; cursor: pointer; }
+        .sidebar a:hover, .sidebar a.active { background: rgba(255,255,255,0.2); }
         .content { padding: 20px; }
+        .nav-section { display: none; }
+        .nav-section.active { display: block; }
     </style>
 </head>
 <body>
@@ -21,7 +23,9 @@
                 <i class="fas fa-user-graduate fa-3x mb-2"></i>
                 <h5>Portal do Aluno</h5>
             </div>
-            <a href="/student_dashboard"><i class="fas fa-home me-2"></i> Início</a>
+            <a onclick="showSection('academico')" id="btn-academico" class="active"><i class="fas fa-book-open me-2"></i> Acadêmico</a>
+            <a onclick="showSection('financeiro')" id="btn-financeiro"><i class="fas fa-file-invoice-dollar me-2"></i> Financeiro <span class="badge bg-danger ms-1">Novo</span></a>
+            
             <a href="/logout" class="mt-auto d-block" style="position: absolute; bottom: 20px; width: 210px;"><i class="fas fa-sign-out-alt me-2"></i> Sair</a>
         </div>
         
@@ -31,7 +35,8 @@
                 <div class="text-muted"><i class="fas fa-id-card me-2"></i> {{ student.registration }} | <i class="fas fa-graduation-cap me-2"></i> {{ student.course }}</div>
             </div>
 
-            <div class="row">
+            <!-- ACADÊMICO -->
+            <div id="section-academico" class="nav-section active row">
                 <div class="col-md-12">
                     <div class="card shadow-sm mb-4">
                         <div class="card-header bg-white">
@@ -89,9 +94,131 @@
                     </div>
                 </div>
             </div>
+
+            <!-- FINANCEIRO (SOA Microservice Integration) -->
+            <div id="section-financeiro" class="nav-section row">
+                <div class="col-md-12">
+                    <div class="alert alert-info shadow-sm">
+                        <i class="fas fa-info-circle me-2"></i> <strong>Novo Sistema Financeiro!</strong> As mensalidades agora são processadas por nosso novo microsserviço seguro de faturamento.
+                    </div>
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="fas fa-file-invoice-dollar text-success me-2"></i> Minhas Mensalidades</h5>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="loadInvoices()"><i class="fas fa-sync-alt"></i> Atualizar</button>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0" id="invoices-table">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Fatura #</th>
+                                            <th>Valor</th>
+                                            <th>Status</th>
+                                            <th>Cartão Vinculado (Últimos dígitos)</th>
+                                            <th>Ação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="invoices-body">
+                                        <tr><td colspan="5" class="text-center py-4">Carregando dados financeiros...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const studentId = {{ student.id }};
+
+        function showSection(section) {
+            document.querySelectorAll('.nav-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.sidebar a').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById('section-' + section).classList.add('active');
+            document.getElementById('btn-' + section).classList.add('active');
+
+            if (section === 'financeiro') {
+                loadInvoices();
+            }
+        }
+
+        async function loadInvoices() {
+            const tbody = document.getElementById('invoices-body');
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="spinner-border text-success" role="status"></div><br>Conectando ao Microsserviço de Pagamentos...</td></tr>';
+            
+            try {
+                // VULNERABILIDADE BOLA: O ID do aluno é passado via URL em texto claro, e a API confia nele sem validar o token.
+                const response = await fetch(`/api/billing/invoices/${studentId}`);
+                
+                if (!response.ok) {
+                    throw new Error('Faturas não encontradas no microsserviço (Ou serviço offline).');
+                }
+                
+                const invoices = await response.json();
+                
+                if (invoices.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Nenhuma mensalidade em aberto.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = '';
+                invoices.forEach(inv => {
+                    const statusBadge = inv.status === 'PAID' ? '<span class="badge bg-success">PAGO</span>' : '<span class="badge bg-warning text-dark">PENDENTE</span>';
+                    const actionBtn = inv.status === 'PAID' ? 
+                        '<button class="btn btn-sm btn-secondary disabled">Pago</button>' : 
+                        `<button class="btn btn-sm btn-success" onclick="payInvoice(${inv.id}, ${inv.amount})">Pagar Agora</button>`;
+                    
+                    // Mostrando dados sensíveis "inadvertidamente" (para o Suricata DLP pegar na rede)
+                    const ccMasked = inv.card_number ? `**** **** **** ${inv.card_number.slice(-4)} (CVV: ${inv.card_cvv})` : 'Nenhum';
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong>#${inv.id}</strong></td>
+                            <td>R$ ${inv.amount.toFixed(2)}</td>
+                            <td>${statusBadge}</td>
+                            <td><small class="text-muted">${ccMasked}</small></td>
+                            <td>${actionBtn}</td>
+                        </tr>
+                    `;
+                });
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger"><i class="fas fa-exclamation-triangle"></i> Erro: ${error.message}</td></tr>`;
+            }
+        }
+
+        async function payInvoice(invoiceId, originalAmount) {
+            // VULNERABILIDADE PARAMETER TAMPERING: A API confia no 'amount' que o frontend envia
+            const amountToPay = prompt(`Confirmar pagamento da Fatura #${invoiceId}?\nValor: R$ ${originalAmount.toFixed(2)}\n\n(Dica: Para simular fraude de tampering, mude este valor para 1.00)`, originalAmount);
+            
+            if (amountToPay === null) return; // Cancelou
+
+            try {
+                const response = await fetch('/api/billing/pay', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        invoice_id: invoiceId,
+                        amount: parseFloat(amountToPay)
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert(result.message);
+                    loadInvoices(); // Atualiza a tabela
+                } else {
+                    alert(`Erro: ${result.detail}`);
+                }
+            } catch (error) {
+                alert("Falha de comunicação com o Gateway de Pagamentos.");
+            }
+        }
+    </script>
 </body>
 </html>
