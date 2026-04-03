@@ -18,10 +18,20 @@ async def get_random_user(pool, role):
         async with pool.acquire() as conn:
             async with conn.cursor(aiomysql.DictCursor) as cursor:
                 if role == 'student':
-                    await cursor.execute("SELECT registration as username, 'senha123' as password FROM students WHERE password IS NOT NULL ORDER BY RAND() LIMIT 1")
+                    await cursor.execute("SELECT registration as username, 'sim' as password FROM students WHERE name LIKE '[SIM]%' AND password IS NOT NULL ORDER BY RAND() LIMIT 1")
                 else:
-                    await cursor.execute("SELECT username, 'senha123' as password, id FROM professors WHERE password IS NOT NULL ORDER BY RAND() LIMIT 1")
-                return await cursor.fetchone()
+                    await cursor.execute("SELECT username, 'sim' as password, id FROM professors WHERE name LIKE '[SIM]%' AND password IS NOT NULL ORDER BY RAND() LIMIT 1")
+                
+                user = await cursor.fetchone()
+                
+                if not user:
+                    if role == 'student':
+                        await cursor.execute("SELECT registration as username, 'senha123' as password FROM students WHERE password IS NOT NULL LIMIT 1")
+                    else:
+                        await cursor.execute("SELECT username, 'senha123' as password, id FROM professors WHERE password IS NOT NULL LIMIT 1")
+                    user = await cursor.fetchone()
+                
+                return user
     except Exception as e:
         print(f"Erro DB get_random_user: {e}")
         return None
@@ -29,18 +39,16 @@ async def get_random_user(pool, role):
 async def worker_ddos(worker_id, target_url):
     print(f"[DDoS {worker_id}] Iniciado para {target_url}")
     payload = b"X" * 20480 # 20KB de lixo
-    # Timeouts muito curtos para não segurar porta e gerar carga no Nginx (SYN/POST flood)
     timeout = aiohttp.ClientTimeout(total=2)
     conn = aiohttp.TCPConnector(limit=0, verify_ssl=False)
     
     async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
         while True:
             try:
-                # DDoS não precisa processar a resposta, só mandar lixo no buffer TCP
                 await session.post(target_url, data=payload)
             except Exception:
-                pass # Ignora erros de timeout, o alvo está sofrendo
-            await asyncio.sleep(0.01) # Pequeníssima pausa para não travar o atacante 100% CPU
+                pass
+            await asyncio.sleep(0.01)
 
 async def worker_human(worker_id, target_url, bot_type, pool):
     print(f"[Human {worker_id}] Iniciado. Tipo: {bot_type}")
@@ -64,53 +72,49 @@ async def worker_human(worker_id, target_url, bot_type, pool):
                     "login_type": bot_type
                 }
                 
-                # Fazer o login
+                # Faz o login (Isso gasta muita CPU por causa do Bcrypt, então faremos poucas vezes)
                 async with session.post(f"{target_url}/login", data=login_data, allow_redirects=False) as res:
-                    if res.status in [302, 303]: # Redirecionou para o dashboard (Login Ok)
-                        # Comportamento
-                        if bot_type == 'student':
-                            # Flood de visualizações
-                            for _ in range(5):
+                    if res.status in [302, 303]:
+                        # Loop de comportamento interno: Fica logado gerando carga pesada de Banco de Dados sem travar o Bcrypt
+                        for _ in range(50):
+                            if bot_type == 'student':
                                 async with session.get(f"{target_url}/student_dashboard") as dash_res:
                                     pass
-                                await asyncio.sleep(0.5) # Leitura muito rápida (estudante ansioso)
-                        
-                        elif bot_type == 'professor':
-                            # Buscar turma do prof
-                            async with pool.acquire() as db_conn:
-                                async with db_conn.cursor(aiomysql.DictCursor) as cursor:
-                                    await cursor.execute(f"SELECT id FROM classes WHERE professor_id = {user['id']} LIMIT 1")
-                                    cls = await cursor.fetchone()
-                                    
-                                    if cls:
-                                        class_id = cls['id']
-                                        # Lança várias notas em rajada (Pico de Matrículas/Provas)
-                                        await cursor.execute(f"SELECT student_id FROM student_class WHERE class_id = {class_id} ORDER BY RAND() LIMIT 5")
-                                        students = await cursor.fetchall()
+                                await asyncio.sleep(0.2)
+                            
+                            elif bot_type == 'professor':
+                                async with pool.acquire() as db_conn:
+                                    async with db_conn.cursor(aiomysql.DictCursor) as cursor:
+                                        await cursor.execute(f"SELECT id FROM classes WHERE professor_id = {user['id']} ORDER BY RAND() LIMIT 1")
+                                        cls = await cursor.fetchone()
                                         
-                                        for st in students:
-                                            grade_data = {"student_id": st['student_id'], "value": str(random.randint(5,10)), "description": "Prova Final"}
-                                            async with session.post(f"{target_url}/prof_dashboard/class/{class_id}/grade", data=grade_data):
-                                                pass # Ignora a resposta para ser mais rápido
+                                        if cls:
+                                            class_id = cls['id']
+                                            await cursor.execute(f"SELECT student_id FROM student_class WHERE class_id = {class_id} ORDER BY RAND() LIMIT 3")
+                                            students = await cursor.fetchall()
                                             
-                                        # Faltas
-                                        today = datetime.datetime.now().strftime("%Y-%m-%d")
-                                        att_data = {'date': today}
-                                        for st in students:
-                                            att_data.setdefault('absent_students', []).append(str(st['student_id']))
-                                        async with session.post(f"{target_url}/prof_dashboard/class/{class_id}/attendance", data=att_data):
-                                            pass
+                                            for st in students:
+                                                grade_data = {"student_id": st['student_id'], "value": str(random.randint(5,10)), "description": "Prova"}
+                                                async with session.post(f"{target_url}/prof_dashboard/class/{class_id}/grade", data=grade_data):
+                                                    pass
+                                                
+                                            today = datetime.datetime.now().strftime("%Y-%m-%d")
+                                            att_data = {'date': today, 'absent_students': [str(st['student_id']) for st in students]}
+                                            async with session.post(f"{target_url}/prof_dashboard/class/{class_id}/attendance", data=att_data):
+                                                pass
+                            
+                            # Pequena pausa entre cada clique dentro do sistema
+                            await asyncio.sleep(random.uniform(0.1, 0.5))
                         
-                        # Logout
+                        # Logout após 50 ações
                         async with session.get(f"{target_url}/logout"):
                             pass
                         
             except Exception as e:
-                # Silencia erros comuns sob estresse (ConnectionResetError, Timeout)
                 pass
             
-            # Pausa minúscula entre ciclos de vida de um bot (Antes era 2-5 segs, agora 0.1 a 0.5)
-            await asyncio.sleep(random.uniform(0.1, 0.5))
+            # Pausa longa antes de fazer login de novo com outro usuário
+            await asyncio.sleep(random.uniform(2.0, 5.0))
 
 async def main():
     target_url = os.getenv('TARGET_URL', 'https://10.10.100.4').rstrip('/')
@@ -119,11 +123,9 @@ async def main():
     print(f"[*] Gerenciador de Bot Iniciado. Tipo: {bot_type} | Alvo: {target_url}")
 
     if bot_type == 'ddos':
-        # 1 container de DDoS vai gerar 50 workers assíncronos
         tasks = [asyncio.create_task(worker_ddos(i, target_url)) for i in range(50)]
         await asyncio.gather(*tasks)
     else:
-        # Criação de Pool de conexões do DB com retentativas
         while True:
             try:
                 pool = await aiomysql.create_pool(
@@ -131,23 +133,12 @@ async def main():
                     minsize=1, maxsize=20, autocommit=True, connect_timeout=10
                 )
                 print("[*] Conexão com o banco de dados estabelecida. Iniciando workers humanos...")
-                # 1 container de humano (professor/student) vai gerar 10 workers assíncronos rápidos
                 tasks = [asyncio.create_task(worker_human(i, target_url, bot_type, pool)) for i in range(10)]
                 await asyncio.gather(*tasks)
                 break
             except Exception as e:
                 print(f"[!] Erro ao conectar no pool DB ({DB_HOST}:{DB_PORT}): {str(e)}")
                 await asyncio.sleep(5)
-
-if __name__ == '__main__':
-    asyncio.run(main())   minsize=1, maxsize=20, autocommit=True
-            )
-            # 1 container de humano (professor/student) vai gerar 10 workers assíncronos rápidos
-            tasks = [asyncio.create_task(worker_human(i, target_url, bot_type, pool)) for i in range(10)]
-            await asyncio.gather(*tasks)
-        except Exception as e:
-            print(f"[!] Erro ao conectar no pool DB: {e}")
-            await asyncio.sleep(10)
 
 if __name__ == '__main__':
     asyncio.run(main())
