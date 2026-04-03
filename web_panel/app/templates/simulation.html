@@ -228,12 +228,27 @@
 
         const target_url = formatUrl(rawTarget);
         
+        // Extrai o host sem http:// para usar como host do banco também
+        const dbHost = rawTarget.replace('http://', '').replace('https://', '').split('/')[0];
+        const dbPort = document.getElementById('dbPort').value;
+        const dbUser = document.getElementById('dbUser').value;
+        const dbPass = document.getElementById('dbPass').value;
+        const dbName = document.getElementById('dbName').value;
+        
         try {
             addLogMessage(`Enviando requisição para iniciar preset [${presetName}]...`, 'text-info');
             const response = await fetch('/api/stress/run', {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ target_url: target_url, preset: presetName })
+                body: JSON.stringify({ 
+                    target_url: target_url, 
+                    preset: presetName,
+                    db_host: dbHost,
+                    db_port: parseInt(dbPort),
+                    db_user: dbUser,
+                    db_pass: dbPass,
+                    db_name: dbName
+                })
             });
             const data = await response.json();
 

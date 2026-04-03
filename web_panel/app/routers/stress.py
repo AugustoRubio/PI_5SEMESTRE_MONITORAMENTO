@@ -212,9 +212,15 @@ async def stress_frontend(config: StressConfig, background_tasks: BackgroundTask
     
     env_vars = os.environ.copy()
     env_vars["TARGET_URL"] = config.target_url
+    env_vars["DB_HOST"] = config.db_host
+    env_vars["DB_PORT"] = str(config.db_port)
+    env_vars["DB_USER"] = config.db_user
+    env_vars["DB_PASS"] = config.db_pass
+    env_vars["DB_NAME"] = config.db_name
 
     add_stress_log("🛠️ Construindo imagens e subindo containers (Limpando Cache)...")
-    args_up = f"up --build --force-recreate -d --scale {preset_config['service']}={preset_config['scale']}"
+    # Agora especifica o serviço no final do comando para não subir o ddos acidentalmente
+    args_up = f"up --build --force-recreate -d --scale {preset_config['service']}={preset_config['scale']} {preset_config['service']}"
     returncode, stdout_up, stderr_up = await run_docker_command(args_up, env=env_vars)
     
     if returncode == 0:

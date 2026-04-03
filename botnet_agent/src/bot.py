@@ -123,11 +123,24 @@ async def main():
         tasks = [asyncio.create_task(worker_ddos(i, target_url)) for i in range(50)]
         await asyncio.gather(*tasks)
     else:
-        # Criação de Pool de conexões do DB (usado para pescar usuários reais do alvo)
-        try:
-            pool = await aiomysql.create_pool(
-                host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASS, db=DB_NAME,
-                minsize=1, maxsize=20, autocommit=True
+        # Criação de Pool de conexões do DB com retentativas
+        while True:
+            try:
+                pool = await aiomysql.create_pool(
+                    host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASS, db=DB_NAME,
+                    minsize=1, maxsize=20, autocommit=True, connect_timeout=10
+                )
+                print("[*] Conexão com o banco de dados estabelecida. Iniciando workers humanos...")
+                # 1 container de humano (professor/student) vai gerar 10 workers assíncronos rápidos
+                tasks = [asyncio.create_task(worker_human(i, target_url, bot_type, pool)) for i in range(10)]
+                await asyncio.gather(*tasks)
+                break
+            except Exception as e:
+                print(f"[!] Erro ao conectar no pool DB ({DB_HOST}:{DB_PORT}): {str(e)}")
+                await asyncio.sleep(5)
+
+if __name__ == '__main__':
+    asyncio.run(main())   minsize=1, maxsize=20, autocommit=True
             )
             # 1 container de humano (professor/student) vai gerar 10 workers assíncronos rápidos
             tasks = [asyncio.create_task(worker_human(i, target_url, bot_type, pool)) for i in range(10)]

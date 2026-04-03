@@ -4,6 +4,11 @@
     environment:
       - BOT_TYPE=student
       - TARGET_URL=${TARGET_URL:-https://10.10.100.4}
+      - DB_HOST=${DB_HOST:-10.10.100.4}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_USER=${DB_USER:-intranet_user}
+      - DB_PASS=${DB_PASS:-bcd127}
+      - DB_NAME=${DB_NAME:-intranet_db}
     networks:
       - lab_bridge
 
@@ -12,6 +17,11 @@
     environment:
       - BOT_TYPE=professor
       - TARGET_URL=${TARGET_URL:-https://10.10.100.4}
+      - DB_HOST=${DB_HOST:-10.10.100.4}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_USER=${DB_USER:-intranet_user}
+      - DB_PASS=${DB_PASS:-bcd127}
+      - DB_NAME=${DB_NAME:-intranet_db}
     networks:
       - lab_bridge
 
