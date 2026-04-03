@@ -261,16 +261,9 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     ).count()
     
     if recent_failures >= 5:
-        # MITIGAÇÃO DE TIMING ATTACK E GERAÇÃO DE CARGA (CPU):
-        # Força o servidor a calcular um hash mesmo se o IP estiver bloqueado.
-        # Assim o atacante não consegue adivinhar que foi bloqueado pelo tempo de resposta,
-        # e sua máquina Intranet gera gráficos de alto consumo de CPU no Zabbix!
-        try:
-            pwd_context.verify("dummy_password", "$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2")
-        except:
-            pass
-            
-        # Record attempt even if blocked to prolong the block if they keep trying
+        # MITIGAÇÃO DE TIMING ATTACK REMOVIDA
+        # Para evitar que a fila do FastAPI trave indefinidamente no laboratório
+        # o bloqueio agora é rápido e barato em CPU.
         new_attempt = LoginAttempt(ip_address=ip, username=username, timestamp=now, success=0)
         db.add(new_attempt)
         db.commit()
