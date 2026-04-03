@@ -210,17 +210,27 @@ async def stress_frontend(config: StressConfig, background_tasks: BackgroundTask
     add_stress_log(f"🚀 Iniciando orquestração da botnet: {preset_config['name']}...")
     await stop_docker_botnet()
     
-    env_vars = os.environ.copy()
-    env_vars["TARGET_URL"] = config.target_url
-    env_vars["DB_HOST"] = config.db_host
+    # Prepara o ambiente de forma totalmente segura (Apenas Strings)
+    env_vars = {}
+    for k, v in os.environ.items():
+        env_vars[k] = str(v)
+        
+    env_vars["TARGET_URL"] = str(config.target_url)
+    env_vars["DB_HOST"] = str(config.db_host)
     env_vars["DB_PORT"] = str(config.db_port)
-    env_vars["DB_USER"] = config.db_user
-    env_vars["DB_PASS"] = config.db_pass
-    env_vars["DB_NAME"] = config.db_name
+    env_vars["DB_USER"] = str(config.db_user)
+    env_vars["DB_PASS"] = str(config.db_pass)
+    env_vars["DB_NAME"] = str(config.db_name)
 
-    add_stress_log("🛠️ Construindo imagens e subindo containers (Limpando Cache)...")
-    # Agora especifica o serviço no final do comando para não subir o ddos acidentalmente
-    args_up = f"up --build --force-recreate -d --scale {preset_config['service']}={preset_config['scale']} {preset_config['service']}"
+    add_stress_log("🛠️ Subindo containers (Escalando botnet)...")
+    
+    # Removemos o --build e --force-recreate para evitar que o comando demore 
+    # e cause Timeout (502/504) no servidor web do painel.
+    # Usamos o comando original apenas ajustando a escala. 
+    # Se os outros serviços não são chamados na escala, eles não vão subir com instâncias adicionais, 
+    # mas o docker pode instanciar 1 de cada se não houver um override limpo.
+    # Vamos manter o comando up simples:
+    args_up = f"up -d --scale {preset_config['service']}={preset_config['scale']}"
     returncode, stdout_up, stderr_up = await run_docker_command(args_up, env=env_vars)
     
     if returncode == 0:
