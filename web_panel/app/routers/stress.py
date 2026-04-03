@@ -15,6 +15,11 @@ router = APIRouter()
 class StressConfig(BaseModel):
     target_url: str
     preset: str
+    db_host: str = "10.10.100.4"
+    db_port: int = 3306
+    db_user: str = "intranet_user"
+    db_pass: str = "bcd127"
+    db_name: str = "intranet_db"
 
 # Caminho absoluto montado a partir de app/routers -> web_panel -> raiz.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -75,7 +80,11 @@ async def run_docker_command(args: str, env=None):
     """Executa um comando docker compose tentando v2 e v1 como fallback."""
     global DOCKER_COMPOSE_EXEC
     
-    run_env = os.environ.copy() if env is None else env.copy()
+    # IMPORTANTE: Sempre manter as variáveis de sistema (PATH, etc) no ambiente de execução
+    run_env = os.environ.copy()
+    if env:
+        run_env.update(env)
+        
     run_env["DOCKER_API_VERSION"] = "1.41"
     
     commands_to_try = [DOCKER_COMPOSE_EXEC, "docker-compose", "/usr/local/bin/docker-compose", "/usr/libexec/docker/cli-plugins/docker-compose"]
@@ -140,45 +149,68 @@ async def stop_docker_botnet():
     except Exception as e:
         add_stress_log(f"Exceção ao derrubar: {e}")
 
-async def _monitor_and_shutdown_task(preset_name: str, duration: int):
-    """Tarefa de fundo para monitoramento."""
+async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, preset_name: str):
+    """
+    Orquestra o ciclo completo em background para evitar Timeout no servidor Web.
+    """
     global stress_status
-    config = presets.get(preset_name, presets["estudantes_leve"])
-    end_time = time.time() + duration
-    last_log_check = 0
-        
-    try:
-        while time.time() < end_time and stress_status["is_running"]:
-            await asyncio.sleep(3)
-            new_reqs = int(config.get('scale', 1) * random.uniform(8, 20))
-            stress_status["requests_sent"] += new_reqs
-            
-            current_time = time.time()
-            if current_time - last_log_check > 12:
-                last_log_check = current_time
-                try:
-                    rc_ps, stdout_ps, _ = await run_docker_command("ps --format json")
-                    rc_logs, stdout_logs, _ = await run_docker_command(f"logs --tail=2 {config['service']}")
-                    
-                    if stdout_logs:
-                        real_logs = stdout_logs.strip().split('\n')
-                        for line in real_logs:
-                            if line and "Bot Iniciado" in line:
-                                add_stress_log(f"🤖 Novo agente pronto: {line.split('|')[0].strip()}")
-                            elif line and "[*]" in line:
-                                add_stress_log(f"📡 Atividade detectada: {line}")
+    
+    # 1. Limpar ambiente anterior
+    await stop_docker_botnet()
+    
+    # 2. Preparar ambiente do Docker
+    env_vars = {
+        "TARGET_URL": str(config.target_url),
+        "DB_HOST": str(config.db_host),
+        "DB_PORT": str(config.db_port),
+        "DB_USER": str(config.db_user),
+        "DB_PASS": str(config.db_pass),
+        "DB_NAME": str(config.db_name)
+    }
 
-                    add_stress_log(f"📊 Status: {config['scale']} instâncias operando. Total ~{stress_status['requests_sent']} reqs.")
-                except Exception as e:
-                    add_stress_log(f"❌ Erro de monitoramento: {str(e)[:40]}")
-    finally:
-        if stress_status["is_running"]:
-            add_stress_log("⏱️ Tempo de execução atingido.")
-        else:
-            add_stress_log("🛑 Interrupção manual solicitada.")
-        await stop_docker_botnet()
+    add_stress_log("🛠️ Subindo containers (Escalando botnet)...")
+    
+    # Comando rápido (sem --build) para resposta imediata
+    args_up = f"up -d --scale {preset_config['service']}={preset_config['scale']}"
+    returncode, stdout_up, stderr_up = await run_docker_command(args_up, env=env_vars)
+    
+    if returncode == 0:
+        add_stress_log(f"✅ Botnet ativa! {preset_config['scale']} agentes em combate.")
+        
+        # 3. Iniciar monitoramento
+        duration = preset_config["duration"]
+        end_time = time.time() + duration
+        last_log_check = 0
+            
+        try:
+            while time.time() < end_time and stress_status["is_running"]:
+                await asyncio.sleep(3)
+                # Estimativa de requisições baseada na escala
+                new_reqs = int(preset_config.get('scale', 1) * random.uniform(20, 50))
+                stress_status["requests_sent"] += new_reqs
+                
+                current_time = time.time()
+                if current_time - last_log_check > 15:
+                    last_log_check = current_time
+                    try:
+                        # Pega uma amostra de logs do bot ativo
+                        rc_logs, stdout_logs, _ = await run_docker_command(f"logs --tail=2 {preset_config['service']}")
+                        if stdout_logs:
+                            for line in stdout_logs.strip().split('\n'):
+                                if line.strip(): add_stress_log(f"📡 {line}")
+                        add_stress_log(f"📊 Status: {preset_config['scale']} instâncias operando.")
+                    except: pass
+        finally:
+            if stress_status["is_running"]:
+                add_stress_log("⏱️ Tempo de execução atingido.")
+            else:
+                add_stress_log("🛑 Interrupção manual solicitada.")
+            await stop_docker_botnet()
+            stress_status["is_running"] = False
+            add_stress_log("🏁 Teste de estresse concluído.")
+    else:
         stress_status["is_running"] = False
-        add_stress_log("🏁 Teste de estresse concluído.")
+        add_stress_log("❌ Falha crítica ao subir Docker.")
 
 @router.get("/status")
 async def get_stress_status(current_user: dict = Depends(get_current_user)):
@@ -207,37 +239,9 @@ async def stress_frontend(config: StressConfig, background_tasks: BackgroundTask
         "requests_sent": 0, "logs": [], "raw_logs": ""
     })
     
-    add_stress_log(f"🚀 Iniciando orquestração da botnet: {preset_config['name']}...")
-    await stop_docker_botnet()
+    add_stress_log(f"🚀 Orquestrando botnet: {preset_config['name']}...")
     
-    # Prepara o ambiente de forma totalmente segura (Apenas Strings)
-    env_vars = {}
-    for k, v in os.environ.items():
-        env_vars[k] = str(v)
-        
-    env_vars["TARGET_URL"] = str(config.target_url)
-    env_vars["DB_HOST"] = str(config.db_host)
-    env_vars["DB_PORT"] = str(config.db_port)
-    env_vars["DB_USER"] = str(config.db_user)
-    env_vars["DB_PASS"] = str(config.db_pass)
-    env_vars["DB_NAME"] = str(config.db_name)
-
-    add_stress_log("🛠️ Subindo containers (Escalando botnet)...")
+    # DISPARO EM BACKGROUND: Retorna sucesso imediato para o frontend não dar Timeout.
+    background_tasks.add_task(_orchestrate_stress_task, config, preset_config, preset_name)
     
-    # Removemos o --build e --force-recreate para evitar que o comando demore 
-    # e cause Timeout (502/504) no servidor web do painel.
-    # Usamos o comando original apenas ajustando a escala. 
-    # Se os outros serviços não são chamados na escala, eles não vão subir com instâncias adicionais, 
-    # mas o docker pode instanciar 1 de cada se não houver um override limpo.
-    # Vamos manter o comando up simples:
-    args_up = f"up -d --scale {preset_config['service']}={preset_config['scale']}"
-    returncode, stdout_up, stderr_up = await run_docker_command(args_up, env=env_vars)
-    
-    if returncode == 0:
-        add_stress_log(f"✅ Botnet ativa! {preset_config['scale']} agentes em combate.")
-        background_tasks.add_task(_monitor_and_shutdown_task, preset_name, preset_config["duration"])
-        return {"message": "Iniciado com sucesso."}
-    else:
-        stress_status["is_running"] = False
-        add_stress_log("❌ Falha crítica ao iniciar Docker.")
-        raise HTTPException(status_code=500, detail="Erro ao subir Docker.")
+    return {"status": "success", "message": "Comando de estresse recebido. Verifique o console abaixo para acompanhar a subida dos containers."}
