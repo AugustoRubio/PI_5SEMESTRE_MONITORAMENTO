@@ -1,5 +1,5 @@
 import os
-import subprocess
+import asyncio
 import tempfile
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -19,38 +19,45 @@ class URLsConfig(BaseModel):
 URLS_FILE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../web_traffic_simulator/urls.txt"))
 SIMULATOR_FILE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../web_traffic_simulator/simulator.py"))
 
-def run_docker_cmd(args_list):
-    for base in [["docker"], ["/usr/bin/docker"], ["/usr/local/bin/docker"]]:
+async def run_docker_cmd_async(args_list):
+    """Executa comando docker de forma assíncrona para não travar o painel."""
+    for base_cmd in ["docker", "/usr/bin/docker", "/usr/local/bin/docker"]:
         try:
-            cmd = base + args_list
-            result = subprocess.run(cmd, capture_output=True, text=True)
-            return result.returncode == 0, result.stdout if result.returncode == 0 else result.stderr
+            proc = await asyncio.create_subprocess_exec(
+                base_cmd, *args_list,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            return proc.returncode == 0, stdout.decode().strip() if proc.returncode == 0 else stderr.decode().strip()
         except FileNotFoundError:
             continue
-    return False, "Comando docker não encontrado no PATH."
+        except Exception as e:
+            return False, str(e)
+    return False, "Comando docker não encontrado."
 
-def is_container_running(container_name="web_traffic_bot"):
-    success, out = run_docker_cmd(["inspect", "-f", "{{.State.Running}}", container_name])
+async def is_container_running(container_name="web_traffic_bot"):
+    success, out = await run_docker_cmd_async(["inspect", "-f", "{{.State.Running}}", container_name])
     return success and out.strip() == "true"
 
-def is_bot_running(container_name="web_traffic_bot"):
+async def is_bot_running(container_name="web_traffic_bot"):
     # Verifica se o simulator.py está rodando dentro do container
-    success, out = run_docker_cmd(["exec", container_name, "sh", "-c", "ps -ef | grep '[s]imulator.py'"])
+    success, out = await run_docker_cmd_async(["exec", container_name, "sh", "-c", "ps -ef | grep '[s]imulator.py'"])
     return success and bool(out.strip())
 
 @router.post("/start")
-def start_traffic(config: TrafficConfig, current_user: dict = Depends(get_current_user)):
-    if not is_container_running():
+async def start_traffic(config: TrafficConfig, current_user: dict = Depends(get_current_user)):
+    if not await is_container_running():
         raise HTTPException(status_code=500, detail="Erro: O contêiner web_traffic_bot não está rodando. Vá até a aba Gerenciamento Docker e inicie os Simuladores Unificados.")
         
-    if is_bot_running():
+    if await is_bot_running():
         raise HTTPException(status_code=400, detail="O bot de tráfego já está em execução na máquina destino.")
     
     # Atualiza o script e a lista de URLs no container antes de rodar
     if os.path.exists(SIMULATOR_FILE_PATH):
-        run_docker_cmd(["cp", SIMULATOR_FILE_PATH, "web_traffic_bot:/app/simulator.py"])
+        await run_docker_cmd_async(["cp", SIMULATOR_FILE_PATH, "web_traffic_bot:/app/simulator.py"])
     if os.path.exists(URLS_FILE_PATH):
-        run_docker_cmd(["cp", URLS_FILE_PATH, "web_traffic_bot:/app/urls.txt"])
+        await run_docker_cmd_async(["cp", URLS_FILE_PATH, "web_traffic_bot:/app/urls.txt"])
 
     # Prepara o comando para executar o script de SSH em background dentro do container
     cmd = [
@@ -62,7 +69,7 @@ def start_traffic(config: TrafficConfig, current_user: dict = Depends(get_curren
         "sh", "-c", "python -u /app/simulator.py > /tmp/traffic.log 2>&1"
     ]
     
-    success, msg = run_docker_cmd(cmd)
+    success, msg = await run_docker_cmd_async(cmd)
     if not success:
         raise HTTPException(status_code=500, detail=f"Erro ao iniciar o script de tráfego: {msg}")
         
@@ -70,24 +77,24 @@ def start_traffic(config: TrafficConfig, current_user: dict = Depends(get_curren
 
 @router.post("/stop")
 async def stop_traffic(current_user: dict = Depends(get_current_user)):
-    if not is_container_running():
+    if not await is_container_running():
         raise HTTPException(status_code=500, detail="Contêiner Docker não está rodando.")
         
     # Mata o processo do Python que está segurando a conexão SSH
-    success, msg = run_docker_cmd(["exec", "web_traffic_bot", "sh", "-c", "pkill -9 -f simulator.py"])
+    success, msg = await run_docker_cmd_async(["exec", "web_traffic_bot", "sh", "-c", "pkill -9 -f simulator.py"])
     if success:
         return {"status": "success", "message": "Bot parado. Conexão SSH encerrada."}
     else:
         return {"status": "success", "message": "Nenhum bot ativo para parar."}
 
 @router.get("/status")
-def get_traffic_status(current_user: dict = Depends(get_current_user)):
-    docker_running = is_container_running()
-    is_running = is_bot_running()
+async def get_traffic_status(current_user: dict = Depends(get_current_user)):
+    docker_running = await is_container_running()
+    is_running = await is_bot_running()
     logs = []
     
     if is_running or docker_running:
-        success, out = run_docker_cmd(["exec", "web_traffic_bot", "tail", "-n", "150", "/tmp/traffic.log"])
+        success, out = await run_docker_cmd_async(["exec", "web_traffic_bot", "tail", "-n", "150", "/tmp/traffic.log"])
         if success:
             logs = [line.strip() for line in out.split('\n') if line.strip()]
             
@@ -112,11 +119,11 @@ async def save_urls(config: URLsConfig, current_user: dict = Depends(get_current
         with open(URLS_FILE_PATH, "w", encoding="utf-8") as f:
             f.write(config.urls)
             
-        if is_container_running():
+        if await is_container_running():
             with tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8') as tmp:
                 tmp.write(config.urls)
                 tmp_path = tmp.name
-            run_docker_cmd(["cp", tmp_path, "web_traffic_bot:/app/urls.txt"])
+            await run_docker_cmd_async(["cp", tmp_path, "web_traffic_bot:/app/urls.txt"])
             os.remove(tmp_path)
             
         return {"status": "success", "message": "Lista de URLs salva e injetada no simulador com sucesso!"}
