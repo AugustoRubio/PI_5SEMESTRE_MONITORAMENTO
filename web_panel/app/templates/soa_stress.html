@@ -17,8 +17,8 @@
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <label class="form-label text-muted small fw-bold">URL da Intranet (Proxy do SOA)</label>
-                    <input type="text" id="targetUrl" class="form-control" value="https://10.10.100.4">
+                    <label class="form-label text-muted small fw-bold">IP/Porta da API SOA (Billing LB)</label>
+                    <input type="text" id="targetUrl" class="form-control" value="http://10.10.100.4:9000">
                     <div class="form-text">A botnet acessará os endpoints <code>/api/billing/invoices/*</code> e <code>/api/billing/pay</code> a partir desta URL.</div>
                 </div>
                 
@@ -231,7 +231,7 @@
         
         // AGORA ISSO FICA FORA DO IF: Renderiza os logs mesmo se o teste falhar e parar!
         if(data.logs && data.logs.length > 0) {
-            data.logs.forEach(msg => allLogs.push({msg: msg, color: data.is_running ? 'text-warning' : 'text-info'}));
+            data.logs.forEach(msg => allLogs.push({msg: msg, color: 'text-light'}));
         }
 
         // Atualiza feed visual do Logs Container de forma limpa
@@ -241,10 +241,9 @@
             
             allLogs.forEach(item => {
                 const div = document.createElement('div');
-                div.className = 'mb-2 p-1 border-start border-2 ' + item.color;
-                div.style.borderColor = 'currentColor !important';
-                div.style.backgroundColor = 'rgba(255,255,255,0.03)';
-                div.innerHTML = `<small class="text-secondary">[SOA]</small> ${item.msg}`;
+                div.className = 'mb-1 ps-2 ' + item.color;
+                div.style.fontFamily = "'Courier New', monospace";
+                div.innerHTML = item.msg;
                 logsContainer.appendChild(div);
             });
         }

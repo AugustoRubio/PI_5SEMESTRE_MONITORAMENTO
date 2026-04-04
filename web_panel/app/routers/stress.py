@@ -170,6 +170,8 @@ async def stop_docker_botnet():
             
             # Garante que o ataque SOA (Apache Bench) também seja abortado
             await run_docker_cli(["exec", "soa_stress_pi", "pkill", "-9", "ab"])
+            await run_docker_cli(["exec", "soa_stress_pi", "pkill", "-9", "sh"])
+            await run_docker_cli(["exec", "soa_stress_pi", "pkill", "-9", "curl"])
     except Exception as e:
         add_stress_log(f"Exceção ao derrubar: {e}")
 
@@ -192,33 +194,40 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
             
         target = base_url + "/api/billing/invoices/1"
         
-        add_stress_log(f"🛠️ Verificando e ligando o bot soa_stress_pi...")
-        
         # Garante que o container esteja ligado (caso o usuário não tenha ligado o Docker Manager)
         rc, out, err = await run_docker_cli(["start", "soa_stress_pi"])
         if rc != 0:
-            add_stress_log(f"❌ Erro ao iniciar container: {err}")
-            add_stress_log(f"Erro Raw: {err}", is_raw=True)
+            stress_status["logs"] = [f"[-] Erro ao ligar bot soa_stress_pi: {err}"]
             stress_status["is_running"] = False
             return
 
-        add_stress_log(f"🎯 Alvo Ajustado (HTTP): {target}")
+        # Garante que o curl está instalado no container
+        await run_docker_cli(["exec", "soa_stress_pi", "apk", "add", "--no-cache", "curl"])
         
-        # Executa o Apache Bench (ab) dentro do container: 100k reqs, 500 conexões concorrentes
-        rc, out, err = await run_docker_cli(["exec", "-d", "soa_stress_pi", "sh", "-c", f"ab -n 100000 -c 500 {target} > /tmp/stress.log 2>&1"])
+        # Script bash para gerar carga e logs idênticos ao simulator.py
+        script = f"""
+echo '[*] Iniciando Bot de Estresse SOA...' > /tmp/stress.log
+echo '[*] Alvo: {target}' >> /tmp/stress.log
+echo '[*] Preparando Apache Bench (DDoS Layer 7) em background...' >> /tmp/stress.log
+ab -r -n 500000 -c 100 {target} > /tmp/ab.log 2>&1 &
+echo '[+] Carga disparada! 100 conexoes simultaneas ativas.' >> /tmp/stress.log
+while true; do
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{{http_code}}" {target} || echo "ERR")
+    echo "Acessando: {target}" >> /tmp/stress.log
+    echo "Resposta HTTP: $HTTP_CODE | Mantendo estresse de backend..." >> /tmp/stress.log
+    sleep 2
+done
+        """
+        
+        rc, out, err = await run_docker_cli(["exec", "-d", "soa_stress_pi", "sh", "-c", script])
         
         if rc != 0:
-            add_stress_log(f"❌ Falha ao comunicar com soa_stress_pi: {err}")
-            add_stress_log(f"Erro Raw: {err}", is_raw=True)
+            stress_status["logs"] = [f"[-] Falha ao executar script de estresse: {err}"]
             stress_status["is_running"] = False
             return
         
-        add_stress_log(f"Detalhes: Container soa_stress_pi acionado com sucesso.", is_raw=True)
-        add_stress_log(f"✅ Ataque SOA ativo! Força máxima: 500 conexões simultâneas.")
-        
         duration = preset_config["duration"]
         end_time = time.time() + duration
-        last_log_check = 0
         
         try:
             while time.time() < end_time and stress_status["is_running"]:
@@ -231,16 +240,14 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
                 # Como o AB está em background no docker, simulamos o contador visual para a UI
                 stress_status["requests_sent"] += random.randint(1500, 3000)
                 
-                current_time = time.time()
-                if current_time - last_log_check > 15:
-                    last_log_check = current_time
-                    add_stress_log(f"📊 Status: Despejando carga massiva contra a API (DDoS Layer 7)...")
+                # Busca os logs reais gerados pelo script em bash
+                rc_logs, stdout_logs, _ = await run_docker_cli(["exec", "soa_stress_pi", "tail", "-n", "15", "/tmp/stress.log"])
+                if rc_logs == 0 and stdout_logs:
+                    stress_status["logs"] = [line.strip() for line in stdout_logs.strip().split('\n') if line.strip()]
         finally:
-            if stress_status["is_running"]: add_stress_log("⏱️ Tempo de execução atingido.")
-            else: add_stress_log("🛑 Interrupção manual solicitada.")
             await stop_docker_botnet()
+            stress_status["logs"].append("[-] Simulação interrompida. Conexões encerradas.")
             stress_status["is_running"] = False
-            add_stress_log("🏁 Teste de estresse SOA concluído.")
         return
     
     # 2. Preparar ambiente do Docker
