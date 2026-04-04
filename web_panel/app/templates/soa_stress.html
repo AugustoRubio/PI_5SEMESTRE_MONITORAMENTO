@@ -138,15 +138,23 @@
 
     async function stopStressAjax() {
         try {
-            addLogMessage('Enviando sinal de aborto...', 'text-warning');
+            isSimRunning = false;
+            if(pollingInterval) clearInterval(pollingInterval);
+            
+            const badge = document.getElementById('stressBadge');
+            badge.className = 'badge bg-danger fs-6 pulse';
+            badge.innerText = 'Abortando...';
+            
+            addLogMessage('Enviando sinal de aborto forçado...', 'text-warning');
+            
             const response = await fetch('/api/stress/stop', { method: 'POST', headers });
             const data = await response.json();
             addLogMessage(data.message, 'text-success');
             
             // Força uma atualização de status rápida
-            setTimeout(fetchUnifiedStatus, 1000);
+            setTimeout(fetchUnifiedStatus, 2000);
         } catch (error) {
-            addLogMessage('Erro ao abortar carga.', 'text-danger');
+            addLogMessage('Sinal de aborto enviado, mas sem resposta do servidor (Sobrecarga).', 'text-danger');
         }
     }
 

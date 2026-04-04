@@ -54,7 +54,7 @@ presets = {
     },
     "soa_flood": {
         "name": "Estresse em Microsserviços (SOA/Billing API)",
-        "service": "bot_soa", "scale": 50, "duration": 300
+        "service": "bot_soa", "scale": 15, "duration": 300
     }
 }
 
@@ -230,12 +230,11 @@ async def get_stress_status(current_user: dict = Depends(get_current_user)):
     return stress_status
 
 @router.post("/stop")
-async def stop_stress_test(current_user: dict = Depends(get_current_user)):
+async def stop_stress_test(background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
     global stress_status
-    if stress_status["is_running"]:
-        stress_status["is_running"] = False
-        return {"message": "Sinal de parada enviado."}
-    return {"message": "Nenhum teste em execução."}
+    stress_status["is_running"] = False
+    background_tasks.add_task(stop_docker_botnet)
+    return {"message": "Sinal de parada de emergência enviado."}
 
 @router.post("/run")
 async def stress_frontend(config: StressConfig, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
