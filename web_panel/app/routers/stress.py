@@ -83,7 +83,7 @@ def add_stress_log(msg: str, is_raw: bool = False):
         if not re.match(r"^\[\d{2}:\d{2}:\d{2}\]", msg):
             msg = f"[{now}] {msg}"
         stress_status["logs"].append(msg)
-        if len(stress_status["logs"]) > 25:
+        if len(stress_status["logs"]) > 150:
             stress_status["logs"].pop(0)
 
 async def run_docker_command(args: str, env=None):
@@ -230,10 +230,10 @@ TIME_STR=$(date +'%H:%M:%S')
 echo "[$TIME_STR] [*] Preparando Apache Bench (DDoS Layer 7) em background..." >> /tmp/stress.log
 echo "[$TIME_STR] [*] Alvo Selecionado (BOLA): $TARGET_URL" >> /tmp/stress.log
 
-ab -r -n 500000 -c 100 $TARGET_URL > /tmp/ab.log 2>&1 &
+ab -r -n 500000 -c 500 $TARGET_URL > /tmp/ab.log 2>&1 &
 
 TIME_STR=$(date +'%H:%M:%S')
-echo "[$TIME_STR] [+] Carga disparada! 100 conexoes simultaneas ativas." >> /tmp/stress.log
+echo "[$TIME_STR] [+] Carga disparada! 500 conexoes simultaneas ativas." >> /tmp/stress.log
 
 while true; do
     HTTP_CODE=$(curl -s -m 3 -o /dev/null -w "%{{http_code}}" $TARGET_URL || echo "ERR")
@@ -257,6 +257,7 @@ done
         
         duration = preset_config["duration"]
         end_time = time.time() + duration
+        last_line_read = 0
         
         try:
             while time.time() < end_time and stress_status["is_running"]:
@@ -269,13 +270,16 @@ done
                 # Como o AB está em background no docker, simulamos o contador visual para a UI
                 stress_status["requests_sent"] += random.randint(1500, 3000)
                 
-                # Busca os logs reais gerados pelo script em bash
-                rc_logs, stdout_logs, _ = await run_docker_cli(["exec", "soa_stress_pi", "tail", "-n", "15", "/tmp/stress.log"])
+                # Busca os logs reais gerados pelo script em bash de forma incremental para manter o historico
+                rc_logs, stdout_logs, _ = await run_docker_cli(["exec", "soa_stress_pi", "cat", "/tmp/stress.log"])
                 if rc_logs == 0 and stdout_logs:
                     lines = [line.strip() for line in stdout_logs.strip().split('\n') if line.strip()]
-                    stress_status["logs"] = lines
-                    # Aborta o laço infinito na UI caso o script bash tenha falhado no Sincronismo
-                    if any("Falha no Pre-Sincronismo" in line for line in lines):
+                    new_lines = lines[last_line_read:]
+                    for line in new_lines:
+                        add_stress_log(line)
+                    last_line_read = len(lines)
+                    
+                    if any("Falha no Pre-Sincronismo" in line for line in new_lines):
                         stress_status["is_running"] = False
                         break
         finally:
