@@ -2,6 +2,7 @@ import asyncio
 import os
 import time
 import random
+import datetime
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from app.auth import get_current_user
@@ -76,9 +77,12 @@ def add_stress_log(msg: str, is_raw: bool = False):
         # Acumula logs brutos
         stress_status["raw_logs"] = (msg + "\n" + stress_status["raw_logs"])[:10000]
     else:
-        stress_status["logs"].insert(0, msg)
+            now = datetime.datetime.now().strftime("%H:%M:%S")
+            if not msg.startswith("["):
+                msg = f"[{now}] {msg}"
+            stress_status["logs"].append(msg)
         if len(stress_status["logs"]) > 25:
-            stress_status["logs"].pop()
+                stress_status["logs"].pop(0)
 
 async def run_docker_command(args: str, env=None):
     """Executa um comando docker compose tentando v2 e v1 como fallback."""
@@ -190,8 +194,6 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
         if base_url.startswith("https://"):
             base_url = base_url.replace("https://", "http://", 1)
             
-        target = base_url + "/invoices/1"
-        
         # Garante que o container esteja ligado (caso o usuário não tenha ligado o Docker Manager)
         rc, out, err = await run_docker_cli(["start", "soa_stress_pi"])
         if rc != 0:
@@ -199,20 +201,46 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
             stress_status["is_running"] = False
             return
 
-        # Garante que o curl está instalado no container
-        await run_docker_cli(["exec", "soa_stress_pi", "apk", "add", "--no-cache", "curl"])
+        # Garante que o curl e jq estão instalados no container
+        await run_docker_cli(["exec", "soa_stress_pi", "apk", "add", "--no-cache", "curl", "jq"])
         
-        # Script bash para gerar carga e logs idênticos ao simulator.py
+        # Script bash com Pré-Sincronismo e formatação cronológica exata
         script = f"""
-echo '[*] Iniciando Bot de Estresse SOA...' > /tmp/stress.log
-echo '[*] Alvo: {target}' >> /tmp/stress.log
-echo '[*] Preparando Apache Bench (DDoS Layer 7) em background...' >> /tmp/stress.log
-ab -r -n 500000 -c 100 {target} > /tmp/ab.log 2>&1 &
-echo '[+] Carga disparada! 100 conexoes simultaneas ativas.' >> /tmp/stress.log
+TIME_STR=$(date +'%H:%M:%S')
+echo "[$TIME_STR] [*] Iniciando Bot de Estresse SOA..." > /tmp/stress.log
+echo "[$TIME_STR] [*] Realizando pre-sincronismo com a API SOA..." >> /tmp/stress.log
+
+API_STATUS=$(curl -s -m 5 {base_url}/status | grep -o 'Online' || echo 'Offline')
+if [ "$API_STATUS" = "Offline" ]; then
+    TIME_STR=$(date +'%H:%M:%S')
+    echo "[$TIME_STR] [-] Falha no Pre-Sincronismo: O Load Balancer ({base_url}) esta inacessivel." >> /tmp/stress.log
+    exit 1
+fi
+
+TIME_STR=$(date +'%H:%M:%S')
+echo "[$TIME_STR] [+] Sincronismo concluido: API Online. Alvos validados." >> /tmp/stress.log
+
+TARGET_ID=$(( ( RANDOM % 500 ) + 1 ))
+TARGET_URL="{base_url}/invoices/$TARGET_ID"
+
+TIME_STR=$(date +'%H:%M:%S')
+echo "[$TIME_STR] [*] Preparando Apache Bench (DDoS Layer 7) em background..." >> /tmp/stress.log
+echo "[$TIME_STR] [*] Alvo Selecionado (BOLA): $TARGET_URL" >> /tmp/stress.log
+
+ab -r -n 500000 -c 100 $TARGET_URL > /tmp/ab.log 2>&1 &
+
+TIME_STR=$(date +'%H:%M:%S')
+echo "[$TIME_STR] [+] Carga disparada! 100 conexoes simultaneas ativas." >> /tmp/stress.log
+
 while true; do
-    HTTP_CODE=$(curl -s -o /dev/null -w "%{{http_code}}" {target} || echo "ERR")
-    echo "Acessando: {target}" >> /tmp/stress.log
-    echo "Resposta HTTP: $HTTP_CODE | Mantendo estresse de backend..." >> /tmp/stress.log
+    HTTP_CODE=$(curl -s -m 3 -o /dev/null -w "%{{http_code}}" $TARGET_URL || echo "ERR")
+    TIME_STR=$(date +'%H:%M:%S')
+    echo "[$TIME_STR] [>] Acessando: $TARGET_URL" >> /tmp/stress.log
+    if [ "$HTTP_CODE" = "ERR" ] || [ "$HTTP_CODE" = "000" ]; then
+        echo "[$TIME_STR] [+] Resposta HTTP: ERR | Nginx Sobrecarregado (Trafego dropado!)" >> /tmp/stress.log
+    else
+        echo "[$TIME_STR] [>] Resposta HTTP: $HTTP_CODE | Mantendo estresse no backend..." >> /tmp/stress.log
+    fi
     sleep 2
 done
         """
@@ -242,11 +270,10 @@ done
                 rc_logs, stdout_logs, _ = await run_docker_cli(["exec", "soa_stress_pi", "tail", "-n", "15", "/tmp/stress.log"])
                 if rc_logs == 0 and stdout_logs:
                     lines = [line.strip() for line in stdout_logs.strip().split('\n') if line.strip()]
-                    lines.reverse() # Inverte para que o mais recente fique no topo cronologicamente igual add_stress_log
                     stress_status["logs"] = lines
         finally:
             await stop_docker_botnet()
-            stress_status["logs"].append("[-] Simulação interrompida. Conexões encerradas.")
+            add_stress_log("[-] Simulação interrompida. Conexões encerradas.")
             stress_status["is_running"] = False
         return
     
