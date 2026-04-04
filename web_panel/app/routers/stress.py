@@ -77,12 +77,12 @@ def add_stress_log(msg: str, is_raw: bool = False):
         # Acumula logs brutos
         stress_status["raw_logs"] = (msg + "\n" + stress_status["raw_logs"])[:10000]
     else:
-            now = datetime.datetime.now().strftime("%H:%M:%S")
-            if not msg.startswith("["):
-                msg = f"[{now}] {msg}"
-            stress_status["logs"].append(msg)
+        now = datetime.datetime.now().strftime("%H:%M:%S")
+        if not msg.startswith("["):
+            msg = f"[{now}] {msg}"
+        stress_status["logs"].append(msg)
         if len(stress_status["logs"]) > 25:
-                stress_status["logs"].pop(0)
+            stress_status["logs"].pop(0)
 
 async def run_docker_command(args: str, env=None):
     """Executa um comando docker compose tentando v2 e v1 como fallback."""
