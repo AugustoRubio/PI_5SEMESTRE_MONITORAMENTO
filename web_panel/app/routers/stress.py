@@ -203,11 +203,15 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
                     last_log_check = current_time
                     try:
                         # Pega uma amostra de logs do bot ativo
-                        rc_logs, stdout_logs, _ = await run_docker_command(f"logs --tail=2 {preset_config['service']}")
+                        rc_logs, stdout_logs, _ = await run_docker_command(f"logs --tail=3 {preset_config['service']}")
                         if stdout_logs:
                             for line in stdout_logs.strip().split('\n'):
-                                if line.strip(): add_stress_log(f"📡 {line}")
-                        add_stress_log(f"📊 Status: {preset_config['scale']} instâncias operando.")
+                                clean_line = line.strip()
+                                # Limpa sujeira do Docker se existir
+                                if '|' in clean_line:
+                                    clean_line = clean_line.split('|')[-1].strip()
+                                if clean_line: add_stress_log(f"📡 {clean_line}")
+                        add_stress_log(f"📊 Status do Cluster: {preset_config['scale']} bots atacando.")
                     except: pass
         finally:
             if stress_status["is_running"]:

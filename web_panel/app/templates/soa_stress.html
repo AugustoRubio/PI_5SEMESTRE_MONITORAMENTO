@@ -35,17 +35,30 @@
 
     <!-- Monitor de Status -->
     <div class="col-md-8">
-        <div class="card shadow-sm h-100 bg-dark border-secondary">
-            <div class="card-header bg-dark text-success fw-bold border-bottom border-secondary d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-terminal-fill me-2"></i> Console de Acompanhamento (Botnet SOA)</span>
-                <span id="statusBadge" class="badge bg-secondary">Inativo</span>
+        <div class="card bg-dark text-light border-secondary h-100">
+            <div class="card-header border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+                <span><i class="bi bi-terminal"></i> Console de Monitoramento SOA</span>
+                <div class="d-flex gap-2">
+                    <span id="stressBadge" class="badge bg-secondary fs-6">Stress: Parado <small id="stressTime" class="fw-normal"></small></span>
+                </div>
             </div>
-            <div class="card-body bg-dark text-success font-monospace" style="max-height: 400px; overflow-y: auto; font-size: 0.85rem;" id="liveConsole">
-                <div class="text-muted">Aguardando comandos...</div>
+            <div id="targetSummary" class="bg-black text-light p-2 border-bottom border-secondary" style="font-size: 0.9em; display: none;">
+                <strong><i class="bi bi-bullseye"></i> Alvo Ativo:</strong> 
+                <span id="activeTargetsInfo" class="ms-1 text-info">Nenhum</span>
+                <span class="mx-2 text-secondary">|</span>
+                <strong><i class="bi bi-lightning"></i> Cargas Ativas:</strong>
+                <span id="activeTypesInfo" class="ms-1 text-warning">Nenhuma</span>
             </div>
-            <div class="card-footer bg-dark border-top border-secondary text-muted small d-flex justify-content-between font-monospace">
-                <span id="targetStatus">Alvo: Não definido</span>
-                <span id="requestsCount">Chamadas API: 0 estimadas</span>
+            <div class="card-body p-0">
+                <div class="d-flex text-center border-bottom border-secondary" style="font-size: 1.1em; background-color: #1a1e29;">
+                    <div class="col-12 p-2">
+                        <span class="text-light fw-bold">Chamadas API Estimadas:</span>
+                        <strong id="stressReqCount" class="ms-2" style="color: #ffc107;">0</strong>
+                    </div>
+                </div>
+                <div id="logsContainer" class="p-3" style="height: 35vh; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9em; background-color: #0b0f19;">
+                    <div class="text-info">[Ready] Aguardando início dos testes no cluster Billing API...</div>
+                </div>
             </div>
         </div>
     </div>
@@ -71,13 +84,20 @@
     }
 
     function addLogMessage(msg, colorClass = "text-muted") {
-        const consoleDiv = document.getElementById('liveConsole');
-        const timeStr = new Date().toLocaleTimeString();
-        const p = document.createElement('div');
-        p.className = `mb-1 ${colorClass}`;
-        p.innerHTML = `[${timeStr}] > ${msg}`;
-        consoleDiv.appendChild(p);
-        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        const logsContainer = document.getElementById('logsContainer');
+        if (logsContainer) {
+            if (logsContainer.children.length === 1 && logsContainer.children[0].innerText.includes('[Ready]')) {
+                logsContainer.innerHTML = '';
+            }
+            const timeStr = new Date().toLocaleTimeString();
+            const newEntry = document.createElement('div');
+            newEntry.className = 'mb-2 p-1 border-start border-2 ' + colorClass;
+            newEntry.style.borderColor = 'currentColor !important';
+            newEntry.style.backgroundColor = 'rgba(255,255,255,0.03)';
+            newEntry.innerHTML = `<small class="text-secondary">[${timeStr}]</small> ${msg}`;
+            logsContainer.appendChild(newEntry);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
     }
 
     async function startStressAjax(presetName) {
@@ -142,33 +162,48 @@
 
     function updateStressUI(data) {
         isSimRunning = data.is_running;
-        const badge = document.getElementById('statusBadge');
+        const badge = document.getElementById('stressBadge');
         
+        let allLogs = [];
+
         if (data.is_running) {
-            badge.className = 'badge bg-danger pulse';
-            badge.innerText = 'Em Execução (Botnet SOA)';
-            document.getElementById('targetStatus').innerText = `Alvo: ${data.target}`;
-            document.getElementById('requestsCount').innerText = `Requisições: ${data.requests_sent} estimadas`;
+            let elTime = Math.floor(Date.now()/1000) - Math.floor(data.start_time);
+            let rem = Math.max(0, Math.floor(data.duration - elTime));
+            
+            badge.className = 'badge bg-warning text-dark fs-6';
+            badge.innerHTML = '<i class="spinner-border spinner-border-sm" style="width: 1rem; height: 1rem;"></i> Em Carga <small class="fw-normal">(~' + rem + 's)</small>';
+            
+            document.getElementById('targetSummary').style.display = 'block';
+            document.getElementById('activeTargetsInfo').innerText = data.target;
+            document.getElementById('activeTypesInfo').innerText = `Stress (${data.type})`;
+            document.getElementById('stressReqCount').innerText = data.requests_sent;
+
+            if(data.logs && data.logs.length > 0) {
+                data.logs.forEach(msg => allLogs.push({msg: msg, color: 'text-warning'}));
+            }
         } else {
-            badge.className = 'badge bg-secondary';
-            badge.innerText = 'Inativo';
+            badge.className = 'badge bg-secondary fs-6';
+            badge.innerText = 'Stress: Parado';
+            document.getElementById('targetSummary').style.display = 'none';
         }
 
-        // Atualiza feed visual do Docker Logs apenas se tiver novos
-        const consoleDiv = document.getElementById('liveConsole');
-        if (data.logs && data.logs.length > 0) {
-            consoleDiv.innerHTML = '';
-            data.logs.forEach(log => {
-                const p = document.createElement('div');
-                p.className = 'mb-1 text-success font-monospace';
-                p.innerText = log;
-                consoleDiv.appendChild(p);
+        // Atualiza feed visual do Logs Container de forma limpa
+        if (allLogs.length > 0) {
+            const logsContainer = document.getElementById('logsContainer');
+            logsContainer.innerHTML = '';
+            
+            allLogs.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'mb-2 p-1 border-start border-2 ' + item.color;
+                div.style.borderColor = 'currentColor !important';
+                div.style.backgroundColor = 'rgba(255,255,255,0.03)';
+                div.innerHTML = `<small class="text-secondary">[SOA]</small> ${item.msg}`;
+                logsContainer.appendChild(div);
             });
-            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            logsContainer.scrollTop = logsContainer.scrollHeight;
         }
 
         if (!data.is_running && pollingInterval) {
-            // Parar o polling após confirmar que desligou
             setTimeout(() => {
                 if (!isSimRunning && pollingInterval) {
                     clearInterval(pollingInterval);
