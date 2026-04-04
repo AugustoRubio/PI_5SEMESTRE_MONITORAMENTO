@@ -201,11 +201,12 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
             stress_status["is_running"] = False
             return
 
-        # Garante que o curl e jq estão instalados no container
-        await run_docker_cli(["exec", "soa_stress_pi", "apk", "add", "--no-cache", "curl", "jq"])
+        # Garante que o curl, jq e tzdata estão instalados no container para fuso horário correto
+        await run_docker_cli(["exec", "soa_stress_pi", "apk", "add", "--no-cache", "curl", "jq", "tzdata"])
         
         # Script bash com Pré-Sincronismo e formatação cronológica exata
         script = f"""
+export TZ="America/Sao_Paulo"
 TIME_STR=$(date +'%H:%M:%S')
 echo "[$TIME_STR] [*] Iniciando Bot de Estresse SOA..." > /tmp/stress.log
 echo "[$TIME_STR] [*] Realizando pre-sincronismo com a API SOA..." >> /tmp/stress.log
