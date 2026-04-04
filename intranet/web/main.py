@@ -102,7 +102,15 @@ class LoginAttempt(Base):
 def init_db(db_url):
     global engine, SessionLocal, DB_CONFIGURED
     try:
-        temp_engine = create_engine(db_url, pool_pre_ping=True, pool_recycle=3600)
+        # Aumentado significativamente o pool_size e max_overflow para suportar o teste de estresse
+        # Sem isso, as requisições da botnet enfileiram travando o Nginx e Uvicorn (Error 504 Timeout)
+        temp_engine = create_engine(
+            db_url, 
+            pool_size=100, 
+            max_overflow=200, 
+            pool_pre_ping=True, 
+            pool_recycle=1800
+        )
         # Testa a conexão
         with temp_engine.connect() as connection:
             pass
