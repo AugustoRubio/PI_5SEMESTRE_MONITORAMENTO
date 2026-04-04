@@ -208,7 +208,7 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
         
         # Script bash com Pré-Sincronismo e formatação cronológica exata
         script = f"""
-export TZ="America/Sao_Paulo"
+export TZ="BRT3"
 TIME_STR=$(date +'%H:%M:%S')
 echo "[$TIME_STR] [*] Iniciando Bot de Estresse SOA..." > /tmp/stress.log
 echo "[$TIME_STR] [*] Realizando pre-sincronismo com a API SOA..." >> /tmp/stress.log
@@ -216,7 +216,7 @@ echo "[$TIME_STR] [*] Realizando pre-sincronismo com a API SOA..." >> /tmp/stres
 HTTP_CODE=$(curl -s -o /dev/null -w "%{{http_code}}" -m 5 {base_url}/status || echo "TIMEOUT_OU_RECUSADO")
 if [ "$HTTP_CODE" != "200" ]; then
     TIME_STR=$(date +'%H:%M:%S')
-    echo "[$TIME_STR] [-] Falha no Pre-Sincronismo: Load Balancer inacessivel (Erro: $HTTP_CODE)." >> /tmp/stress.log
+    echo "[$TIME_STR] [-] Falha no Pre-Sincronismo: Nginx Inacessivel ($HTTP_CODE). Reinicie os dockers na Intranet!" >> /tmp/stress.log
     exit 1
 fi
 
