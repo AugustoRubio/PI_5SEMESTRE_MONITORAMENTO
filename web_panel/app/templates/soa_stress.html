@@ -56,8 +56,11 @@
                         <strong id="stressReqCount" class="ms-2" style="color: #ffc107;">0</strong>
                     </div>
                 </div>
-                <div id="logsContainer" class="p-3" style="height: 35vh; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9em; background-color: #0b0f19;">
-                    <div class="text-info">[Ready] Aguardando início dos testes no cluster Billing API...</div>
+                <div class="p-3 d-flex flex-column flex-grow-1">
+                    <h6 class="mb-2"><i class="bi bi-card-text"></i> Logs em Tempo Real:</h6>
+                    <div id="logsContainer" class="bg-dark text-light p-3 border border-secondary rounded flex-grow-1" style="min-height: 400px; max-height: 550px; overflow-y: auto; font-family: 'Courier New', Courier, monospace; font-size: 0.85rem;">
+                        <span class="text-muted">Aguardando dados...</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -86,15 +89,13 @@
     function addLogMessage(msg, colorClass = "text-muted") {
         const logsContainer = document.getElementById('logsContainer');
         if (logsContainer) {
-            if (logsContainer.children.length === 1 && logsContainer.children[0].innerText.includes('[Ready]')) {
+            if (logsContainer.children.length === 1 && logsContainer.children[0].innerText.includes('Aguardando')) {
                 logsContainer.innerHTML = '';
             }
             const timeStr = new Date().toLocaleTimeString();
             const newEntry = document.createElement('div');
-            newEntry.className = 'mb-2 p-1 border-start border-2 ' + colorClass;
-            newEntry.style.borderColor = 'currentColor !important';
-            newEntry.style.backgroundColor = 'rgba(255,255,255,0.03)';
-            newEntry.innerHTML = `<small class="text-secondary">[${timeStr}]</small> ${msg}`;
+            newEntry.className = colorClass + ' ps-2 mb-1';
+            newEntry.innerHTML = `<span class="text-secondary">[${timeStr}]</span> ${msg}`;
             logsContainer.appendChild(newEntry);
             logsContainer.scrollTop = logsContainer.scrollHeight;
         }
@@ -202,10 +203,8 @@
             
             allLogs.forEach(item => {
                 const div = document.createElement('div');
-                div.className = 'mb-2 p-1 border-start border-2 ' + item.color;
-                div.style.borderColor = 'currentColor !important';
-                div.style.backgroundColor = 'rgba(255,255,255,0.03)';
-                div.innerHTML = `<small class="text-secondary">[SOA]</small> ${item.msg}`;
+                div.className = item.color + ' ps-2 mb-1';
+                div.innerHTML = `<span class="text-secondary">[SOA]</span> ${item.msg}`;
                 logsContainer.appendChild(div);
             });
             logsContainer.scrollTop = logsContainer.scrollHeight;
