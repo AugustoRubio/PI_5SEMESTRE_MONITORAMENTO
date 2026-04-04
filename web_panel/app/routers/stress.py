@@ -141,6 +141,23 @@ async def run_docker_command(args: str, env=None):
             
     return 1, "", f"Erro: Nenhum executável docker encontrado. {last_error}"
 
+async def run_docker_cli(args_list):
+    """Executa comandos base do docker (não compose) de forma segura tentando múltiplos paths."""
+    for base_cmd in ["docker", "/usr/bin/docker", "/usr/local/bin/docker"]:
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                base_cmd, *args_list,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            return proc.returncode, stdout.decode(errors='ignore').strip(), stderr.decode(errors='ignore').strip()
+        except FileNotFoundError:
+            continue
+        except Exception as e:
+            return 1, "", str(e)
+    return 1, "", "Comando docker não encontrado no PATH."
+
 async def stop_docker_botnet():
     """Tenta derrubar a botnet."""
     try:
@@ -152,8 +169,7 @@ async def stop_docker_botnet():
             add_stress_log(f"⚠️ Aviso ao limpar ambiente (Código {returncode}).")
             
             # Garante que o ataque SOA (Apache Bench) também seja abortado
-            proc = await asyncio.create_subprocess_shell("docker exec soa_stress_pi pkill -9 ab")
-            await proc.communicate()
+            await run_docker_cli(["exec", "soa_stress_pi", "pkill", "-9", "ab"])
     except Exception as e:
         add_stress_log(f"Exceção ao derrubar: {e}")
 
@@ -179,22 +195,25 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
         add_stress_log(f"🛠️ Verificando e ligando o bot soa_stress_pi...")
         
         # Garante que o container esteja ligado (caso o usuário não tenha ligado o Docker Manager)
-        start_proc = await asyncio.create_subprocess_shell("docker start soa_stress_pi", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-        await start_proc.communicate()
+        rc, out, err = await run_docker_cli(["start", "soa_stress_pi"])
+        if rc != 0:
+            add_stress_log(f"❌ Erro ao iniciar container: {err}")
+            add_stress_log(f"Erro Raw: {err}", is_raw=True)
+            stress_status["is_running"] = False
+            return
 
         add_stress_log(f"🎯 Alvo Ajustado (HTTP): {target}")
         
         # Executa o Apache Bench (ab) dentro do container: 100k reqs, 500 conexões concorrentes
-        ab_cmd = f'docker exec -d soa_stress_pi sh -c "ab -n 100000 -c 500 {target} > /tmp/stress.log 2>&1"'
-        proc = await asyncio.create_subprocess_shell(ab_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-        stdout, stderr = await proc.communicate()
+        rc, out, err = await run_docker_cli(["exec", "-d", "soa_stress_pi", "sh", "-c", f"ab -n 100000 -c 500 {target} > /tmp/stress.log 2>&1"])
         
-        if proc.returncode != 0:
-            err_msg = stderr.decode('utf-8').strip()
-            add_stress_log(f"❌ Falha ao comunicar com soa_stress_pi: {err_msg}")
+        if rc != 0:
+            add_stress_log(f"❌ Falha ao comunicar com soa_stress_pi: {err}")
+            add_stress_log(f"Erro Raw: {err}", is_raw=True)
             stress_status["is_running"] = False
             return
         
+        add_stress_log(f"Detalhes: Container soa_stress_pi acionado com sucesso.", is_raw=True)
         add_stress_log(f"✅ Ataque SOA ativo! Força máxima: 500 conexões simultâneas.")
         
         duration = preset_config["duration"]

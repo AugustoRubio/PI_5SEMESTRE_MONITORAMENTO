@@ -39,6 +39,9 @@
             <div class="card-header border-secondary d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
                 <span><i class="bi bi-terminal"></i> Console de Monitoramento SOA</span>
                 <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#dockerLogsModal">
+                        <i class="bi bi-list-columns"></i> Logs Técnicos
+                    </button>
                     <span id="stressBadge" class="badge bg-secondary fs-6">Stress: Parado <small id="stressTime" class="fw-normal"></small></span>
                 </div>
             </div>
@@ -59,6 +62,27 @@
                 <div id="logsContainer" class="p-3" style="height: 35vh; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9em; background-color: #0b0f19;">
                     <div class="text-info">[Ready] Aguardando início dos testes...</div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Logs Brutos do Docker -->
+<div class="modal fade" id="dockerLogsModal" tabindex="-1" aria-labelledby="dockerLogsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="dockerLogsModalLabel"><i class="bi bi-terminal"></i> Saída Bruta do Docker / Erros</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <pre id="rawLogsContainer" class="p-3 m-0" style="font-size: 0.85em; color: #adbac7; background-color: #0d1117; min-height: 400px;">Aguardando logs...</pre>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-outline-info btn-sm" onclick="copyRawLogs()">
+                    <i class="bi bi-clipboard"></i> Copiar Tudo
+                </button>
             </div>
         </div>
     </div>
@@ -182,6 +206,11 @@
         const badge = document.getElementById('stressBadge');
         
         let allLogs = [];
+        
+        // Atualiza Raw Logs na Modal
+        if (data.raw_logs) {
+            document.getElementById('rawLogsContainer').innerText = data.raw_logs;
+        }
 
         if (data.is_running) {
             let elTime = Math.floor(Date.now()/1000) - Math.floor(data.start_time);
@@ -194,14 +223,15 @@
             document.getElementById('activeTargetsInfo').innerText = data.target;
             document.getElementById('activeTypesInfo').innerText = `Stress (${data.type})`;
             document.getElementById('stressReqCount').innerText = data.requests_sent;
-
-            if(data.logs && data.logs.length > 0) {
-                data.logs.forEach(msg => allLogs.push({msg: msg, color: 'text-warning'}));
-            }
         } else {
             badge.className = 'badge bg-secondary fs-6';
             badge.innerText = 'Stress: Parado';
             document.getElementById('targetSummary').style.display = 'none';
+        }
+        
+        // AGORA ISSO FICA FORA DO IF: Renderiza os logs mesmo se o teste falhar e parar!
+        if(data.logs && data.logs.length > 0) {
+            data.logs.forEach(msg => allLogs.push({msg: msg, color: data.is_running ? 'text-warning' : 'text-info'}));
         }
 
         // Atualiza feed visual do Logs Container de forma limpa
@@ -227,6 +257,16 @@
                 }
             }, 3000);
         }
+    }
+
+    function copyRawLogs() {
+        const text = document.getElementById('rawLogsContainer').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Copiado!';
+            setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+        });
     }
 
     // Check status on load
