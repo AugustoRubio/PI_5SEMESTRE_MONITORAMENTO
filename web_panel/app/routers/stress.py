@@ -161,19 +161,17 @@ async def run_docker_cli(args_list):
 async def stop_docker_botnet():
     """Tenta derrubar a botnet."""
     try:
-        add_stress_log("🛑 Finalizando containers e limpando rede...")
+        add_stress_log("[-] Finalizando containers e limpando rede...")
         returncode, stdout, stderr = await run_docker_command("down")
         if returncode == 0:
-            add_stress_log("✅ Ambiente Docker limpo com sucesso.")
+            add_stress_log("[+] Ambiente Docker limpo com sucesso.")
         else:
-            add_stress_log(f"⚠️ Aviso ao limpar ambiente (Código {returncode}).")
+            add_stress_log(f"[-] Aviso ao limpar ambiente (Código {returncode}).")
             
-            # Garante que o ataque SOA (Apache Bench) também seja abortado
-            await run_docker_cli(["exec", "soa_stress_pi", "pkill", "-9", "ab"])
-            await run_docker_cli(["exec", "soa_stress_pi", "pkill", "-9", "sh"])
-            await run_docker_cli(["exec", "soa_stress_pi", "pkill", "-9", "curl"])
+        # Garante que o ataque SOA seja encerrado de imediato e o container volte ao estado limpo
+        await run_docker_cli(["restart", "soa_stress_pi"])
     except Exception as e:
-        add_stress_log(f"Exceção ao derrubar: {e}")
+        add_stress_log(f"[-] Exceção ao derrubar: {e}")
 
 async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, preset_name: str):
     """
@@ -192,7 +190,7 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
         if base_url.startswith("https://"):
             base_url = base_url.replace("https://", "http://", 1)
             
-        target = base_url + "/api/billing/invoices/1"
+        target = base_url + "/invoices/1"
         
         # Garante que o container esteja ligado (caso o usuário não tenha ligado o Docker Manager)
         rc, out, err = await run_docker_cli(["start", "soa_stress_pi"])
@@ -243,7 +241,9 @@ done
                 # Busca os logs reais gerados pelo script em bash
                 rc_logs, stdout_logs, _ = await run_docker_cli(["exec", "soa_stress_pi", "tail", "-n", "15", "/tmp/stress.log"])
                 if rc_logs == 0 and stdout_logs:
-                    stress_status["logs"] = [line.strip() for line in stdout_logs.strip().split('\n') if line.strip()]
+                    lines = [line.strip() for line in stdout_logs.strip().split('\n') if line.strip()]
+                    lines.reverse() # Inverte para que o mais recente fique no topo cronologicamente igual add_stress_log
+                    stress_status["logs"] = lines
         finally:
             await stop_docker_botnet()
             stress_status["logs"].append("[-] Simulação interrompida. Conexões encerradas.")
@@ -260,14 +260,14 @@ done
         "DB_NAME": str(config.db_name)
     }
 
-    add_stress_log("🛠️ Subindo containers (Escalando botnet)...")
+    add_stress_log("[*] Subindo containers (Escalando botnet)...")
     
     # Comando rápido (sem --build) para resposta imediata
     args_up = f"up -d --scale {preset_config['service']}={preset_config['scale']}"
     returncode, stdout_up, stderr_up = await run_docker_command(args_up, env=env_vars)
     
     if returncode == 0:
-        add_stress_log(f"✅ Botnet ativa! {preset_config['scale']} agentes em combate.")
+        add_stress_log(f"[+] Botnet ativa! {preset_config['scale']} agentes em combate.")
         
         # 3. Iniciar monitoramento
         duration = preset_config["duration"]
@@ -298,31 +298,30 @@ done
                                 # Limpa sujeira do Docker se existir
                                 if '|' in clean_line:
                                     clean_line = clean_line.split('|')[-1].strip()
-                                if clean_line: add_stress_log(f"📡 {clean_line}")
-                        add_stress_log(f"📊 Status do Cluster: {preset_config['scale']} bots atacando.")
+                                if clean_line: add_stress_log(f"[>] {clean_line}")
+                        add_stress_log(f"[*] Status do Cluster: {preset_config['scale']} bots atacando.")
                     except: pass
         finally:
             if stress_status["is_running"]:
-                add_stress_log("⏱️ Tempo de execução atingido.")
+                add_stress_log("[*] Tempo de execução atingido.")
             else:
-                add_stress_log("🛑 Interrupção manual solicitada.")
+                add_stress_log("[-] Interrupção manual solicitada.")
             await stop_docker_botnet()
             stress_status["is_running"] = False
-            add_stress_log("🏁 Teste de estresse concluído.")
+            add_stress_log("[*] Teste de estresse concluído.")
     else:
         stress_status["is_running"] = False
-        add_stress_log("❌ Falha crítica ao subir Docker.")
+        add_stress_log("[-] Falha crítica ao subir Docker.")
 
 @router.get("/status")
 async def get_stress_status(current_user: dict = Depends(get_current_user)):
     return stress_status
 
 @router.post("/stop")
-async def stop_stress_test(background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
+async def stop_stress_test(current_user: dict = Depends(get_current_user)):
     global stress_status
     stress_status["is_running"] = False
-    background_tasks.add_task(stop_docker_botnet)
-    return {"message": "Sinal de parada de emergência enviado."}
+    return {"message": "Sinal de encerramento de emergência enviado."}
 
 @router.post("/run")
 async def stress_frontend(config: StressConfig, background_tasks: BackgroundTasks, current_user: dict = Depends(get_current_user)):
@@ -339,7 +338,7 @@ async def stress_frontend(config: StressConfig, background_tasks: BackgroundTask
         "requests_sent": 0, "logs": [], "raw_logs": ""
     })
     
-    add_stress_log(f"🚀 Orquestrando botnet: {preset_config['name']}...")
+    add_stress_log(f"[*] Orquestrando botnet: {preset_config['name']}...")
     
     # DISPARO EM BACKGROUND: Retorna sucesso imediato para o frontend não dar Timeout.
     background_tasks.add_task(_orchestrate_stress_task, config, preset_config, preset_name)

@@ -19,7 +19,7 @@
                 <div class="mb-3">
                     <label class="form-label text-muted small fw-bold">IP/Porta da API SOA (Billing LB)</label>
                     <input type="text" id="targetUrl" class="form-control" value="http://10.10.100.4:9000">
-                    <div class="form-text">A botnet acessará os endpoints <code>/api/billing/invoices/*</code> e <code>/api/billing/pay</code> a partir desta URL.</div>
+                    <div class="form-text">A botnet acessará os endpoints <code>/invoices/*</code> e <code>/pay</code> a partir desta URL.</div>
                 </div>
                 
                 <h6 class="mt-4 mb-3 pb-2 border-bottom text-muted">Ações Rápidas</h6>
@@ -27,7 +27,7 @@
                     <i class="bi bi-lightning-charge-fill me-2"></i> Iniciar Estresse Escalável (500 Conexões Simultâneas)
                 </button>
                 <button class="btn btn-danger w-100 fw-bold shadow-sm" onclick="stopStressAjax()">
-                    <i class="bi bi-stop-circle-fill me-2"></i> Abortar Cargas
+                    <i class="bi bi-stop-circle-fill me-2"></i> Encerrar Cargas
                 </button>
             </div>
         </div>
@@ -176,9 +176,9 @@
             
             const badge = document.getElementById('stressBadge');
             badge.className = 'badge bg-danger fs-6 pulse';
-            badge.innerText = 'Abortando...';
+            badge.innerText = 'Encerrando...';
             
-            addLogMessage('Enviando sinal de aborto forçado...', 'text-warning');
+            addLogMessage('Enviando sinal de encerramento forçado...', 'text-warning');
             
             const response = await fetch('/api/stress/stop', { method: 'POST', headers });
             const data = await response.json();
@@ -187,7 +187,7 @@
             // Força uma atualização de status rápida
             setTimeout(fetchUnifiedStatus, 2000);
         } catch (error) {
-            addLogMessage('Sinal de aborto enviado, mas sem resposta do servidor (Sobrecarga).', 'text-danger');
+            addLogMessage('Sinal de encerramento enviado, mas sem resposta do servidor (Sobrecarga).', 'text-danger');
         }
     }
 
