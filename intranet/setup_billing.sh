@@ -16,7 +16,7 @@ then
 fi
 
 echo "Construindo as imagens e subindo os containers (3 Réplicas + 1 Load Balancer)..."
-sudo docker compose up --build -d
+sudo docker compose up --build -d --scale billing_api=3
 
 echo "------------------------------------------------------------------"
 echo "Microsserviço de Pagamentos operante!"

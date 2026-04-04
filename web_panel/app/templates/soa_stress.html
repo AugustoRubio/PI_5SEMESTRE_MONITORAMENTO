@@ -3,7 +3,7 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h2 class="text-warning"><i class="bi bi-wallet2"></i> Teste de Estresse em Microsserviços (SOA)</h2>
+        <h2 class="text-danger"><i class="bi bi-wallet2"></i> Teste de Estresse em Microsserviços (SOA)</h2>
         <p class="text-muted">Ataques direcionados à API de Faturamento para testar escalabilidade horizontal (Docker Swarm/Replicas) e disparar regras de DLP no Suricata com Parameter Tampering e BOLA.</p>
     </div>
 </div>
@@ -11,8 +11,8 @@
 <div class="row">
     <!-- Configuração do Alvo -->
     <div class="col-md-4">
-        <div class="card shadow-sm border-warning h-100">
-            <div class="card-header bg-warning text-dark fw-bold">
+        <div class="card shadow-sm border-danger h-100">
+            <div class="card-header bg-danger text-white fw-bold">
                 <i class="bi bi-crosshair"></i> Definir Alvo (Billing API)
             </div>
             <div class="card-body">
@@ -35,17 +35,15 @@
 
     <!-- Monitor de Status -->
     <div class="col-md-8">
-        <div class="card shadow-sm h-100">
-            <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-terminal"></i> Console de Acompanhamento (Botnet SOA)</span>
+        <div class="card shadow-sm h-100 bg-dark border-secondary">
+            <div class="card-header bg-dark text-success fw-bold border-bottom border-secondary d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-terminal-fill me-2"></i> Console de Acompanhamento (Botnet SOA)</span>
                 <span id="statusBadge" class="badge bg-secondary">Inativo</span>
             </div>
-            <div class="card-body bg-light" style="max-height: 400px; overflow-y: auto;">
-                <div id="liveConsole" class="font-monospace small">
-                    <div class="text-muted">Aguardando comandos...</div>
-                </div>
+            <div class="card-body bg-dark text-success font-monospace" style="max-height: 400px; overflow-y: auto; font-size: 0.85rem;" id="liveConsole">
+                <div class="text-muted">Aguardando comandos...</div>
             </div>
-            <div class="card-footer bg-white text-muted small d-flex justify-content-between">
+            <div class="card-footer bg-dark border-top border-secondary text-muted small d-flex justify-content-between font-monospace">
                 <span id="targetStatus">Alvo: Não definido</span>
                 <span id="requestsCount">Chamadas API: 0 estimadas</span>
             </div>
