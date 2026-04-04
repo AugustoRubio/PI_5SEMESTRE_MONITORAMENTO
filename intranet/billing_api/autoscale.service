@@ -1,0 +1,14 @@
+[Unit]
+Description=SOA Autoscale Monitor (Billing API)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/billing_api
+ExecStart=/usr/bin/python3 autoscale_monitor.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

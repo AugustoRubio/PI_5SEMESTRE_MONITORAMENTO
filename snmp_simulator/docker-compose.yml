@@ -40,6 +40,16 @@ services:
     network_mode: "host"
     command: ["tail", "-f", "/dev/null"]
 
+  soa_stress_bot:
+    image: alpine:latest
+    container_name: soa_stress_pi
+    restart: unless-stopped
+    network_mode: "host"
+    volumes:
+      - ../web_panel/scripts:/scripts
+    # Instala o Apache Bench (ab) silenciosamente no boot e fica ocioso aguardando comandos
+    command: ["sh", "-c", "apk add --no-cache apache2-utils && tail -f /dev/null"]
+
 networks:
   sim_snmp_net:
     driver: bridge

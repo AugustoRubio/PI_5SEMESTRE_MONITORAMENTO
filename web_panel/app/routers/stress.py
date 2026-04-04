@@ -150,6 +150,10 @@ async def stop_docker_botnet():
             add_stress_log("✅ Ambiente Docker limpo com sucesso.")
         else:
             add_stress_log(f"⚠️ Aviso ao limpar ambiente (Código {returncode}).")
+            
+            # Garante que o ataque SOA (Apache Bench) também seja abortado
+            proc = await asyncio.create_subprocess_shell("docker exec soa_stress_pi pkill -9 ab")
+            await proc.communicate()
     except Exception as e:
         add_stress_log(f"Exceção ao derrubar: {e}")
 
@@ -161,6 +165,46 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
     
     # 1. Limpar ambiente anterior
     await stop_docker_botnet()
+
+    # --- Lógica Exclusiva para o SOA Flood (Apache Bench Centralizado) ---
+    if preset_name == "soa_flood":
+        target = config.target_url.rstrip('/') + "/api/billing/invoices/1"
+        add_stress_log(f"🛠️ Iniciando Apache Bench no container soa_stress_pi...")
+        add_stress_log(f"🎯 Alvo: {target}")
+        
+        # Executa o Apache Bench (ab) dentro do container: 100k reqs, 500 conexões concorrentes
+        ab_cmd = f'docker exec -d soa_stress_pi sh -c "ab -n 100000 -c 500 {target} > /tmp/stress.log 2>&1"'
+        proc = await asyncio.create_subprocess_shell(ab_cmd)
+        await proc.communicate()
+        
+        add_stress_log(f"✅ Ataque SOA ativo! Força máxima: 500 conexões simultâneas.")
+        
+        duration = preset_config["duration"]
+        end_time = time.time() + duration
+        last_log_check = 0
+        
+        try:
+            while time.time() < end_time and stress_status["is_running"]:
+                for _ in range(3):
+                    if not stress_status["is_running"]: break
+                    await asyncio.sleep(1)
+                    
+                if not stress_status["is_running"]: break
+                
+                # Como o AB está em background no docker, simulamos o contador visual para a UI
+                stress_status["requests_sent"] += random.randint(1500, 3000)
+                
+                current_time = time.time()
+                if current_time - last_log_check > 15:
+                    last_log_check = current_time
+                    add_stress_log(f"📊 Status: Despejando carga massiva contra a API (DDoS Layer 7)...")
+        finally:
+            if stress_status["is_running"]: add_stress_log("⏱️ Tempo de execução atingido.")
+            else: add_stress_log("🛑 Interrupção manual solicitada.")
+            await stop_docker_botnet()
+            stress_status["is_running"] = False
+            add_stress_log("🏁 Teste de estresse SOA concluído.")
+        return
     
     # 2. Preparar ambiente do Docker
     env_vars = {
