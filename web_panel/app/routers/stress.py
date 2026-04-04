@@ -168,14 +168,32 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
 
     # --- Lógica Exclusiva para o SOA Flood (Apache Bench Centralizado) ---
     if preset_name == "soa_flood":
-        target = config.target_url.rstrip('/') + "/api/billing/invoices/1"
-        add_stress_log(f"🛠️ Iniciando Apache Bench no container soa_stress_pi...")
-        add_stress_log(f"🎯 Alvo: {target}")
+        base_url = config.target_url.rstrip('/')
+        
+        # Força o uso de HTTP. O ab tem problemas nativos com certificados self-signed HTTPS em certas distros Alpine.
+        if base_url.startswith("https://"):
+            base_url = base_url.replace("https://", "http://", 1)
+            
+        target = base_url + "/api/billing/invoices/1"
+        
+        add_stress_log(f"🛠️ Verificando e ligando o bot soa_stress_pi...")
+        
+        # Garante que o container esteja ligado (caso o usuário não tenha ligado o Docker Manager)
+        start_proc = await asyncio.create_subprocess_shell("docker start soa_stress_pi", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        await start_proc.communicate()
+
+        add_stress_log(f"🎯 Alvo Ajustado (HTTP): {target}")
         
         # Executa o Apache Bench (ab) dentro do container: 100k reqs, 500 conexões concorrentes
         ab_cmd = f'docker exec -d soa_stress_pi sh -c "ab -n 100000 -c 500 {target} > /tmp/stress.log 2>&1"'
-        proc = await asyncio.create_subprocess_shell(ab_cmd)
-        await proc.communicate()
+        proc = await asyncio.create_subprocess_shell(ab_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        stdout, stderr = await proc.communicate()
+        
+        if proc.returncode != 0:
+            err_msg = stderr.decode('utf-8').strip()
+            add_stress_log(f"❌ Falha ao comunicar com soa_stress_pi: {err_msg}")
+            stress_status["is_running"] = False
+            return
         
         add_stress_log(f"✅ Ataque SOA ativo! Força máxima: 500 conexões simultâneas.")
         
