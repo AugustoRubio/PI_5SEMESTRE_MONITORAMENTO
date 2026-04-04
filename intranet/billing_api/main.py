@@ -66,13 +66,32 @@ def get_invoices(student_id: int, request: Request):
     conn = sqlite3.connect(DB_FILE)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
+    
+    # Busca as faturas existentes para este aluno
     c.execute("SELECT id, student_id, amount, status, card_number, card_cvv FROM invoices WHERE student_id = ?", (student_id,))
     rows = c.fetchall()
+    
+    # Se o aluno não tiver faturas (aluno novo criado na Intranet ou não "semeado" ainda), 
+    # fabricamos faturas falsas na hora (Auto-Healing Mock).
+    if not rows:
+        num_invoices = random.randint(1, 3)
+        for _ in range(num_invoices):
+            status = "PENDING" if random.random() > 0.3 else "PAID"
+            amount = round(random.uniform(300.0, 1800.0), 2)
+            card = fake.credit_card_number(card_type="visa")
+            cvv = fake.credit_card_security_code(card_type="visa")
+            
+            c.execute("INSERT INTO invoices (student_id, amount, status, card_number, card_cvv) VALUES (?, ?, ?, ?, ?)",
+                      (student_id, amount, status, card, cvv))
+        
+        conn.commit()
+        
+        # Busca novamente as faturas recém-criadas
+        c.execute("SELECT id, student_id, amount, status, card_number, card_cvv FROM invoices WHERE student_id = ?", (student_id,))
+        rows = c.fetchall()
+        
     conn.close()
     
-    if not rows:
-        return []
-        
     return [dict(row) for row in rows]
 
 # =========================================================================
