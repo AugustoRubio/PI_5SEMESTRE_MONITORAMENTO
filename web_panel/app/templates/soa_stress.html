@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="text-warning"><i class="bi bi-wallet2"></i> Teste de Estresse em Microsserviços (SOA)</h2>
+        <p class="text-muted">Ataques direcionados à API de Faturamento para testar escalabilidade horizontal (Docker Swarm/Replicas) e disparar regras de DLP no Suricata com Parameter Tampering e BOLA.</p>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Configuração do Alvo -->
+    <div class="col-md-4">
+        <div class="card shadow-sm border-warning h-100">
+            <div class="card-header bg-warning text-dark fw-bold">
+                <i class="bi bi-crosshair"></i> Definir Alvo (Billing API)
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted small fw-bold">URL da Intranet (Proxy do SOA)</label>
+                    <input type="text" id="targetUrl" class="form-control" value="https://10.10.100.4">
+                    <div class="form-text">A botnet acessará os endpoints <code>/api/billing/invoices/*</code> e <code>/api/billing/pay</code> a partir desta URL.</div>
+                </div>
+                
+                <h6 class="mt-4 mb-3 pb-2 border-bottom text-muted">Ações Rápidas</h6>
+                <button class="btn btn-warning w-100 mb-3 fw-bold shadow-sm" onclick="startStressAjax('soa_flood')">
+                    <i class="bi bi-lightning-charge-fill me-2"></i> Iniciar Estresse Escalável (50 Bots)
+                </button>
+                <button class="btn btn-danger w-100 fw-bold shadow-sm" onclick="stopStressAjax()">
+                    <i class="bi bi-stop-circle-fill me-2"></i> Abortar Cargas
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monitor de Status -->
+    <div class="col-md-8">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-terminal"></i> Console de Acompanhamento (Botnet SOA)</span>
+                <span id="statusBadge" class="badge bg-secondary">Inativo</span>
+            </div>
+            <div class="card-body bg-light" style="max-height: 400px; overflow-y: auto;">
+                <div id="liveConsole" class="font-monospace small">
+                    <div class="text-muted">Aguardando comandos...</div>
+                </div>
+            </div>
+            <div class="card-footer bg-white text-muted small d-flex justify-content-between">
+                <span id="targetStatus">Alvo: Não definido</span>
+                <span id="requestsCount">Chamadas API: 0 estimadas</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+    };
+
+    let pollingInterval = null;
+    let isSimRunning = false;
+
+    function formatUrl(url) {
+        if (!url.startsWith('http')) {
+            return 'https://' + url;
+        }
+        return url;
+    }
+
+    function addLogMessage(msg, colorClass = "text-muted") {
+        const consoleDiv = document.getElementById('liveConsole');
+        const timeStr = new Date().toLocaleTimeString();
+        const p = document.createElement('div');
+        p.className = `mb-1 ${colorClass}`;
+        p.innerHTML = `[${timeStr}] > ${msg}`;
+        consoleDiv.appendChild(p);
+        consoleDiv.scrollTop = consoleDiv.scrollHeight;
+    }
+
+    async function startStressAjax(presetName) {
+        const rawTarget = document.getElementById('targetUrl').value;
+        if (!rawTarget) { alert('Insira a URL ou IP alvo'); return; }
+
+        const target_url = formatUrl(rawTarget);
+        
+        try {
+            addLogMessage(`Enviando requisição para iniciar preset SOA [${presetName}]...`, 'text-info');
+            const response = await fetch('/api/stress/run', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ 
+                    target_url: target_url, 
+                    preset: presetName,
+                    db_host: "10.10.100.4", // Valores default do BD da Intranet, embora a bot SOA não use o banco da intranet, o endpoint da API de stress exige isso no modelo Pydantic
+                    db_port: 3306,
+                    db_user: "intranet_user",
+                    db_pass: "bcd127",
+                    db_name: "intranet_db"
+                })
+            });
+            const data = await response.json();
+            
+            if (response.ok) {
+                addLogMessage(data.message, 'text-success');
+                if (!pollingInterval) {
+                    pollingInterval = setInterval(fetchUnifiedStatus, 2000);
+                }
+            } else {
+                addLogMessage(`Erro: ${data.detail}`, 'text-danger');
+            }
+        } catch (error) {
+            addLogMessage('Erro de conexão ao Iniciar Stress. O backend pode estar offline.', 'text-danger');
+        }
+    }
+
+    async function stopStressAjax() {
+        try {
+            addLogMessage('Enviando sinal de aborto...', 'text-warning');
+            const response = await fetch('/api/stress/stop', { method: 'POST', headers });
+            const data = await response.json();
+            addLogMessage(data.message, 'text-success');
+            
+            // Força uma atualização de status rápida
+            setTimeout(fetchUnifiedStatus, 1000);
+        } catch (error) {
+            addLogMessage('Erro ao abortar carga.', 'text-danger');
+        }
+    }
+
+    async function fetchUnifiedStatus() {
+        try {
+            const resStress = await fetch('/api/stress/status', { headers });
+            const dataStress = await resStress.json();
+            updateStressUI(dataStress);
+        } catch (error) {
+            console.error("Erro ao buscar status");
+        }
+    }
+
+    function updateStressUI(data) {
+        isSimRunning = data.is_running;
+        const badge = document.getElementById('statusBadge');
+        
+        if (data.is_running) {
+            badge.className = 'badge bg-danger pulse';
+            badge.innerText = 'Em Execução (Botnet SOA)';
+            document.getElementById('targetStatus').innerText = `Alvo: ${data.target}`;
+            document.getElementById('requestsCount').innerText = `Requisições: ${data.requests_sent} estimadas`;
+        } else {
+            badge.className = 'badge bg-secondary';
+            badge.innerText = 'Inativo';
+        }
+
+        // Atualiza feed visual do Docker Logs apenas se tiver novos
+        const consoleDiv = document.getElementById('liveConsole');
+        if (data.logs && data.logs.length > 0) {
+            consoleDiv.innerHTML = '';
+            data.logs.forEach(log => {
+                const p = document.createElement('div');
+                p.className = 'mb-1 text-success font-monospace';
+                p.innerText = log;
+                consoleDiv.appendChild(p);
+            });
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        if (!data.is_running && pollingInterval) {
+            // Parar o polling após confirmar que desligou
+            setTimeout(() => {
+                if (!isSimRunning && pollingInterval) {
+                    clearInterval(pollingInterval);
+                    pollingInterval = null;
+                }
+            }, 3000);
+        }
+    }
+
+    // Check status on load
+    fetchUnifiedStatus();
+    if (!pollingInterval) {
+        pollingInterval = setInterval(fetchUnifiedStatus, 3000);
+    }
+</script>
+
+<style>
+    .pulse { animation: pulse-animation 2s infinite; }
+    @keyframes pulse-animation {
+        0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+    }
+</style>
+{% endblock %}

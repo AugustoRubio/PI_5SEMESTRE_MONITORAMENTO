@@ -33,6 +33,14 @@
     networks:
       - lab_bridge
 
+  bot_soa:
+    build: .
+    environment:
+      - BOT_TYPE=soa_stress
+      - TARGET_URL=${TARGET_URL:-https://10.10.100.4}
+    networks:
+      - lab_bridge
+
 networks:
   lab_bridge:
     driver: bridge

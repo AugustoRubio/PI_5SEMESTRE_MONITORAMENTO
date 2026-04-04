@@ -51,6 +51,10 @@ presets = {
     "ddos_extremo": {
         "name": "Ataque Volumétrico DDoS (Extremo)",
         "service": "bot_ddos", "scale": 120, "duration": 600
+    },
+    "soa_flood": {
+        "name": "Estresse em Microsserviços (SOA/Billing API)",
+        "service": "bot_soa", "scale": 50, "duration": 300
     }
 }
 

@@ -91,6 +91,10 @@ async def admin_page(request: Request):
 async def stress_page(request: Request):
     return templates.TemplateResponse("stress.html", {"request": request, "title": "Testes de Estresse"})
 
+@app.get("/soa_stress", response_class=HTMLResponse)
+async def soa_stress_page(request: Request):
+    return templates.TemplateResponse("soa_stress.html", {"request": request, "title": "Simulação SOA (Billing)"})
+
 @app.get("/simulation", response_class=HTMLResponse)
 async def simulation_page(request: Request):
     return templates.TemplateResponse("simulation.html", {"request": request, "title": "Simulação de Uso"})
