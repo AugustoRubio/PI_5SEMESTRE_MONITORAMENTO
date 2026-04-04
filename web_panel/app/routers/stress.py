@@ -3,6 +3,7 @@ import os
 import time
 import random
 import datetime
+import re
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from app.auth import get_current_user
@@ -78,7 +79,8 @@ def add_stress_log(msg: str, is_raw: bool = False):
         stress_status["raw_logs"] = (msg + "\n" + stress_status["raw_logs"])[:10000]
     else:
         now = datetime.datetime.now().strftime("%H:%M:%S")
-        if not msg.startswith("["):
+        # Só adiciona o timestamp se a string não começar com o formato exato [HH:MM:SS]
+        if not re.match(r"^\[\d{2}:\d{2}:\d{2}\]", msg):
             msg = f"[{now}] {msg}"
         stress_status["logs"].append(msg)
         if len(stress_status["logs"]) > 25:
@@ -211,10 +213,10 @@ TIME_STR=$(date +'%H:%M:%S')
 echo "[$TIME_STR] [*] Iniciando Bot de Estresse SOA..." > /tmp/stress.log
 echo "[$TIME_STR] [*] Realizando pre-sincronismo com a API SOA..." >> /tmp/stress.log
 
-API_STATUS=$(curl -s -m 5 {base_url}/status | grep -o 'Online' || echo 'Offline')
-if [ "$API_STATUS" = "Offline" ]; then
+HTTP_CODE=$(curl -s -o /dev/null -w "%{{http_code}}" -m 5 {base_url}/status || echo "TIMEOUT_OU_RECUSADO")
+if [ "$HTTP_CODE" != "200" ]; then
     TIME_STR=$(date +'%H:%M:%S')
-    echo "[$TIME_STR] [-] Falha no Pre-Sincronismo: O Load Balancer ({base_url}) esta inacessivel." >> /tmp/stress.log
+    echo "[$TIME_STR] [-] Falha no Pre-Sincronismo: Load Balancer inacessivel (Erro: $HTTP_CODE)." >> /tmp/stress.log
     exit 1
 fi
 
@@ -272,6 +274,10 @@ done
                 if rc_logs == 0 and stdout_logs:
                     lines = [line.strip() for line in stdout_logs.strip().split('\n') if line.strip()]
                     stress_status["logs"] = lines
+                    # Aborta o laço infinito na UI caso o script bash tenha falhado no Sincronismo
+                    if any("Falha no Pre-Sincronismo" in line for line in lines):
+                        stress_status["is_running"] = False
+                        break
         finally:
             await stop_docker_botnet()
             add_stress_log("[-] Simulação interrompida. Conexões encerradas.")
