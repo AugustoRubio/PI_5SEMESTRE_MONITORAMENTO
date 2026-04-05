@@ -237,9 +237,11 @@ TIME_STR=$(date +'%H:%M:%S')
 echo "[$TIME_STR] [+] Carga disparada! 500 conexoes simultaneas ativas." >> /tmp/stress.log
 
 while true; do
-    HTTP_CODE=$(curl -s -m 3 -o /dev/null -w "%{{http_code}}" $TARGET_URL || echo "ERR")
+    CHECK_ID=$(( ( RANDOM % 500 ) + 1 ))
+    CHECK_URL="{base_url}/invoices/$CHECK_ID"
+    HTTP_CODE=$(curl -s -m 3 -o /dev/null -w "%{{http_code}}" $CHECK_URL || echo "ERR")
     TIME_STR=$(date +'%H:%M:%S')
-    echo "[$TIME_STR] [>] Acessando: $TARGET_URL" >> /tmp/stress.log
+    echo "[$TIME_STR] [>] Acessando: $CHECK_URL" >> /tmp/stress.log
     if [ "$HTTP_CODE" = "ERR" ] || [ "$HTTP_CODE" = "000" ]; then
         echo "[$TIME_STR] [+] Resposta HTTP: ERR | Nginx Sobrecarregado (Trafego dropado!)" >> /tmp/stress.log
     else
