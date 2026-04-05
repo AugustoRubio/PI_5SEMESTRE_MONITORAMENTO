@@ -187,6 +187,7 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
     
     # 1. Limpar ambiente anterior
     await stop_docker_botnet()
+    await asyncio.sleep(2) # Aguarda a rede do container soa_stress_pi se restabelecer após o restart
 
     # --- Lógica Exclusiva para o SOA Flood (Apache Bench Centralizado) ---
     if preset_name == "soa_flood":
@@ -213,7 +214,7 @@ TIME_STR=$(date +'%H:%M:%S')
 echo "[$TIME_STR] [*] Iniciando Bot de Estresse SOA..." > /tmp/stress.log
 echo "[$TIME_STR] [*] Realizando pre-sincronismo com a API SOA..." >> /tmp/stress.log
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{{http_code}}" -m 5 {base_url}/status || echo "TIMEOUT_OU_RECUSADO")
+HTTP_CODE=$(curl -s -o /dev/null -w "%{{http_code}}" -m 10 {base_url}/status || echo "TIMEOUT_OU_RECUSADO")
 if [ "$HTTP_CODE" != "200" ]; then
     TIME_STR=$(date +'%H:%M:%S')
     echo "[$TIME_STR] [-] Falha no Pre-Sincronismo: Nginx Inacessivel ($HTTP_CODE). Reinicie os dockers na Intranet!" >> /tmp/stress.log
