@@ -81,7 +81,7 @@ zabbix_export:
         # 4. Autoscaling: Active Replicas
         - uuid: b0c1d2e3f4a546b7c8d9e0f1a2b3c4d5
           name: 'Autoscaler: Réplicas Ativas (Containers)'
-          type: ZABBIX_AGENT
+          type: ZABBIX_ACTIVE
           key: soa.billing.replicas
           delay: 15s
           history: 7d
@@ -105,7 +105,7 @@ zabbix_export:
         # 5. Average CPU
         - uuid: e3f4a5b6c7d849e0f1a2b3c4d5e6f7a8
           name: 'Billing API: Uso Médio de CPU (Docker)'
-          type: ZABBIX_AGENT
+          type: ZABBIX_ACTIVE
           key: soa.billing.cpu.avg
           delay: 15s
           history: 7d
@@ -125,7 +125,7 @@ zabbix_export:
         # 6. Autoscaler Service Status
         - uuid: a5b6c7d8e9f051a2b3c4d5e6f7a8b9c0
           name: 'Autoscaler: Status do Processo (Systemd)'
-          type: ZABBIX_AGENT
+          type: ZABBIX_ACTIVE
           key: 'system.run[systemctl is-active billing_autoscale --quiet && echo 1 || echo 0]'
           delay: 1m
           history: 7d
