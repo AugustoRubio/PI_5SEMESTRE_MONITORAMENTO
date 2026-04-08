@@ -4,7 +4,7 @@
 echo "[*] Criando servico systemd para o Autoscale Monitor..."
 
 SERVICE_FILE="/etc/systemd/system/billing_autoscale.service"
-WORK_DIR=$(pwd)
+WORK_DIR="/root/PI_5SEMESTRE_MONITORAMENTO/intranet/billing_api"
 
 sudo tee $SERVICE_FILE > /dev/null <<EOF
 [Unit]
