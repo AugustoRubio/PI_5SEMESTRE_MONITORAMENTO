@@ -1,0 +1,153 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: a3b4c5d6e7f849a0b1c2d3e4f5a6b7c8
+      name: 'Templates/Applications'
+  templates:
+    - uuid: b4c5d6e7f8a940b1c2d3e4f5a6b7c8d9
+      template: 'Template SOA Billing API e Autoscaling'
+      name: 'Template SOA Billing API e Autoscaling'
+      description: 'Monitoramento da saude da API de Faturamento (SOA), metricas de consumo de CPU do backend e acompanhamento logico do motor de Autoscaling. Otimizado para visualizacao no Grafana.'
+      groups:
+        - name: 'Templates/Applications'
+      items:
+        # 1. Health Check RAW (HTTP Agent)
+        - uuid: c5d6e7f8a9b041c2d3e4f5a6b7c8d9e0
+          name: 'Billing API: Health Check (Raw JSON)'
+          type: HTTP_AGENT
+          key: soa.billing.health.raw
+          url: 'http://{HOST.CONN}:9000/status'
+          timeout: 5s
+          delay: 15s
+          history: '0'
+          value_type: TEXT
+          description: 'Resposta bruta do endpoint de status da API (Nginx).'
+          tags:
+            - tag: Application
+              value: 'Billing API'
+
+        # 2. Service Status (Dependent do JSON)
+        - uuid: d6e7f8a9b0c142d3e4f5a6b7c8d9e0f1
+          name: 'Billing API: Status de Integridade'
+          type: DEPENDENT
+          key: soa.billing.status
+          delay: '0'
+          history: 7d
+          value_type: UNSIGNED
+          description: '1 = Online, 0 = Offline ou Erro (Bom para graficos de uptime no Grafana)'
+          valuemap:
+            name: 'Service State'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.status'
+              error_handler: CUSTOM_VALUE
+              error_handler_params: 'Offline'
+            - type: JAVASCRIPT
+              parameters:
+                - 'return value === "Online" ? 1 : 0;'
+          master_item:
+            key: soa.billing.health.raw
+          tags:
+            - tag: Application
+              value: 'Billing API'
+          triggers:
+            - uuid: e7f8a9b0c1d243e4f5a6b7c8d9e0f1a2
+              expression: 'last(/Template SOA Billing API e Autoscaling/soa.billing.status)=0'
+              name: 'Billing API: Serviço Inacessível (Nginx/API Offline)'
+              priority: HIGH
+              description: 'A API não está retornando status Online. Pode ser um Timeout gerado por DDoS pesado ou queda do Nginx.'
+
+        # 3. Response Time (TCP Perf)
+        - uuid: f8a9b0c1d2e344f5a6b7c8d9e0f1a2b3
+          name: 'Billing API: Tempo de Resposta HTTP'
+          type: SIMPLE
+          key: 'net.tcp.service.perf[http,{HOST.CONN},9000]'
+          delay: 15s
+          history: 7d
+          value_type: FLOAT
+          units: 's'
+          description: 'Tempo de resposta da porta 9000. Excelente para medir a degradacao e gargalos durante os testes de estresse no Grafana.'
+          tags:
+            - tag: Application
+              value: 'Billing API'
+          triggers:
+            - uuid: a9b0c1d2e3f445a6b7c8d9e0f1a2b3c4
+              expression: 'min(/Template SOA Billing API e Autoscaling/net.tcp.service.perf[http,{HOST.CONN},9000],3m)>1.5'
+              name: 'Billing API: Alta Latência Detectada (> 1.5s)'
+              priority: WARNING
+              description: 'O Nginx esta demorando muito para responder. Sinal de saturacao de sockets ou CPU.'
+
+        # 4. Autoscaling: Active Replicas
+        - uuid: b0c1d2e3f4a546b7c8d9e0f1a2b3c4d5
+          name: 'Autoscaler: Réplicas Ativas (Containers)'
+          type: ZABBIX_AGENT
+          key: soa.billing.replicas
+          delay: 15s
+          history: 7d
+          value_type: UNSIGNED
+          description: 'Quantidade de containers do backend ativos no momento. Lida localmente via UserParameter.'
+          tags:
+            - tag: Application
+              value: 'Autoscaling'
+          triggers:
+            - uuid: c1d2e3f4a5b647c8d9e0f1a2b3c4d5e6
+              expression: 'last(/Template SOA Billing API e Autoscaling/soa.billing.replicas)>=15'
+              name: 'Autoscaler: Capacidade Máxima Atingida (15 Réplicas)'
+              priority: HIGH
+              description: 'O script de autoscaling alocou todas as maquinas disponiveis. A aplicacao atingiu seu limite horizontal.'
+            - uuid: d2e3f4a5b6c748d9e0f1a2b3c4d5e6f7
+              expression: 'last(/Template SOA Billing API e Autoscaling/soa.billing.replicas)>3 and last(/Template SOA Billing API e Autoscaling/soa.billing.replicas)<15'
+              name: 'Autoscaler: Escalonamento Dinâmico em Ação (Scale UP)'
+              priority: INFO
+              description: 'O sistema detectou estresse e adicionou novos containers à frota.'
+
+        # 5. Average CPU
+        - uuid: e3f4a5b6c7d849e0f1a2b3c4d5e6f7a8
+          name: 'Billing API: Uso Médio de CPU (Docker)'
+          type: ZABBIX_AGENT
+          key: soa.billing.cpu.avg
+          delay: 15s
+          history: 7d
+          value_type: FLOAT
+          units: '%'
+          description: 'Media agregada de CPU consumida pelas replicas da API.'
+          tags:
+            - tag: Application
+              value: 'Billing API'
+          triggers:
+            - uuid: f4a5b6c7d8e950f1a2b3c4d5e6f7a8b9
+              expression: 'min(/Template SOA Billing API e Autoscaling/soa.billing.cpu.avg,2m)>80'
+              name: 'Billing API: CPU Média dos Containers Crítica (> 80%)'
+              priority: HIGH
+              description: 'A CPU media da API esta saturada. Autoscaler devera agir.'
+
+        # 6. Autoscaler Service Status
+        - uuid: a5b6c7d8e9f051a2b3c4d5e6f7a8b9c0
+          name: 'Autoscaler: Status do Processo (Systemd)'
+          type: ZABBIX_AGENT
+          key: 'system.run[systemctl is-active billing_autoscale --quiet && echo 1 || echo 0]'
+          delay: 1m
+          history: 7d
+          value_type: UNSIGNED
+          valuemap:
+            name: 'Service State'
+          description: 'Verifica se o serviço de inteligencia do linux esta rodando.'
+          tags:
+            - tag: Application
+              value: 'Autoscaling'
+          triggers:
+            - uuid: b6c7d8e9f0a152b3c4d5e6f7a8b9c0d1
+              expression: 'last(/Template SOA Billing API e Autoscaling/system.run[systemctl is-active billing_autoscale --quiet && echo 1 || echo 0])=0'
+              name: 'Autoscaler: Serviço de Inteligência Parado'
+              priority: HIGH
+              description: 'O script systemd billing_autoscale nao esta em execucao.'
+
+      valuemaps:
+        - uuid: c7d8e9f0a1b253c4d5e6f7a8b9c0d1e2
+          name: 'Service State'
+          mappings:
+            - value: '0'
+              newvalue: 'Offline / Parado'
+            - value: '1'
+              newvalue: 'Online / Ativo'
