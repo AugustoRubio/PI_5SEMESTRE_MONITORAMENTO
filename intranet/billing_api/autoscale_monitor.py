@@ -60,6 +60,14 @@ def scale_service(replicas):
         )
         current_replicas = replicas
         log(f"[+] Escalonamento concluido. Total de replicas ativas: {current_replicas}")
+        
+        # Forca o Nginx a refazer a resolucao DNS e enxergar as novas maquinas
+        log("[*] Recarregando Load Balancer (Nginx) para distribuir carga...")
+        subprocess.run(
+            ["docker", "compose", "exec", "billing_lb", "nginx", "-s", "reload"],
+            capture_output=True, text=True, check=False
+        )
+
         log(f"[*] Entrando em Cooldown de {COOLDOWN_PERIOD}s para a rede estabilizar...")
         time.sleep(COOLDOWN_PERIOD)
     except subprocess.CalledProcessError as e:
