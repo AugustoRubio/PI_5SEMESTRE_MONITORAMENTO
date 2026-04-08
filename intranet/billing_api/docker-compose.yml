@@ -6,11 +6,13 @@ services:
     # Escabilidade Horizontal: Subimos 3 instâncias desse microsserviço
     deploy:
       replicas: 3
+    restart: unless-stopped
     networks:
       - billing_net
 
   billing_lb:
     image: nginx:alpine
+    restart: unless-stopped
     ports:
       - "9000:80"
     volumes:
