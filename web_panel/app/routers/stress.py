@@ -204,8 +204,8 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
             stress_status["is_running"] = False
             return
 
-        # Garante que o curl, jq e tzdata estão instalados no container para fuso horário correto
-        await run_docker_cli(["exec", "soa_stress_pi", "apk", "add", "--no-cache", "curl", "jq", "tzdata"])
+        # Garante a instalacao das dependencias (aguarda o lock do gerenciador caso o container tenha recem iniciado)
+        await run_docker_cli(["exec", "soa_stress_pi", "sh", "-c", "while ps | grep '[a]pk'; do sleep 1; done; apk add --no-cache curl jq tzdata"])
         
         # Script bash com Pré-Sincronismo e formatação cronológica exata
         script = f"""
@@ -214,7 +214,7 @@ TIME_STR=$(date +'%H:%M:%S')
 echo "[$TIME_STR] [*] Iniciando Bot de Estresse SOA..." > /tmp/stress.log
 echo "[$TIME_STR] [*] Realizando pre-sincronismo com a API SOA..." >> /tmp/stress.log
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{{http_code}}" -m 10 {base_url}/status || echo "TIMEOUT_OU_RECUSADO")
+HTTP_CODE=$(curl -4 -k -L -s -o /dev/null -w "%{{http_code}}" -m 15 {base_url}/status)
 if [ "$HTTP_CODE" != "200" ]; then
     TIME_STR=$(date +'%H:%M:%S')
     echo "[$TIME_STR] [-] Falha no Pre-Sincronismo: Nginx Inacessivel ($HTTP_CODE). Reinicie os dockers na Intranet!" >> /tmp/stress.log
@@ -239,10 +239,10 @@ echo "[$TIME_STR] [+] Carga disparada! 500 conexoes simultaneas ativas." >> /tmp
 while true; do
     CHECK_ID=$(( ( RANDOM % 500 ) + 1 ))
     CHECK_URL="{base_url}/invoices/$CHECK_ID"
-    HTTP_CODE=$(curl -s -m 3 -o /dev/null -w "%{{http_code}}" $CHECK_URL || echo "ERR")
+    HTTP_CODE=$(curl -4 -k -L -s -m 5 -o /dev/null -w "%{{http_code}}" $CHECK_URL)
     TIME_STR=$(date +'%H:%M:%S')
     echo "[$TIME_STR] [>] Acessando: $CHECK_URL" >> /tmp/stress.log
-    if [ "$HTTP_CODE" = "ERR" ] || [ "$HTTP_CODE" = "000" ]; then
+    if [ "$HTTP_CODE" = "000" ]; then
         echo "[$TIME_STR] [+] Resposta HTTP: ERR | Nginx Sobrecarregado (Trafego dropado!)" >> /tmp/stress.log
     else
         echo "[$TIME_STR] [>] Resposta HTTP: $HTTP_CODE | Mantendo estresse no backend..." >> /tmp/stress.log
