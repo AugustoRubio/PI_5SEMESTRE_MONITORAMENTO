@@ -238,17 +238,20 @@ HTTP_CODE=$(curl -4 -k -L -s -o /dev/null -w "%{{http_code}}" -m 15 {base_url}/s
 if [ "$HTTP_CODE" != "200" ]; then
     TIME_STR=$(date +'%H:%M:%S')
     echo "[$TIME_STR] [-] Falha no Pre-Sincronismo: Nginx Inacessivel ($HTTP_CODE)" >> /tmp/stress.log
-    echo "[$TIME_STR] [!] DIAGNOSTICO DE REDE:" >> /tmp/stress.log
-    echo "--- IP ADDR ---" >> /tmp/stress.log
-    ip addr show | grep 'inet ' >> /tmp/stress.log
+    echo "[$TIME_STR] [!] DIAGNOSTICO DE REDE NO CAMINHO ALTERNATIVO:" >> /tmp/stress.log
+    echo "--- PING TEST ---" >> /tmp/stress.log
+    TARGET_HOST=$(echo {base_url} | cut -d/ -f3 | cut -d: -f1)
+    ping -c 4 -W 2 $TARGET_HOST >> /tmp/stress.log 2>&1
+    echo "--- CURL DETALHADO (Verbose) ---" >> /tmp/stress.log
+    curl -4 -k -v -m 5 {base_url}/status >> /tmp/stress.log 2>&1
     echo "--- IP ROUTE ---" >> /tmp/stress.log
     ip route >> /tmp/stress.log
-    echo "--- TESTE CONEXAO (Porta) ---" >> /tmp/stress.log
-    # Tenta extrair host e porta para o nc
-    TARGET_HOST=$(echo {base_url} | cut -d/ -f3 | cut -d: -f1)
+    echo "--- TESTE DE PORTA TCP ---" >> /tmp/stress.log
     TARGET_PORT=$(echo {base_url} | cut -d/ -f3 | cut -d: -f2)
     [ -z "$TARGET_PORT" ] && TARGET_PORT=80
     nc -zv -w 5 $TARGET_HOST $TARGET_PORT >> /tmp/stress.log 2>&1
+    echo "[!] DIAGNOSTICO CONCLUIDO. VERIFIQUE ACLs OU MTU DO ROTEADOR." >> /tmp/stress.log
+    echo "ABORTANDO_FALHA_CRITICA" >> /tmp/stress.log
     exit 1
 fi
 
@@ -316,8 +319,9 @@ done
                         add_stress_log(line)
                     last_line_read = len(lines)
                     
-                    if any("Falha no Pre-Sincronismo" in line for line in new_lines):
+                    if any("ABORTANDO_FALHA_CRITICA" in line for line in new_lines):
                         stress_status["is_running"] = False
+                        add_stress_log("[-] Orquestração interrompida devido a bloqueios de rede.")
                         break
             return
         
