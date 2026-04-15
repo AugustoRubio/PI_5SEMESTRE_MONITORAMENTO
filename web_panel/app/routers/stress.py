@@ -86,8 +86,8 @@ def add_stress_log(msg: str, is_raw: bool = False):
         if len(stress_status["logs"]) > 150:
             stress_status["logs"].pop(0)
 
-async def run_docker_command(args: str, env=None):
-    """Executa um comando docker compose tentando v2 e v1 como fallback."""
+async def run_docker_command(args: str, env=None, timeout=60):
+    """Executa um comando docker compose com timeout e fallback."""
     global DOCKER_COMPOSE_EXEC
     
     # IMPORTANTE: Sempre manter as variáveis de sistema (PATH, etc) no ambiente de execução
@@ -109,7 +109,14 @@ async def run_docker_command(args: str, env=None):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            stdout, stderr = await proc.communicate()
+            try:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+            except asyncio.TimeoutError:
+                try:
+                    proc.kill()
+                except:
+                    pass
+                return 1, "", f"Erro: Comando '{args}' excedeu o timeout de {timeout}s"
             
             err_msg = stderr.decode('utf-8', errors='ignore')
             if proc.returncode != 0 and ("not found" in err_msg or "not recognized" in err_msg):
@@ -147,7 +154,7 @@ async def run_docker_command(args: str, env=None):
             
     return 1, "", f"Erro: Nenhum executável docker encontrado. {last_error}"
 
-async def run_docker_cli(args_list):
+async def run_docker_cli(args_list, timeout=45):
     """Executa comandos base do docker (não compose) de forma segura tentando múltiplos paths."""
     for base_cmd in ["docker", "/usr/bin/docker", "/usr/local/bin/docker"]:
         try:
@@ -156,8 +163,15 @@ async def run_docker_cli(args_list):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            stdout, stderr = await proc.communicate()
-            return proc.returncode, stdout.decode(errors='ignore').strip(), stderr.decode(errors='ignore').strip()
+            try:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+                return proc.returncode, stdout.decode(errors='ignore').strip(), stderr.decode(errors='ignore').strip()
+            except asyncio.TimeoutError:
+                try:
+                    proc.kill()
+                except:
+                    pass
+                return 1, "", f"Erro: Docker {args_list[0]} excedeu timeout de {timeout}s"
         except FileNotFoundError:
             continue
         except Exception as e:
@@ -165,17 +179,20 @@ async def run_docker_cli(args_list):
     return 1, "", "Comando docker não encontrado no PATH."
 
 async def stop_docker_botnet():
-    """Tenta derrubar a botnet."""
+    """Tenta derrubar a botnet de forma resiliente."""
     try:
         add_stress_log("[-] Finalizando containers e limpando rede...")
-        returncode, stdout, stderr = await run_docker_command("down")
+        # Timeout curto para o down, se falhar ou demorar, seguimos para o restart forçado
+        returncode, stdout, stderr = await run_docker_command("down", timeout=30)
         if returncode == 0:
-            add_stress_log("[+] Ambiente Docker limpo com sucesso.")
+            add_stress_log("[+] Ambiente Botnet (Compose) limpo.")
         else:
-            add_stress_log(f"[-] Aviso ao limpar ambiente (Código {returncode}).")
+            add_stress_log(f"[-] Aviso ao limpar ambiente Compose (Pode estar offline).")
             
-        # Garante que o ataque SOA seja encerrado de imediato e o container volte ao estado limpo
-        await run_docker_cli(["restart", "soa_stress_pi"])
+        # Garante que o ataque SOA seja encerrado de imediato
+        add_stress_log("[*] Resetando container de ataque SOA (soa_stress_pi)...")
+        await run_docker_cli(["restart", "soa_stress_pi"], timeout=20)
+        add_stress_log("[+] Container SOA resetado.")
     except Exception as e:
         add_stress_log(f"[-] Exceção ao derrubar: {e}")
 
@@ -185,39 +202,53 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
     """
     global stress_status
     
-    # 1. Limpar ambiente anterior
-    await stop_docker_botnet()
-    await asyncio.sleep(2) # Aguarda a rede do container soa_stress_pi se restabelecer após o restart
+    try:
+        # 1. Limpar ambiente anterior
+        await stop_docker_botnet()
+        await asyncio.sleep(2) # Aguarda a rede do container soa_stress_pi se restabelecer após o restart
 
-    # --- Lógica Exclusiva para o SOA Flood (Apache Bench Centralizado) ---
-    if preset_name == "soa_flood":
-        base_url = config.target_url.rstrip('/')
-        
-        # Força o uso de HTTP. O ab tem problemas nativos com certificados self-signed HTTPS em certas distros Alpine.
-        if base_url.startswith("https://"):
-            base_url = base_url.replace("https://", "http://", 1)
+        # --- Lógica Exclusiva para o SOA Flood (Apache Bench Centralizado) ---
+        if preset_name == "soa_flood":
+            base_url = config.target_url.rstrip('/')
             
-        # Garante que o container esteja ligado (caso o usuário não tenha ligado o Docker Manager)
-        rc, out, err = await run_docker_cli(["start", "soa_stress_pi"])
-        if rc != 0:
-            stress_status["logs"] = [f"[-] Erro ao ligar bot soa_stress_pi: {err}"]
-            stress_status["is_running"] = False
-            return
+            # Força o uso de HTTP. O ab tem problemas nativos com certificados self-signed HTTPS em certas distros Alpine.
+            if base_url.startswith("https://"):
+                base_url = base_url.replace("https://", "http://", 1)
+                
+            # Garante que o container esteja ligado (caso o usuário não tenha ligado o Docker Manager)
+            rc, out, err = await run_docker_cli(["start", "soa_stress_pi"])
+            if rc != 0:
+                add_stress_log(f"[-] Erro ao ligar bot soa_stress_pi: {err}")
+                stress_status["is_running"] = False
+                return
 
-        # Garante a instalacao das dependencias (aguarda o lock do gerenciador caso o container tenha recem iniciado)
-        await run_docker_cli(["exec", "soa_stress_pi", "sh", "-c", "while ps | grep '[a]pk'; do sleep 1; done; apk add --no-cache curl jq tzdata"])
-        
-        # Script bash com Pré-Sincronismo e formatação cronológica exata
-        script = f"""
+            # Garante a instalacao das dependencias (aguarda o lock do gerenciador caso o container tenha recem iniciado)
+            add_stress_log("[*] Validando dependências no bot de ataque...")
+            await run_docker_cli(["exec", "soa_stress_pi", "sh", "-c", "timeout 30s sh -c \"while ps | grep '[a]pk' | grep -v grep; do sleep 1; done\" && apk add --no-cache curl jq tzdata apache2-utils"], timeout=45)
+            
+            # Script bash com Pré-Sincronismo e formatação cronológica exata + DIAGNÓSTICOS
+            script = f"""
 export TZ="BRT3"
 TIME_STR=$(date +'%H:%M:%S')
 echo "[$TIME_STR] [*] Iniciando Bot de Estresse SOA..." > /tmp/stress.log
+echo "[$TIME_STR] [*] Alvo: {base_url}" >> /tmp/stress.log
 echo "[$TIME_STR] [*] Realizando pre-sincronismo com a API SOA..." >> /tmp/stress.log
 
 HTTP_CODE=$(curl -4 -k -L -s -o /dev/null -w "%{{http_code}}" -m 15 {base_url}/status)
 if [ "$HTTP_CODE" != "200" ]; then
     TIME_STR=$(date +'%H:%M:%S')
-    echo "[$TIME_STR] [-] Falha no Pre-Sincronismo: Nginx Inacessivel ($HTTP_CODE). Reinicie os dockers na Intranet!" >> /tmp/stress.log
+    echo "[$TIME_STR] [-] Falha no Pre-Sincronismo: Nginx Inacessivel ($HTTP_CODE)" >> /tmp/stress.log
+    echo "[$TIME_STR] [!] DIAGNOSTICO DE REDE:" >> /tmp/stress.log
+    echo "--- IP ADDR ---" >> /tmp/stress.log
+    ip addr show | grep 'inet ' >> /tmp/stress.log
+    echo "--- IP ROUTE ---" >> /tmp/stress.log
+    ip route >> /tmp/stress.log
+    echo "--- TESTE CONEXAO (Porta) ---" >> /tmp/stress.log
+    # Tenta extrair host e porta para o nc
+    TARGET_HOST=$(echo {base_url} | cut -d/ -f3 | cut -d: -f1)
+    TARGET_PORT=$(echo {base_url} | cut -d/ -f3 | cut -d: -f2)
+    [ -z "$TARGET_PORT" ] && TARGET_PORT=80
+    nc -zv -w 5 $TARGET_HOST $TARGET_PORT >> /tmp/stress.log 2>&1
     exit 1
 fi
 
@@ -237,6 +268,10 @@ TIME_STR=$(date +'%H:%M:%S')
 echo "[$TIME_STR] [+] Carga disparada! 500 conexoes simultaneas ativas." >> /tmp/stress.log
 
 while true; do
+    if ! pgrep ab > /dev/null; then
+        echo "[$(date +'%H:%M:%S')] [-] Processo 'ab' morreu. Reiniciando..." >> /tmp/stress.log
+        ab -r -n 500000 -c 500 $TARGET_URL > /tmp/ab.log 2>&1 &
+    fi
     CHECK_ID=$(( ( RANDOM % 500 ) + 1 ))
     CHECK_URL="{base_url}/invoices/$CHECK_ID"
     HTTP_CODE=$(curl -4 -k -L -s -m 5 -o /dev/null -w "%{{http_code}}" $CHECK_URL)
@@ -247,22 +282,21 @@ while true; do
     else
         echo "[$TIME_STR] [>] Resposta HTTP: $HTTP_CODE | Mantendo estresse no backend..." >> /tmp/stress.log
     fi
-    sleep 2
+    sleep 3
 done
         """
         
-        rc, out, err = await run_docker_cli(["exec", "-d", "soa_stress_pi", "sh", "-c", script])
-        
-        if rc != 0:
-            stress_status["logs"] = [f"[-] Falha ao executar script de estresse: {err}"]
-            stress_status["is_running"] = False
-            return
-        
-        duration = preset_config["duration"]
-        end_time = time.time() + duration
-        last_line_read = 0
-        
-        try:
+            rc, out, err = await run_docker_cli(["exec", "-d", "soa_stress_pi", "sh", "-c", script])
+            
+            if rc != 0:
+                add_stress_log(f"[-] Falha ao executar script de estresse: {err}")
+                stress_status["is_running"] = False
+                return
+            
+            duration = preset_config["duration"]
+            end_time = time.time() + duration
+            last_line_read = 0
+            
             while time.time() < end_time and stress_status["is_running"]:
                 for _ in range(3):
                     if not stress_status["is_running"]: break
@@ -274,7 +308,7 @@ done
                 stress_status["requests_sent"] += random.randint(1500, 3000)
                 
                 # Busca os logs reais gerados pelo script em bash de forma incremental para manter o historico
-                rc_logs, stdout_logs, _ = await run_docker_cli(["exec", "soa_stress_pi", "cat", "/tmp/stress.log"])
+                rc_logs, stdout_logs, _ = await run_docker_cli(["exec", "soa_stress_pi", "cat", "/tmp/stress.log"], timeout=10)
                 if rc_logs == 0 and stdout_logs:
                     lines = [line.strip() for line in stdout_logs.strip().split('\n') if line.strip()]
                     new_lines = lines[last_line_read:]
@@ -285,37 +319,32 @@ done
                     if any("Falha no Pre-Sincronismo" in line for line in new_lines):
                         stress_status["is_running"] = False
                         break
-        finally:
-            await stop_docker_botnet()
-            add_stress_log("[-] Simulação interrompida. Conexões encerradas.")
-            stress_status["is_running"] = False
-        return
-    
-    # 2. Preparar ambiente do Docker
-    env_vars = {
-        "TARGET_URL": str(config.target_url),
-        "DB_HOST": str(config.db_host),
-        "DB_PORT": str(config.db_port),
-        "DB_USER": str(config.db_user),
-        "DB_PASS": str(config.db_pass),
-        "DB_NAME": str(config.db_name)
-    }
-
-    add_stress_log("[*] Subindo containers (Escalando botnet)...")
-    
-    # Comando rápido (sem --build) para resposta imediata
-    args_up = f"up -d --scale {preset_config['service']}={preset_config['scale']}"
-    returncode, stdout_up, stderr_up = await run_docker_command(args_up, env=env_vars)
-    
-    if returncode == 0:
-        add_stress_log(f"[+] Botnet ativa! {preset_config['scale']} agentes em combate.")
+            return
         
-        # 3. Iniciar monitoramento
-        duration = preset_config["duration"]
-        end_time = time.time() + duration
-        last_log_check = 0
+        # 2. Preparar ambiente do Docker
+        env_vars = {
+            "TARGET_URL": str(config.target_url),
+            "DB_HOST": str(config.db_host),
+            "DB_PORT": str(config.db_port),
+            "DB_USER": str(config.db_user),
+            "DB_PASS": str(config.db_pass),
+            "DB_NAME": str(config.db_name)
+        }
+
+        add_stress_log("[*] Subindo containers (Escalando botnet)...")
+        
+        # Comando rápido (sem --build) para resposta imediata
+        args_up = f"up -d --scale {preset_config['service']}={preset_config['scale']}"
+        returncode, stdout_up, stderr_up = await run_docker_command(args_up, env=env_vars, timeout=90)
+        
+        if returncode == 0:
+            add_stress_log(f"[+] Botnet ativa! {preset_config['scale']} agentes em combate.")
             
-        try:
+            # 3. Iniciar monitoramento
+            duration = preset_config["duration"]
+            end_time = time.time() + duration
+            last_log_check = 0
+                
             while time.time() < end_time and stress_status["is_running"]:
                 for _ in range(3):
                     if not stress_status["is_running"]: break
@@ -332,7 +361,7 @@ done
                     last_log_check = current_time
                     try:
                         # Pega uma amostra de logs do bot ativo
-                        rc_logs, stdout_logs, _ = await run_docker_command(f"logs --tail=3 {preset_config['service']}")
+                        rc_logs, stdout_logs, _ = await run_docker_command(f"logs --tail=3 {preset_config['service']}", timeout=10)
                         if stdout_logs:
                             for line in stdout_logs.strip().split('\n'):
                                 clean_line = line.strip()
@@ -342,17 +371,18 @@ done
                                 if clean_line: add_stress_log(f"[>] {clean_line}")
                         add_stress_log(f"[*] Status do Cluster: {preset_config['scale']} bots atacando.")
                     except: pass
-        finally:
-            if stress_status["is_running"]:
-                add_stress_log("[*] Tempo de execução atingido.")
-            else:
-                add_stress_log("[-] Interrupção manual solicitada.")
-            await stop_docker_botnet()
+        else:
             stress_status["is_running"] = False
-            add_stress_log("[*] Teste de estresse concluído.")
-    else:
+            add_stress_log(f"[-] Falha crítica ao subir Docker: {stderr_up}")
+    except Exception as e:
+        add_stress_log(f"[-] Erro inesperado na orquestração: {e}")
         stress_status["is_running"] = False
-        add_stress_log("[-] Falha crítica ao subir Docker.")
+    finally:
+        add_stress_log("[*] Iniciando limpeza de segurança...")
+        stress_status["is_running"] = False
+        await stop_docker_botnet()
+        add_stress_log("[*] Teste encerrado e ambiente limpo.")
+
 
 @router.get("/status")
 async def get_stress_status(current_user: dict = Depends(get_current_user)):
