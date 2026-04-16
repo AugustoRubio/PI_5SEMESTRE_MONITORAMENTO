@@ -1,13 +1,20 @@
 #!/bin/bash
-# Script de instalação e configuração da Intranet para Ubuntu 24.04 (Sem Docker)
+# Script de instalação e configuração da Intranet para Ubuntu (Sem Docker)
 # Este script deve ser executado no servidor Ubuntu.
 
-echo "Iniciando configuração da Intranet no Ubuntu 24.04..."
+set -e
+
+echo "Iniciando configuração da Intranet no Ubuntu..."
 
 # 1. Instalar dependências do sistema
 echo "Instalando dependências..."
 sudo apt update
-sudo apt install -y python3 python3-venv python3-pip mariadb-server nginx
+sudo apt install -y python3 python3-venv python3-pip mariadb-server nginx php-fpm php-mysql
+
+# Identificar a versão do PHP instalada para configurar o socket corretamente
+PHP_VERSION=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
+PHP_SOCK="/var/run/php/php$PHP_VERSION-fpm.sock"
+echo "Detectada versão do PHP: $PHP_VERSION. Socket: $PHP_SOCK"
 
 # 2. Configurar o MariaDB
 echo "Configurando o MariaDB..."
@@ -28,29 +35,40 @@ cd web
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+
+# Cria o arquivo .env se não existir
+if [ ! -f .env ]; then
+    echo "Criando arquivo .env a partir do .env.example..."
+    cp .env.example .env
+fi
+
+# Executa migrações do banco
+echo "Executando migrações do banco de dados..."
+python migrate_db.py
 cd ..
 
 # 4. Configurar o Firewall (UFW)
 echo "Configurando o Firewall (UFW)..."
 sudo ufw allow 'Nginx Full' # Permite tráfego HTTP e HTTPS
-sudo ufw allow 8000/tcp # Porta da aplicação para troubleshooting
-sudo ufw enable # Habilita o firewall (pode pedir confirmação)
 sudo ufw status
 
-# 5. Configurar o Nginx
-echo "Configurando o Nginx..."
+# 5. Configurar o Nginx e Certificados
+echo "Configurando o Nginx e Certificados..."
 
 # Cria o diretório para os certificados SSL e copia os certificados
 echo "Copiando certificados SSL..."
 sudo mkdir -p /etc/nginx/ssl
-# O script espera que os certificados estejam em ../certs relativo ao script
 sudo cp certs/cert.pem /etc/nginx/ssl/cert.pem
 sudo cp certs/key.pem /etc/nginx/ssl/key.pem
 
-# Copia a configuração do Nginx
+# Copia a configuração do Nginx ajustando o socket do PHP
 echo "Aplicando configuração do Nginx..."
-# O caminho para a conf do nginx deve ser relativo ao local de execução do script
-sudo cp nginx/default.conf /etc/nginx/sites-available/intranet
+cp nginx/default.conf nginx/default.conf.tmp
+sed -i "s|fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;|fastcgi_pass unix:$PHP_SOCK;|" nginx/default.conf.tmp
+
+sudo cp nginx/default.conf.tmp /etc/nginx/sites-available/intranet
+rm nginx/default.conf.tmp
+
 # Cria o link simbólico para ativar o site
 sudo ln -sf /etc/nginx/sites-available/intranet /etc/nginx/sites-enabled/
 # Remove o site padrão do Nginx para evitar conflitos
@@ -65,7 +83,6 @@ sudo nginx -t && sudo systemctl restart nginx
 echo "Criando serviço systemd para a Intranet..."
 
 # Obtém o diretório absoluto de onde o script está sendo executado
-# Importante: Execute este script a partir do diretório 'intranet'
 INTRANET_DIR=$(pwd)
 WEB_DIR="$INTRANET_DIR/web"
 
@@ -82,6 +99,7 @@ Environment="PATH=$WEB_DIR/venv/bin"
 # O arquivo .env deve estar em web/
 EnvironmentFile=-$WEB_DIR/.env
 ExecStart=$WEB_DIR/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 75
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
@@ -93,10 +111,6 @@ sudo systemctl start intranet.service
 
 echo "------------------------------------------------------------------"
 echo "Configuração concluída!"
-echo "A intranet deve estar rodando na porta 80 (HTTP) e 443 (HTTPS) via Nginx."
-echo ""
-echo "LEMBRE-SE:"
-echo "1. Crie o arquivo .env na pasta 'intranet/web/' baseado no 'intranet/web/.env.example'."
-echo "2. Atualize o .env com as credenciais corretas do banco de dados."
-echo "3. Certifique-se que os certificados SSL ('cert.pem', 'key.pem') estão no diretório 'intranet/certs/'."
+echo "A intranet deve estar rodando em HTTPS (porta 443) via Nginx."
+echo "Nota: O PHP-FPM foi configurado para a versão $PHP_VERSION."
 echo "------------------------------------------------------------------"
