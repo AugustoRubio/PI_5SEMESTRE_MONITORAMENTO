@@ -33,7 +33,7 @@ echo "Configurando o ambiente Python..."
 cd web
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install --upgrade -r requirements.txt
 
 # Cria o arquivo .env se não existir
 if [ ! -f .env ]; then
@@ -93,7 +93,7 @@ EOF
 
 sudo systemctl daemon-reload
 sudo systemctl enable intranet.service
-sudo systemctl start intranet.service
+sudo systemctl restart intranet.service
 
 echo "Configuração concluída! A intranet deve estar rodando em HTTPS (porta 443) via Nginx."
 echo "Nota: O PHP-FPM foi configurado para a versão $PHP_VERSION para suportar o phpMyAdmin."

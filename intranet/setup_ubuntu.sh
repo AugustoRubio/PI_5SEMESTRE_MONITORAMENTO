@@ -34,7 +34,7 @@ echo "Configurando o ambiente Python..."
 cd web
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install --upgrade -r requirements.txt
 
 # Cria o arquivo .env se não existir
 if [ ! -f .env ]; then
@@ -107,7 +107,7 @@ EOF
 
 sudo systemctl daemon-reload
 sudo systemctl enable intranet.service
-sudo systemctl start intranet.service
+sudo systemctl restart intranet.service
 
 echo "------------------------------------------------------------------"
 echo "Configuração concluída!"
