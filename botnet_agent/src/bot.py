@@ -10,7 +10,7 @@ import aiomysql
 DB_HOST = os.getenv('DB_HOST', '10.10.100.4')
 DB_PORT = int(os.getenv('DB_PORT', '3306'))
 DB_USER = os.getenv('DB_USER', 'intranet_user')
-DB_PASS = os.getenv('DB_PASS', 'bcd127')
+DB_PASS = os.getenv('DB_PASS', 'intranet_pass')
 DB_NAME = os.getenv('DB_NAME', 'intranet_db')
 
 async def get_random_user(pool, role):

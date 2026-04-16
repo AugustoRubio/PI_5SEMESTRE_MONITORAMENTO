@@ -14,6 +14,13 @@ echo "Configurando o MariaDB..."
 sudo systemctl start mariadb
 sudo systemctl enable mariadb
 
+# Permitir conexões remotas no MariaDB (AlmaLinux)
+# No AlmaLinux, o arquivo de configuração costuma ser /etc/my.cnf.d/mariadb-server.cnf
+if [ -f /etc/my.cnf.d/mariadb-server.cnf ]; then
+    sudo sed -i '/\[mysqld\]/a bind-address=0.0.0.0' /etc/my.cnf.d/mariadb-server.cnf
+    sudo systemctl restart mariadb
+fi
+
 # Aguarda o MariaDB iniciar completamente
 sleep 3
 
@@ -21,9 +28,9 @@ sleep 3
 # ATENÇÃO: Em produção, altere a senha 'intranet_pass'
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS intranet_db;"
 sudo mysql -e "CREATE USER IF NOT EXISTS 'intranet_user'@'localhost' IDENTIFIED BY 'intranet_pass';"
-sudo mysql -e "CREATE USER IF NOT EXISTS 'intranet_user'@'127.0.0.1' IDENTIFIED BY 'intranet_pass';"
+sudo mysql -e "CREATE USER IF NOT EXISTS 'intranet_user'@'%' IDENTIFIED BY 'intranet_pass';"
 sudo mysql -e "GRANT ALL PRIVILEGES ON intranet_db.* TO 'intranet_user'@'localhost';"
-sudo mysql -e "GRANT ALL PRIVILEGES ON intranet_db.* TO 'intranet_user'@'127.0.0.1';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON intranet_db.* TO 'intranet_user'@'%';"
 sudo mysql -e "FLUSH PRIVILEGES;"
 
 # 3. Configurar o ambiente Python

@@ -54,7 +54,7 @@ html_content = r'''{% extends "base.html" %}
                         </div>
                         <div class="col">
                             <label class="form-label fw-bold">DB Pass</label>
-                            <input type="password" class="form-control" id="dbPass" value="bcd127">
+                            <input type="password" class="form-control" id="dbPass" value="intranet_pass">
                         </div>
                     </div>
                     <div class="mb-3 row">

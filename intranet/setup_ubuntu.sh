@@ -21,11 +21,17 @@ echo "Configurando o MariaDB..."
 sudo systemctl start mariadb
 sudo systemctl enable mariadb
 
+# Permitir conexões remotas no MariaDB
+sudo sed -i 's/bind-address            = 127.0.0.1/bind-address            = 0.0.0.0/' /etc/mysql/mariadb.conf.d/50-server.cnf
+sudo systemctl restart mariadb
+
 # Cria o banco de dados e o usuário (se não existirem)
 # ATENÇÃO: Em produção, altere a senha 'intranet_pass'
 sudo mysql -e "CREATE DATABASE IF NOT EXISTS intranet_db;"
 sudo mysql -e "CREATE USER IF NOT EXISTS 'intranet_user'@'localhost' IDENTIFIED BY 'intranet_pass';"
+sudo mysql -e "CREATE USER IF NOT EXISTS 'intranet_user'@'%' IDENTIFIED BY 'intranet_pass';"
 sudo mysql -e "GRANT ALL PRIVILEGES ON intranet_db.* TO 'intranet_user'@'localhost';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON intranet_db.* TO 'intranet_user'@'%';"
 sudo mysql -e "FLUSH PRIVILEGES;"
 
 # 3. Configurar o ambiente Python

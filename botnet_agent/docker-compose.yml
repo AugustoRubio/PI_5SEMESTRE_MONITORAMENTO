@@ -7,7 +7,7 @@
       - DB_HOST=${DB_HOST:-10.10.100.4}
       - DB_PORT=${DB_PORT:-3306}
       - DB_USER=${DB_USER:-intranet_user}
-      - DB_PASS=${DB_PASS:-bcd127}
+      - DB_PASS=${DB_PASS:-intranet_pass}
       - DB_NAME=${DB_NAME:-intranet_db}
     networks:
       - lab_bridge
@@ -20,7 +20,7 @@
       - DB_HOST=${DB_HOST:-10.10.100.4}
       - DB_PORT=${DB_PORT:-3306}
       - DB_USER=${DB_USER:-intranet_user}
-      - DB_PASS=${DB_PASS:-bcd127}
+      - DB_PASS=${DB_PASS:-intranet_pass}
       - DB_NAME=${DB_NAME:-intranet_db}
     networks:
       - lab_bridge
