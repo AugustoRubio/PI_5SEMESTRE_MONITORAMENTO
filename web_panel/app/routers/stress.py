@@ -20,7 +20,7 @@ class StressConfig(BaseModel):
     db_host: str = "10.10.100.4"
     db_port: int = 3306
     db_user: str = "intranet_user"
-    db_pass: str = "bcd127"
+    db_pass: str = "intranet_pass"
     db_name: str = "intranet_db"
 
 # Caminho absoluto montado a partir de app/routers -> web_panel -> raiz.
