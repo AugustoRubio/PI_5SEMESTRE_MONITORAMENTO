@@ -50,7 +50,8 @@ async def perform_simulation(config: SimConfig):
             db=config.db_name,
             port=config.db_port,
             autocommit=True,
-            minsize=1, maxsize=10
+            minsize=1, maxsize=10,
+            connect_timeout=5
         )
     except Exception as e:
         simulation_status["is_running"] = False

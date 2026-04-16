@@ -59,6 +59,7 @@ echo "Configurando o Firewall..."
 sudo firewall-cmd --permanent --add-service=http
 sudo firewall-cmd --permanent --add-service=https
 sudo firewall-cmd --permanent --add-port=8000/tcp
+sudo firewall-cmd --permanent --add-port=3306/tcp
 sudo firewall-cmd --reload
 
 # 6. Criar serviço Systemd para a aplicação FastAPI

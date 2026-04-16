@@ -56,6 +56,7 @@ cd ..
 # 4. Configurar o Firewall (UFW)
 echo "Configurando o Firewall (UFW)..."
 sudo ufw allow 'Nginx Full' # Permite tráfego HTTP e HTTPS
+sudo ufw allow 3306/tcp # Permite tráfego MariaDB remoto
 sudo ufw status
 
 # 5. Configurar o Nginx e Certificados
