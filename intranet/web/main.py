@@ -225,7 +225,7 @@ def security_metrics(db: Session = Depends(get_db)):
 def setup_get(request: Request):
     if DB_CONFIGURED:
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse("setup.html", {"request": request})
+    return templates.TemplateResponse("setup.html", {"request": request, "form_data": None})
 
 @app.post("/setup")
 def setup_post(request: Request, db_host: str = Form(...), db_port: str = Form(...), db_user: str = Form(...), db_pass: str = Form(...), db_name: str = Form(...)):
