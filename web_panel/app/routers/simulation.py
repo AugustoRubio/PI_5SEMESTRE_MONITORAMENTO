@@ -162,13 +162,15 @@ async def perform_simulation(config: SimConfig):
                         simulation_status["actions_performed"] += 1
                         
                 # Registra o log
-                simulation_status["logs"].insert(0, f"(Batch {actions_in_this_loop}) {log_msg}")
-                if len(simulation_status["logs"]) > 15:
+                timestamp = time.strftime('%H:%M:%S')
+                simulation_status["logs"].insert(0, f"[{timestamp}] (Batch {actions_in_this_loop}) {log_msg}")
+                if len(simulation_status["logs"]) > 1000:
                     simulation_status["logs"].pop()
                     
         except Exception as e:
-            simulation_status["logs"].insert(0, f"Falha na ação: {str(e)[:60]}")
-            if len(simulation_status["logs"]) > 15:
+            timestamp = time.strftime('%H:%M:%S')
+            simulation_status["logs"].insert(0, f"[{timestamp}] Falha na ação: {str(e)[:60]}")
+            if len(simulation_status["logs"]) > 1000:
                 simulation_status["logs"].pop()
             
         await asyncio.sleep(delay)
