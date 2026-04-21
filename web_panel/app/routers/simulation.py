@@ -83,7 +83,7 @@ async def perform_simulation(config: SimConfig):
 
                         elif action == "create_professor":
                             name = f"{SIM_MARKER} Prof_{random_string(4)}"
-                            usr = f"sim_pr_{random_string(3)}"
+                            usr = f"sim_pr_{random_string(8)}"
                             await cursor.execute("INSERT INTO professors (username, password, name, department) VALUES (%s, '$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2', %s, 'Simulação')", (usr, name))
                             log_msg = f"Criou professor: {name}"
 
@@ -97,11 +97,11 @@ async def perform_simulation(config: SimConfig):
 
                         elif action == "edit":
                             table = random.choice(['students', 'professors', 'classes'])
-                            col_name = "username" if table == "professors" else "name"
+                            col_name = "name"
                             await cursor.execute(f"SELECT id, {col_name} FROM {table} WHERE {col_name} LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
                             result = await cursor.fetchone()
                             if result:
-                                new_name = f"{SIM_MARKER} Edit_{random_string(3)}"
+                                new_name = f"{SIM_MARKER} Edit_{random_string(4)}"
                                 await cursor.execute(f"UPDATE {table} SET {col_name} = %s WHERE id = %s", (new_name, result['id']))
                                 log_msg = f"Editou {table} ID {result['id']} -> {new_name}"
                             else:
@@ -109,15 +109,34 @@ async def perform_simulation(config: SimConfig):
 
                         elif action == "delete":
                             table = random.choice(['students', 'professors', 'classes'])
-                            col_name = "username" if table == "professors" else "name"
+                            col_name = "name"
                             await cursor.execute(f"SELECT id FROM {table} WHERE {col_name} LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
                             result = await cursor.fetchone()
                             if result:
+                                target_id = result['id']
                                 try:
-                                    await cursor.execute(f"DELETE FROM {table} WHERE id = %s", (result['id'],))
-                                    log_msg = f"Deletou de {table} ID {result['id']}"
-                                except:
-                                    log_msg = f"Ignorado erro de FK ao deletar {table} ID {result['id']}"
+                                    if table == 'students':
+                                        await cursor.execute("DELETE FROM grades WHERE student_id = %s", (target_id,))
+                                        await cursor.execute("DELETE FROM attendances WHERE student_id = %s", (target_id,))
+                                        await cursor.execute("DELETE FROM student_class WHERE student_id = %s", (target_id,))
+                                    elif table == 'classes':
+                                        await cursor.execute("DELETE FROM grades WHERE class_id = %s", (target_id,))
+                                        await cursor.execute("DELETE FROM attendances WHERE class_id = %s", (target_id,))
+                                        await cursor.execute("DELETE FROM student_class WHERE class_id = %s", (target_id,))
+                                    elif table == 'professors':
+                                        await cursor.execute("SELECT id FROM classes WHERE professor_id = %s", (target_id,))
+                                        classes_result = await cursor.fetchall()
+                                        for cls in classes_result:
+                                            cid = cls['id']
+                                            await cursor.execute("DELETE FROM grades WHERE class_id = %s", (cid,))
+                                            await cursor.execute("DELETE FROM attendances WHERE class_id = %s", (cid,))
+                                            await cursor.execute("DELETE FROM student_class WHERE class_id = %s", (cid,))
+                                            await cursor.execute("DELETE FROM classes WHERE id = %s", (cid,))
+                                            
+                                    await cursor.execute(f"DELETE FROM {table} WHERE id = %s", (target_id,))
+                                    log_msg = f"Deletou de {table} ID {target_id}"
+                                except Exception as e:
+                                    log_msg = f"Erro ao deletar {table} ID {target_id}: {str(e)}"
                             else:
                                 log_msg = f"Tentou deletar {table}, mas nada encontrado."
 
@@ -230,6 +249,14 @@ async def clear_simulated_data(config: SimConfig, current_user: dict = Depends(g
         
         async with pool.acquire() as conn:
             async with conn.cursor() as cursor:
+                # Limpa dependencias
+                await cursor.execute("DELETE FROM grades WHERE class_id IN (SELECT id FROM classes WHERE name LIKE %s)", (f"{SIM_MARKER}%",))
+                await cursor.execute("DELETE FROM attendances WHERE class_id IN (SELECT id FROM classes WHERE name LIKE %s)", (f"{SIM_MARKER}%",))
+                await cursor.execute("DELETE FROM student_class WHERE class_id IN (SELECT id FROM classes WHERE name LIKE %s)", (f"{SIM_MARKER}%",))
+                await cursor.execute("DELETE FROM grades WHERE student_id IN (SELECT id FROM students WHERE name LIKE %s)", (f"{SIM_MARKER}%",))
+                await cursor.execute("DELETE FROM attendances WHERE student_id IN (SELECT id FROM students WHERE name LIKE %s)", (f"{SIM_MARKER}%",))
+                await cursor.execute("DELETE FROM student_class WHERE student_id IN (SELECT id FROM students WHERE name LIKE %s)", (f"{SIM_MARKER}%",))
+
                 await cursor.execute("DELETE FROM classes WHERE name LIKE %s", (f"{SIM_MARKER}%",))
                 d_classes = cursor.rowcount
                 await cursor.execute("DELETE FROM professors WHERE username LIKE %s OR name LIKE %s", (f"{SIM_MARKER}%", f"{SIM_MARKER}%"))
