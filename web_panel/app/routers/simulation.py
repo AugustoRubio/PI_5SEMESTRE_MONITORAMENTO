@@ -73,11 +73,11 @@ async def perform_simulation(config: SimConfig):
                     for _ in range(batch_size):
                         if not simulation_status["is_running"]: break
                         
-                        action = random.choice(["create_student", "create_professor", "create_class", "edit", "delete", "enroll_student", "add_grade", "add_attendance"])
+                        action = random.choice(["create_student", "create_professor", "create_class", "edit", "enroll_student", "add_grade", "add_attendance"])
 
                         if action == "create_student":
                             name = f"{SIM_MARKER} Aluno_{random_string(4)}"
-                            reg = f"SIM-{random.randint(1000, 99999)}"
+                            reg = f"SIM-{random.randint(1000, 9999999)}_{random_string(4)}"
                             await cursor.execute("INSERT INTO students (name, registration, password, course) VALUES (%s, %s, '$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2', 'Simulação')", (name, reg))
                             log_msg = f"Criou aluno: {name}"
 
@@ -106,39 +106,6 @@ async def perform_simulation(config: SimConfig):
                                 log_msg = f"Editou {table} ID {result['id']} -> {new_name}"
                             else:
                                 log_msg = f"Tentou editar {table}, mas nada encontrado."
-
-                        elif action == "delete":
-                            table = random.choice(['students', 'professors', 'classes'])
-                            col_name = "name"
-                            await cursor.execute(f"SELECT id FROM {table} WHERE {col_name} LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
-                            result = await cursor.fetchone()
-                            if result:
-                                target_id = result['id']
-                                try:
-                                    if table == 'students':
-                                        await cursor.execute("DELETE FROM grades WHERE student_id = %s", (target_id,))
-                                        await cursor.execute("DELETE FROM attendances WHERE student_id = %s", (target_id,))
-                                        await cursor.execute("DELETE FROM student_class WHERE student_id = %s", (target_id,))
-                                    elif table == 'classes':
-                                        await cursor.execute("DELETE FROM grades WHERE class_id = %s", (target_id,))
-                                        await cursor.execute("DELETE FROM attendances WHERE class_id = %s", (target_id,))
-                                        await cursor.execute("DELETE FROM student_class WHERE class_id = %s", (target_id,))
-                                    elif table == 'professors':
-                                        await cursor.execute("SELECT id FROM classes WHERE professor_id = %s", (target_id,))
-                                        classes_result = await cursor.fetchall()
-                                        for cls in classes_result:
-                                            cid = cls['id']
-                                            await cursor.execute("DELETE FROM grades WHERE class_id = %s", (cid,))
-                                            await cursor.execute("DELETE FROM attendances WHERE class_id = %s", (cid,))
-                                            await cursor.execute("DELETE FROM student_class WHERE class_id = %s", (cid,))
-                                            await cursor.execute("DELETE FROM classes WHERE id = %s", (cid,))
-                                            
-                                    await cursor.execute(f"DELETE FROM {table} WHERE id = %s", (target_id,))
-                                    log_msg = f"Deletou de {table} ID {target_id}"
-                                except Exception as e:
-                                    log_msg = f"Erro ao deletar {table} ID {target_id}: {str(e)}"
-                            else:
-                                log_msg = f"Tentou deletar {table}, mas nada encontrado."
 
                         elif action == "enroll_student":
                             await cursor.execute("SELECT id FROM students WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
