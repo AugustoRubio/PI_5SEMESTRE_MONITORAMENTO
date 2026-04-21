@@ -371,6 +371,7 @@
         let activeTypes = new Set();
 
         let allLogs = [];
+        let combinedRawLogs = "";
 
         // 1. Stress Status
         try {
@@ -379,9 +380,8 @@
                 const data = await res.json();
                 isStressRunning = data.is_running;
 
-                // Atualiza Raw Logs na Modal se estiver aberta ou apenas mantém o conteúdo
                 if (data.raw_logs) {
-                    document.getElementById('rawLogsContainer').innerText = data.raw_logs;
+                    combinedRawLogs += "--- STRESS LOGS ---\n" + data.raw_logs + "\n\n";
                 }
 
                 if (isStressRunning) {
@@ -412,6 +412,11 @@
             if (res2.ok) {
                 const data2 = await res2.json();
                 isSimRunning = data2.is_running;
+
+                if (data2.logs && data2.logs.length > 0) {
+                    combinedRawLogs += "--- SIMULATION LOGS ---\n" + data2.logs.join('\n') + "\n\n";
+                }
+
                 if (isSimRunning) {
                     activeTargets.add(data2.target_host);
                     activeTypes.add('Simulação DB');
@@ -432,6 +437,10 @@
                 }
             }
         } catch(e) {}
+
+        if (combinedRawLogs) {
+            document.getElementById('rawLogsContainer').innerText = combinedRawLogs;
+        }
 
         if (allLogs.length > 0) {
             const logsContainer = document.getElementById('logsContainer');
