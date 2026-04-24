@@ -143,27 +143,6 @@ zabbix_export:
               priority: HIGH
               description: 'O script systemd billing_autoscale nao esta em execucao.'
 
-        # 7. Zabbix Active Check Ping
-        - uuid: ff58767ca93b4bbe9968efdb00b63c4f
-          name: 'Zabbix Agent: Ping (Modo Ativo)'
-          type: ZABBIX_ACTIVE
-          key: agent.ping
-          delay: 1m
-          history: 7d
-          value_type: UNSIGNED
-          valuemap:
-            name: 'Service State'
-          description: 'Verifica a conectividade do Zabbix Agent no modo ativo. O agente deve enviar dados continuamente para o servidor.'
-          tags:
-            - tag: Application
-              value: 'Zabbix Agent'
-          triggers:
-            - uuid: a0e29b317bc743fcbe75b85ac2543b9a
-              expression: 'nodata(/Template SOA Billing API e Autoscaling/agent.ping,5m)=1'
-              name: 'Zabbix Agent: Agente inalcançável no modo ativo'
-              priority: AVERAGE
-              description: 'O Zabbix Server não recebe dados ativos deste agente há pelo menos 5 minutos. Verifique o serviço, o parâmetro ServerActive e as regras de Firewall/Rede.'
-
       valuemaps:
         - uuid: c7d8e9f0a1b243c485e6f7a8b9c0d1e2
           name: 'Service State'
