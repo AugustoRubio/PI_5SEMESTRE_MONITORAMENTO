@@ -1,6 +1,13 @@
 #!/bin/bash
 # Script para configurar os parametros customizados no Zabbix Agent da Intranet
 
+wget https://repo.zabbix.com/zabbix/7.4/release/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.4+debian13_all.deb
+dpkg -i zabbix-release_latest_7.4+debian13_all.deb
+apt update 
+
+apt install zabbix-agent2
+apt install zabbix-agent2-plugin-mongodb zabbix-agent2-plugin-mssql zabbix-agent2-plugin-postgresql 
+
 echo "[*] Configurando UserParameters do Zabbix Agent para o Monitoramento SOA..."
 CONF_FILE="/etc/zabbix/zabbix_agent2.d/billing_api.conf"
 
