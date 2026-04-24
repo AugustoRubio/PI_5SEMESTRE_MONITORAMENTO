@@ -1,8 +1,8 @@
 #!/bin/bash
 # Script para configurar os parametros customizados no Zabbix Agent da Intranet
 
-wget https://repo.zabbix.com/zabbix/7.4/release/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.4+debian13_all.deb
-dpkg -i zabbix-release_latest_7.4+debian13_all.deb
+wget wget https://repo.zabbix.com/zabbix/7.4/release/debian/pool/main/z/zabbix-release/zabbix-release_latest_7.4+debian12_all.deb
+dpkg -i zabbix-release_latest_7.4+debian12_all.deb
 apt update 
 
 apt install zabbix-agent2
