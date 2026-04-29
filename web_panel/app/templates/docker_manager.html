@@ -3,25 +3,62 @@
 {% block content %}
 <div class="row mb-4">
     <div class="col-12">
-        <h2>Gerenciamento do Docker (Simulações)</h2>
-        <p class="text-muted">Controle o estado dos serviços Docker unificados que sustentam as simulações do ambiente (SNMP, Bruteforce e Tráfego Web).</p>
+        <h2><i class="bi bi-box"></i> Gerenciamento de Containers (Simuladores)</h2>
+        <p class="text-muted">Orquestre os serviços em background responsáveis por emular dispositivos, gerar tráfego malicioso e realizar testes de estresse SOA.</p>
     </div>
 </div>
 
 <div class="row mb-4">
-    <div class="col-12">
-        <div class="card bg-dark text-white border-secondary">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="bi bi-box"></i> Simuladores Unificados (Docker)</h5>
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 mb-4 h-100">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-cpu"></i> Painel de Controle Unificado</h5>
                 <span id="simulatorBadge" class="badge bg-secondary">Verificando...</span>
             </div>
             <div class="card-body">
-                <p>Controle os contêineres unificados (<code>snmpsim_pi</code>, <code>bruteforce_pi</code> e <code>web_traffic_bot</code>) que executam no servidor.</p>
-                <div class="d-flex gap-3">
-                    <button id="btn-start" class="btn btn-success" onclick="startSimulator()"><i class="bi bi-play-fill"></i> Iniciar Simuladores</button>
-                    <button id="btn-stop" class="btn btn-danger" onclick="stopSimulator()"><i class="bi bi-stop-fill"></i> Parar Simuladores</button>
-                    <button class="btn btn-info text-white" onclick="viewLogs()"><i class="bi bi-card-text"></i> Ver Logs</button>
-                    <button class="btn btn-outline-light" onclick="checkSimulatorStatus()"><i class="bi bi-arrow-clockwise"></i> Atualizar Status</button>
+                <p>O stack do Docker Compose gerencia <strong>quatro</strong> agentes essenciais para o funcionamento das simulações avançadas no servidor:</p>
+                <ul class="list-group list-group-flush mb-4">
+                    <li class="list-group-item bg-transparent">
+                        <i class="bi bi-device-ssd text-info me-2"></i> <code>snmpsim_pi</code>: Simula o tráfego SNMP (Sensores e Nobreaks) para o Zabbix.
+                    </li>
+                    <li class="list-group-item bg-transparent">
+                        <i class="bi bi-shield-x text-danger me-2"></i> <code>bruteforce_pi</code>: Agente do Red Team para tentar quebrar credenciais via HTTP.
+                    </li>
+                    <li class="list-group-item bg-transparent">
+                        <i class="bi bi-globe2 text-warning me-2"></i> <code>web_traffic_bot</code>: Robô que gera tráfego simulando assinaturas DPI maliciosas (Suricata).
+                    </li>
+                    <li class="list-group-item bg-transparent">
+                        <i class="bi bi-activity text-primary me-2"></i> <code>soa_stress_pi</code>: Utilitário para geração massiva de testes em microserviços e APIs de faturamento.
+                    </li>
+                </ul>
+                
+                <div class="d-flex flex-wrap gap-2">
+                    <button id="btn-start" class="btn btn-success" onclick="startSimulator()">
+                        <i class="bi bi-play-fill"></i> Subir Stack (Up)
+                    </button>
+                    <button id="btn-stop" class="btn btn-danger" onclick="stopSimulator()">
+                        <i class="bi bi-stop-fill"></i> Parar Stack (Down)
+                    </button>
+                    <button class="btn btn-info text-white" onclick="viewLogs()">
+                        <i class="bi bi-card-text"></i> Visualizar Logs
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="checkSimulatorStatus()">
+                        <i class="bi bi-arrow-clockwise"></i> Atualizar Status
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0 bg-light h-100">
+            <div class="card-body">
+                <h5 class="card-title text-primary"><i class="bi bi-info-circle"></i> Como funciona?</h5>
+                <p class="card-text small">Ao clicar em <strong>Subir Stack</strong>, o sistema executa silenciosamente o comando <code>docker compose up -d</code> na pasta interna dos simuladores.</p>
+                <p class="card-text small">Isso ativa todos os contêineres e cria as redes isoladas necessárias para que o painel web possa despachar comandos para os agentes em background.</p>
+                <hr>
+                <div class="alert alert-warning p-2 mb-0">
+                    <p class="card-text small mb-0"><i class="bi bi-exclamation-triangle-fill text-danger"></i> <strong>Atenção:</strong> Se o status estiver parado (Down), os ataques de força bruta, tráfego web e SOA Stress <strong>falharão</strong>, pois dependem destes contêineres de apoio rodando.</p>
                 </div>
             </div>
         </div>
@@ -33,11 +70,11 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content bg-dark text-white border-secondary">
             <div class="modal-header border-secondary">
-                <h5 class="modal-title" id="simulatorLogsModalLabel"><i class="bi bi-terminal"></i> Logs dos Simuladores Unificados</h5>
+                <h5 class="modal-title" id="simulatorLogsModalLabel"><i class="bi bi-terminal"></i> Logs do Docker Compose</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0">
-                <pre id="simulatorLogsContainer" class="p-3 m-0" style="font-size: 0.85em; color: #adbac7; background-color: #0d1117; min-height: 300px;">Carregando logs...</pre>
+                <pre id="simulatorLogsContainer" class="p-3 m-0" style="font-size: 0.85em; color: #adbac7; background-color: #0d1117; min-height: 400px; max-height: 500px; overflow-y: auto;">Carregando logs...</pre>
             </div>
             <div class="modal-footer border-secondary">
                 <button type="button" class="btn btn-outline-info btn-sm" onclick="viewLogs()">
@@ -67,7 +104,7 @@
 
     async function startSimulator() {
         const btnId = 'btn-start';
-        const originalHtml = '<i class="bi bi-play-fill"></i> Iniciar Simuladores';
+        const originalHtml = '<i class="bi bi-play-fill"></i> Subir Stack (Up)';
         setButtonLoading(btnId, true, originalHtml);
         
         try {
@@ -84,7 +121,7 @@
 
     async function stopSimulator() {
         const btnId = 'btn-stop';
-        const originalHtml = '<i class="bi bi-stop-fill"></i> Parar Simuladores';
+        const originalHtml = '<i class="bi bi-stop-fill"></i> Parar Stack (Down)';
         setButtonLoading(btnId, true, originalHtml);
         
         try {
@@ -108,10 +145,10 @@
                 const badge = document.getElementById('simulatorBadge');
                 if (data.is_running) {
                     badge.className = 'badge bg-success';
-                    badge.textContent = 'Status: Up';
+                    badge.textContent = 'Status: Up (Rodando)';
                 } else {
                     badge.className = 'badge bg-secondary';
-                    badge.textContent = 'Status: Parado';
+                    badge.textContent = 'Status: Down (Parado)';
                 }
             }
         } catch (error) { console.error(error); }
