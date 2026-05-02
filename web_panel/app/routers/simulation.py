@@ -68,106 +68,130 @@ async def perform_simulation(config: SimConfig):
     while time.time() < end_time and simulation_status["is_running"]:
         actions_in_this_loop = 0
         try:
-            async with pool.acquire() as conn:
-                async with conn.cursor(aiomysql.DictCursor) as cursor:
-                    for _ in range(batch_size):
-                        if not simulation_status["is_running"]: break
-                        
-                        await asyncio.sleep(0) # Yield control to the event loop
-                        action = random.choice(["create_student", "create_professor", "create_class", "edit", "enroll_student", "add_grade", "add_attendance"])
+            # Envolve todo o bloco de conexão e batching em um timeout máximo.
+            # Se a rede bloquear o tráfego (Drop do pfSense/Suricata), a conexão pendurada
+            # será interrompida e o erro será mostrado no console, evitando o travamento silencioso.
+            async def execute_batch():
+                acts = 0
+                log_msgs = []
+                async with pool.acquire() as conn:
+                    async with conn.cursor(aiomysql.DictCursor) as cursor:
+                        for _ in range(batch_size):
+                            if not simulation_status["is_running"]: break
+                            
+                            await asyncio.sleep(0) # Yield control to the event loop
+                            action = random.choice(["create_student", "create_professor", "create_class", "edit", "enroll_student", "add_grade", "add_attendance"])
+                            log_msg = ""
 
-                        if action == "create_student":
-                            name = f"{SIM_MARKER} Aluno_{random_string(4)}"
-                            reg = f"SIM-{random.randint(1000, 9999999)}_{random_string(4)}"
-                            await cursor.execute("INSERT INTO students (name, registration, password, course) VALUES (%s, %s, '$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2', 'Simulação')", (name, reg))
-                            log_msg = f"Criou aluno: {name}"
+                            if action == "create_student":
+                                name = f"{SIM_MARKER} Aluno_{random_string(4)}"
+                                reg = f"SIM-{random.randint(1000, 9999999)}_{random_string(4)}"
+                                await cursor.execute("INSERT INTO students (name, registration, password, course) VALUES (%s, %s, '$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2', 'Simulação')", (name, reg))
+                                log_msg = f"Criou aluno: {name}"
 
-                        elif action == "create_professor":
-                            name = f"{SIM_MARKER} Prof_{random_string(4)}"
-                            usr = f"sim_pr_{random_string(8)}"
-                            await cursor.execute("INSERT INTO professors (username, password, name, department) VALUES (%s, '$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2', %s, 'Simulação')", (usr, name))
-                            log_msg = f"Criou professor: {name}"
+                            elif action == "create_professor":
+                                name = f"{SIM_MARKER} Prof_{random_string(4)}"
+                                usr = f"sim_pr_{random_string(8)}"
+                                await cursor.execute("INSERT INTO professors (username, password, name, department) VALUES (%s, '$2b$12$Nq/EwA2/O0bS.u0XgYyKHeH9o.uS2TzRyC.W7lYjZp0Q3Lp9LqXg2', %s, 'Simulação')", (usr, name))
+                                log_msg = f"Criou professor: {name}"
 
-                        elif action == "create_class":
-                            await cursor.execute("SELECT id FROM professors WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
-                            prof = await cursor.fetchone()
-                            prof_id = prof['id'] if prof else None
-                            name = f"{SIM_MARKER} Turma_{random_string(3)}"
-                            await cursor.execute("INSERT INTO classes (name, professor_id) VALUES (%s, %s)", (name, prof_id))
-                            log_msg = f"Criou turma: {name}"
+                            elif action == "create_class":
+                                await cursor.execute("SELECT id FROM professors WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
+                                prof = await cursor.fetchone()
+                                prof_id = prof['id'] if prof else None
+                                name = f"{SIM_MARKER} Turma_{random_string(3)}"
+                                await cursor.execute("INSERT INTO classes (name, professor_id) VALUES (%s, %s)", (name, prof_id))
+                                log_msg = f"Criou turma: {name}"
 
-                        elif action == "edit":
-                            table = random.choice(['students', 'professors', 'classes'])
-                            col_name = "name"
-                            await cursor.execute(f"SELECT id, {col_name} FROM {table} WHERE {col_name} LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
-                            result = await cursor.fetchone()
-                            if result:
-                                new_name = f"{SIM_MARKER} Edit_{random_string(4)}"
-                                await cursor.execute(f"UPDATE {table} SET {col_name} = %s WHERE id = %s", (new_name, result['id']))
-                                log_msg = f"Editou {table} ID {result['id']} -> {new_name}"
-                            else:
-                                log_msg = f"Tentou editar {table}, mas nada encontrado."
-
-                        elif action == "enroll_student":
-                            await cursor.execute("SELECT id FROM students WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
-                            st = await cursor.fetchone()
-                            await cursor.execute("SELECT id FROM classes WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
-                            cls = await cursor.fetchone()
-                            if st and cls:
-                                st_id, cls_id = st['id'], cls['id']
-                                await cursor.execute("SELECT * FROM student_class WHERE student_id=%s AND class_id=%s", (st_id, cls_id))
-                                if not await cursor.fetchone():
-                                    await cursor.execute("INSERT INTO student_class (student_id, class_id) VALUES (%s, %s)", (st_id, cls_id))
-                                    log_msg = f"Vinculou Estudante ID {st_id} à Turma ID {cls_id}"
+                            elif action == "edit":
+                                table = random.choice(['students', 'professors', 'classes'])
+                                col_name = "name"
+                                await cursor.execute(f"SELECT id, {col_name} FROM {table} WHERE {col_name} LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
+                                result = await cursor.fetchone()
+                                if result:
+                                    new_name = f"{SIM_MARKER} Edit_{random_string(4)}"
+                                    await cursor.execute(f"UPDATE {table} SET {col_name} = %s WHERE id = %s", (new_name, result['id']))
+                                    log_msg = f"Editou {table} ID {result['id']} -> {new_name}"
                                 else:
-                                    log_msg = "Vínculo já existente, ignorado."
-                            else:
-                                log_msg = "Tentou vincular aluno a turma, mas faltam dados."
+                                    log_msg = f"Tentou editar {table}, mas nada encontrado."
 
-                        elif action == "add_grade":
-                            await cursor.execute("""
-                                SELECT sc.student_id, sc.class_id 
-                                FROM student_class sc
-                                JOIN students s ON sc.student_id = s.id 
-                                WHERE s.name LIKE %s 
-                                ORDER BY RAND() LIMIT 1
-                            """, (f"{SIM_MARKER}%",))
-                            rel = await cursor.fetchone()
-                            if rel:
-                                grade_val = str(round(random.uniform(2.0, 10.0), 1))
-                                desc = random.choice(["Prova 1", "Prova 2", "Trabalho", "Seminário", "Projeto Final"])
-                                await cursor.execute("INSERT INTO grades (student_id, class_id, value, description) VALUES (%s, %s, %s, %s)", 
-                                               (rel['student_id'], rel['class_id'], grade_val, desc))
-                                log_msg = f"Lançou nota {grade_val} para Aluno ID {rel['student_id']} (Turma {rel['class_id']})"
-                            else:
-                                log_msg = "Tentou lançar nota, mas nenhum aluno matriculado."
+                            elif action == "enroll_student":
+                                await cursor.execute("SELECT id FROM students WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
+                                st = await cursor.fetchone()
+                                await cursor.execute("SELECT id FROM classes WHERE name LIKE %s ORDER BY RAND() LIMIT 1", (f"{SIM_MARKER}%",))
+                                cls = await cursor.fetchone()
+                                if st and cls:
+                                    st_id, cls_id = st['id'], cls['id']
+                                    await cursor.execute("SELECT * FROM student_class WHERE student_id=%s AND class_id=%s", (st_id, cls_id))
+                                    if not await cursor.fetchone():
+                                        await cursor.execute("INSERT INTO student_class (student_id, class_id) VALUES (%s, %s)", (st_id, cls_id))
+                                        log_msg = f"Vinculou Estudante ID {st_id} à Turma ID {cls_id}"
+                                    else:
+                                        log_msg = "Vínculo já existente, ignorado."
+                                else:
+                                    log_msg = "Tentou vincular aluno a turma, mas faltam dados."
 
-                        elif action == "add_attendance":
-                            await cursor.execute("""
-                                SELECT sc.student_id, sc.class_id 
-                                FROM student_class sc
-                                JOIN students s ON sc.student_id = s.id 
-                                WHERE s.name LIKE %s 
-                                ORDER BY RAND() LIMIT 1
-                            """, (f"{SIM_MARKER}%",))
-                            rel = await cursor.fetchone()
-                            if rel:
-                                date_str = f"2026-03-{random.randint(1,28):02d}"
-                                await cursor.execute("INSERT INTO attendances (student_id, class_id, date, absent) VALUES (%s, %s, %s, 1)", 
-                                               (rel['student_id'], rel['class_id'], date_str))
-                                log_msg = f"Registrou falta para Aluno ID {rel['student_id']} (Turma {rel['class_id']})"
-                            else:
-                                log_msg = "Tentou registrar falta, mas nenhum aluno matriculado."
+                            elif action == "add_grade":
+                                await cursor.execute("""
+                                    SELECT sc.student_id, sc.class_id 
+                                    FROM student_class sc
+                                    JOIN students s ON sc.student_id = s.id 
+                                    WHERE s.name LIKE %s 
+                                    ORDER BY RAND() LIMIT 1
+                                """, (f"{SIM_MARKER}%",))
+                                rel = await cursor.fetchone()
+                                if rel:
+                                    grade_val = str(round(random.uniform(2.0, 10.0), 1))
+                                    desc = random.choice(["Prova 1", "Prova 2", "Trabalho", "Seminário", "Projeto Final"])
+                                    await cursor.execute("INSERT INTO grades (student_id, class_id, value, description) VALUES (%s, %s, %s, %s)", 
+                                                   (rel['student_id'], rel['class_id'], grade_val, desc))
+                                    log_msg = f"Lançou nota {grade_val} para Aluno ID {rel['student_id']} (Turma {rel['class_id']})"
+                                else:
+                                    log_msg = "Tentou lançar nota, mas nenhum aluno matriculado."
 
-                        actions_in_this_loop += 1
-                        simulation_status["actions_performed"] += 1
+                            elif action == "add_attendance":
+                                await cursor.execute("""
+                                    SELECT sc.student_id, sc.class_id 
+                                    FROM student_class sc
+                                    JOIN students s ON sc.student_id = s.id 
+                                    WHERE s.name LIKE %s 
+                                    ORDER BY RAND() LIMIT 1
+                                """, (f"{SIM_MARKER}%",))
+                                rel = await cursor.fetchone()
+                                if rel:
+                                    date_str = f"2026-03-{random.randint(1,28):02d}"
+                                    await cursor.execute("INSERT INTO attendances (student_id, class_id, date, absent) VALUES (%s, %s, %s, 1)", 
+                                                   (rel['student_id'], rel['class_id'], date_str))
+                                    log_msg = f"Registrou falta para Aluno ID {rel['student_id']} (Turma {rel['class_id']})"
+                                else:
+                                    log_msg = "Tentou registrar falta, mas nenhum aluno matriculado."
+
+                            acts += 1
+                            if log_msg: log_msgs.append(log_msg)
+                return acts, log_msgs
+
+            # Aplica um timeout de segurança (ex: 8 segundos). Se o pfSense bloquear silenciosamente, ele estoura aqui.
+            actions_in_this_loop, final_log_msgs = await asyncio.wait_for(execute_batch(), timeout=8.0)
+            
+            simulation_status["actions_performed"] += actions_in_this_loop
                         
-                # Registra o log
+            # Registra o log do último evento do batch
+            if final_log_msgs:
                 timestamp = time.strftime('%H:%M:%S')
-                simulation_status["logs"].insert(0, f"[{timestamp}] (Batch {actions_in_this_loop}) {log_msg}")
+                simulation_status["logs"].insert(0, f"[{timestamp}] (Batch {actions_in_this_loop}) {final_log_msgs[-1]}")
                 if len(simulation_status["logs"]) > 1000:
                     simulation_status["logs"].pop()
                     
+        except asyncio.TimeoutError:
+            timestamp = time.strftime('%H:%M:%S')
+            simulation_status["logs"].insert(0, f"[{timestamp}] [!] Alerta de Rede: Conexão DB travou (Possível bloqueio do pfSense/Suricata). Reconectando...")
+            # Força o encerramento do pool antigo e cria um novo para se recuperar do bloqueio
+            try:
+                pool.close()
+                await pool.wait_closed()
+            except: pass
+            pool = await aiomysql.create_pool(host=config.db_host, user=config.db_user, password=config.db_pass, db=config.db_name, port=config.db_port, autocommit=True, minsize=1, maxsize=5)
+            await asyncio.sleep(2)
         except Exception as e:
             timestamp = time.strftime('%H:%M:%S')
             simulation_status["logs"].insert(0, f"[{timestamp}] Falha na ação: {str(e)[:60]}")
