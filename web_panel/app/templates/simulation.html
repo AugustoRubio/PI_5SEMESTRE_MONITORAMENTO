@@ -372,11 +372,14 @@
 
         let allLogs = [];
         let combinedRawLogs = "";
+        
+        let fetchSuccess = { stress: false, sim: false };
 
         // 1. Stress Status
         try {
             const res = await fetch('/api/stress/status', {headers});
             if (res.ok) {
+                fetchSuccess.stress = true;
                 const data = await res.json();
                 isStressRunning = data.is_running;
 
@@ -389,9 +392,9 @@
                     activeTypes.add('Stress (' + data.type + ')');
                     document.getElementById('stressReqCount').innerText = data.requests_sent;
                     
-                    let elTime = Math.floor(Date.now()/1000) - Math.floor(data.start_time);
+                    let now = data.server_time || (Date.now() / 1000);
+                    let elTime = Math.floor(now) - Math.floor(data.start_time);
                     let rem = Math.max(0, Math.floor(data.duration - elTime));
-                    document.getElementById('stressTime').innerText = "(~" + rem + "s)";
                     
                     document.getElementById('stressBadge').className = 'badge bg-warning text-dark fs-6';
                     document.getElementById('stressBadge').innerHTML = '<i class="spinner-border spinner-border-sm" style="width: 1rem; height: 1rem;"></i> Em Carga <small class="fw-normal">(~' + rem + 's)</small>';
@@ -404,12 +407,13 @@
                     document.getElementById('stressBadge').innerText = 'Stress: Parado';
                 }
             }
-        } catch(e) {}
+        } catch(e) { console.warn("Falha ao obter status de stress"); }
 
         // 2. Sim Status
         try {
             const res2 = await fetch('/api/simulation/status', {headers});
             if (res2.ok) {
+                fetchSuccess.sim = true;
                 const data2 = await res2.json();
                 isSimRunning = data2.is_running;
 
@@ -418,11 +422,12 @@
                 }
 
                 if (isSimRunning) {
-                    activeTargets.add(data2.target_host);
+                    activeTargets.add(data2.target_host || data2.target);
                     activeTypes.add('Simulação DB');
                     document.getElementById('simActionsCount').innerText = data2.actions_performed;
                     
-                    let elTime = Math.floor(Date.now()/1000) - Math.floor(data2.start_time);
+                    let now = data2.server_time || (Date.now() / 1000);
+                    let elTime = Math.floor(now) - Math.floor(data2.start_time);
                     let rem = Math.max(0, Math.floor(data2.duration - elTime));
                     
                     document.getElementById('simBadge').className = 'badge bg-success fs-6';
@@ -436,7 +441,7 @@
                     document.getElementById('simBadge').innerText = 'Simulação: Parada';
                 }
             }
-        } catch(e) {}
+        } catch(e) { console.warn("Falha ao obter status de simulação"); }
 
         if (combinedRawLogs) {
             document.getElementById('rawLogsContainer').innerText = combinedRawLogs;
@@ -444,6 +449,8 @@
 
         if (allLogs.length > 0) {
             const logsContainer = document.getElementById('logsContainer');
+            // Ordena logs por timestamp se possível ou mantém ordem de chegada
+            // Aqui simplificamos limpando e reconstruindo se houver novidade
             logsContainer.innerHTML = '';
             
             allLogs.forEach(item => {
@@ -464,7 +471,8 @@
             document.getElementById('activeTypesInfo').innerText = Array.from(activeTypes).join(', ') || 'N/A';
         } else {
             summaryDiv.style.display = 'none';
-            if (!isStressRunning && !isSimRunning && pollingInterval) {
+            // SÓ para o polling se AMBOS retornaram sucesso na requisição E ambos estão parados
+            if (fetchSuccess.stress && fetchSuccess.sim && !isStressRunning && !isSimRunning && pollingInterval) {
                 clearInterval(pollingInterval);
                 pollingInterval = null;
             }

@@ -73,6 +73,7 @@ async def perform_simulation(config: SimConfig):
                     for _ in range(batch_size):
                         if not simulation_status["is_running"]: break
                         
+                        await asyncio.sleep(0) # Yield control to the event loop
                         action = random.choice(["create_student", "create_professor", "create_class", "edit", "enroll_student", "add_grade", "add_attendance"])
 
                         if action == "create_student":
@@ -242,4 +243,4 @@ async def clear_simulated_data(config: SimConfig, current_user: dict = Depends(g
 @router.get("/status")
 async def get_sim_status(current_user: dict = Depends(get_current_user)):
     global simulation_status
-    return simulation_status
+    return {**simulation_status, "server_time": time.time()}

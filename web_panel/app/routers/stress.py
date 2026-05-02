@@ -311,15 +311,16 @@ done
                 stress_status["requests_sent"] += random.randint(1500, 3000)
                 
                 # Busca os logs reais gerados pelo script em bash de forma incremental para manter o historico
-                rc_logs, stdout_logs, _ = await run_docker_cli(["exec", "soa_stress_pi", "cat", "/tmp/stress.log"], timeout=10)
+                # Usamos tail para não sobrecarregar o container lendo o arquivo inteiro toda vez
+                rc_logs, stdout_logs, _ = await run_docker_cli(["exec", "soa_stress_pi", "tail", "-n", "20", "/tmp/stress.log"], timeout=10)
                 if rc_logs == 0 and stdout_logs:
                     lines = [line.strip() for line in stdout_logs.strip().split('\n') if line.strip()]
-                    new_lines = lines[last_line_read:]
-                    for line in new_lines:
-                        add_stress_log(line)
-                    last_line_read = len(lines)
+                    # Adiciona apenas linhas que ainda não foram processadas (baseado no conteúdo)
+                    for line in lines:
+                        if line not in stress_status["logs"]:
+                            add_stress_log(line)
                     
-                    if any("ABORTANDO_FALHA_CRITICA" in line for line in new_lines):
+                    if any("ABORTANDO_FALHA_CRITICA" in line for line in lines):
                         stress_status["is_running"] = False
                         add_stress_log("[-] Orquestração interrompida devido a bloqueios de rede.")
                         break
@@ -390,7 +391,7 @@ done
 
 @router.get("/status")
 async def get_stress_status(current_user: dict = Depends(get_current_user)):
-    return stress_status
+    return {**stress_status, "server_time": time.time()}
 
 @router.post("/stop")
 async def stop_stress_test(current_user: dict = Depends(get_current_user)):

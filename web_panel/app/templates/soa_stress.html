@@ -193,27 +193,40 @@
 
     async function fetchUnifiedStatus() {
         try {
-            const resStress = await fetch('/api/stress/status', { headers });
+            const resStress = await fetch('/api/stress/status', { 
+                headers,
+                signal: AbortController ? new AbortController().signal : null // Opcional: timeout real
+            });
+            if (!resStress.ok) throw new Error("Status failed");
             const dataStress = await resStress.json();
             updateStressUI(dataStress);
         } catch (error) {
-            console.error("Erro ao buscar status");
+            console.error("Erro ao buscar status:", error);
+            // Não limpa o polling em caso de erro de rede único
+            const badge = document.getElementById('stressBadge');
+            if (badge && badge.innerText.includes('Em Carga')) {
+                badge.classList.add('bg-secondary');
+                badge.classList.remove('bg-warning');
+                badge.innerHTML = '<i class="bi bi-wifi-off"></i> Reconectando...';
+            }
         }
     }
 
     function updateStressUI(data) {
         isSimRunning = data.is_running;
         const badge = document.getElementById('stressBadge');
-        
-        let allLogs = [];
+        const logsContainer = document.getElementById('logsContainer');
         
         // Atualiza Raw Logs na Modal
         if (data.raw_logs) {
-            document.getElementById('rawLogsContainer').innerText = data.raw_logs;
+            const rawContainer = document.getElementById('rawLogsContainer');
+            if (rawContainer) rawContainer.innerText = data.raw_logs;
         }
 
         if (data.is_running) {
-            let elTime = Math.floor(Date.now()/1000) - Math.floor(data.start_time);
+            // Usa o server_time retornado pelo backend para evitar skew de relógio
+            let now = data.server_time || (Date.now() / 1000);
+            let elTime = Math.floor(now) - Math.floor(data.start_time);
             let rem = Math.max(0, Math.floor(data.duration - elTime));
             
             badge.className = 'badge bg-warning text-dark fs-6';
@@ -227,34 +240,28 @@
             badge.className = 'badge bg-secondary fs-6';
             badge.innerText = 'Stress: Parado';
             document.getElementById('targetSummary').style.display = 'none';
+            
+            // Se parou, podemos limpar o interval depois de garantir que o status final foi lido
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
         }
         
-        // AGORA ISSO FICA FORA DO IF: Renderiza os logs mesmo se o teste falhar e parar!
+        // Renderiza os logs
         if(data.logs && data.logs.length > 0) {
-            data.logs.forEach(msg => allLogs.push({msg: msg, color: 'text-light'}));
-        }
-
-        // Atualiza feed visual do Logs Container de forma limpa
-        if (allLogs.length > 0) {
-            const logsContainer = document.getElementById('logsContainer');
-            logsContainer.innerHTML = '';
-            
-            allLogs.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'mb-1 ps-2 ' + item.color;
-                div.style.fontFamily = "'Courier New', monospace";
-                div.innerHTML = item.msg;
-                logsContainer.appendChild(div);
-            });
-        }
-
-        if (!data.is_running && pollingInterval) {
-            setTimeout(() => {
-                if (!isSimRunning && pollingInterval) {
-                    clearInterval(pollingInterval);
-                    pollingInterval = null;
-                }
-            }, 3000);
+            // Só reconstrói o DOM se o conteúdo mudou (comparação simples por tamanho/última msg)
+            const currentLogCount = logsContainer.children.length;
+            if (data.logs.length !== currentLogCount || (currentLogCount > 0 && data.logs[0] !== logsContainer.firstChild.innerText)) {
+                logsContainer.innerHTML = '';
+                data.logs.slice().reverse().forEach(msg => {
+                    const div = document.createElement('div');
+                    div.className = 'mb-1 ps-2 text-light';
+                    div.style.fontFamily = "'Courier New', monospace";
+                    div.innerText = msg;
+                    logsContainer.appendChild(div);
+                });
+            }
         }
     }
 
