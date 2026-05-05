@@ -216,6 +216,23 @@ async def start_sim(config: SimConfig, background_tasks: BackgroundTasks, curren
         else:
             raise HTTPException(status_code=400, detail="Simulação já em execução.")
             
+    # Validação rápida de conexão antes de iniciar a thread de background
+    try:
+        conn = await aiomysql.connect(
+            host=config.db_host,
+            user=config.db_user,
+            password=config.db_pass,
+            db=config.db_name,
+            port=config.db_port,
+            connect_timeout=5
+        )
+        conn.close()
+    except Exception as e:
+        error_msg = f"Falha na conexão inicial: {str(e)}"
+        simulation_status["is_running"] = False
+        simulation_status["logs"] = [error_msg, "Simulação não iniciada."]
+        raise HTTPException(status_code=400, detail=error_msg)
+
     simulation_status["duration"] = config.duration        
     background_tasks.add_task(perform_simulation, config)
     return {"message": "Simulação iniciada."}

@@ -277,6 +277,8 @@
 
     document.getElementById('btnStartSim').addEventListener('click', async () => {
         const rawTarget = document.getElementById('targetUrl').value.replace('http://','').replace('https://','');
+        if (!rawTarget) { addLogMessage('Insira o Host do Banco', 'text-danger'); return; }
+        
         const payload = {
             db_host: rawTarget,
             db_port: parseInt(document.getElementById('dbPort').value, 10),
@@ -288,20 +290,23 @@
         };
 
         try {
+            addLogMessage('Validando conexão com o banco...', 'text-info');
             const res = await fetch('/api/simulation/start', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(payload)
             });
+            const data = await res.json();
+
             if (res.ok) {
                 addLogMessage('Simulação de Banco Iniciada!', 'text-success fw-bold');
                 startUnifiedPolling();
             } else {
-                const data = await res.json();
-                addLogMessage('Erro ao iniciar Simulação.', 'text-danger fw-bold');
+                const errorMsg = data.detail || 'Erro desconhecido';
+                addLogMessage('Erro ao iniciar Simulação: ' + errorMsg, 'text-danger fw-bold');
             }
         } catch(err) {
-            addLogMessage('Erro de conexão ao iniciar Simulação.', 'text-danger fw-bold');
+            addLogMessage('Erro de rede ao iniciar Simulação.', 'text-danger fw-bold');
         }
     });
 
@@ -432,13 +437,18 @@
                     
                     document.getElementById('simBadge').className = 'badge bg-success fs-6';
                     document.getElementById('simBadge').innerHTML = '<i class="spinner-border spinner-border-sm" style="width: 1rem; height: 1rem;"></i> Simulando <small class="fw-normal">(~' + rem + 's)</small>';
-                    
-                    if(data2.logs && data2.logs.length > 0) {
-                        data2.logs.forEach(msg => allLogs.push({msg: msg, src: 'sim', color: 'text-success'}));
-                    }
                 } else {
                     document.getElementById('simBadge').className = 'badge bg-secondary fs-6';
                     document.getElementById('simBadge').innerText = 'Simulação: Parada';
+                }
+
+                // Processa logs independente de estar rodando ou não
+                if(data2.logs && data2.logs.length > 0) {
+                    data2.logs.forEach(msg => {
+                        let color = 'text-success';
+                        if (msg.includes('Erro') || msg.includes('Falha') || msg.includes('abortada')) color = 'text-danger fw-bold';
+                        allLogs.push({msg: msg, src: 'sim', color: color});
+                    });
                 }
             }
         } catch(e) { console.warn("Falha ao obter status de simulação"); }
