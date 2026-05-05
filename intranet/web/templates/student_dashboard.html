@@ -26,6 +26,9 @@
             <a onclick="showSection('academico')" id="btn-academico" class="active"><i class="fas fa-book-open me-2"></i> Acadêmico</a>
             <a onclick="showSection('financeiro')" id="btn-financeiro"><i class="fas fa-file-invoice-dollar me-2"></i> Financeiro <span class="badge bg-danger ms-1">Novo</span></a>
             
+            {% if is_impersonating %}
+            <a href="/admin/stop_impersonate" class="mt-auto d-block bg-warning text-dark fw-bold mb-2" style="position: absolute; bottom: 60px; width: 210px;"><i class="fas fa-arrow-left me-2"></i> Voltar ao Admin</a>
+            {% endif %}
             <a href="/logout" class="mt-auto d-block" style="position: absolute; bottom: 20px; width: 210px;"><i class="fas fa-sign-out-alt me-2"></i> Sair</a>
         </div>
         

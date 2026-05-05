@@ -35,6 +35,9 @@
         <li class="nav-item" role="presentation">
             <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">Configurações</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="finance-tab" data-bs-toggle="tab" data-bs-target="#finance" type="button" role="tab" onclick="loadAdminInvoices()">Financeiro (SOA)</button>
+        </li>
     </ul>
 
     <div class="tab-content" id="myTabContent">
@@ -209,10 +212,74 @@
                  </div>
              </div>
         </div>
+
+        <!-- TAB FINANCEIRO -->
+        <div class="tab-pane fade" id="finance" role="tabpanel">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Visão Geral Financeira (Microserviço Billing)</h5>
+                    <button class="btn btn-sm btn-light" onclick="loadAdminInvoices()"><i class="fas fa-sync-alt"></i> Atualizar</button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover font-sm bg-white mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID Fatura</th>
+                                    <th>ID Aluno</th>
+                                    <th>Valor</th>
+                                    <th>Status</th>
+                                    <th>Cartão (DLP Test)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-invoices-body">
+                                <tr><td colspan="5" class="text-center py-4">Clique em "Atualizar" ou aguarde o carregamento...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+async function loadAdminInvoices() {
+    const tbody = document.getElementById('admin-invoices-body');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4"><div class="spinner-border spinner-border-sm text-success" role="status"></div> Carregando do Gateway SOA...</td></tr>';
+    
+    try {
+        const response = await fetch('/api/billing/invoices');
+        if (!response.ok) throw new Error('Falha ao obter faturas da API de Billing.');
+        
+        const invoices = await response.json();
+        tbody.innerHTML = '';
+        
+        if (invoices.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Nenhuma fatura encontrada no sistema.</td></tr>';
+            return;
+        }
+
+        invoices.forEach(inv => {
+            const statusBadge = inv.status === 'PAID' ? '<span class="badge bg-success">PAGO</span>' : '<span class="badge bg-warning text-dark">PENDENTE</span>';
+            const ccMasked = inv.card_number ? `**** **** **** ${inv.card_number.slice(-4)}` : 'N/A';
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td><strong>#${inv.id}</strong></td>
+                    <td><i class="fas fa-user-graduate me-1 text-muted"></i> ${inv.student_id}</td>
+                    <td>R$ ${inv.amount.toFixed(2)}</td>
+                    <td>${statusBadge}</td>
+                    <td class="font-monospace text-muted small">${inv.card_number} (CVV: ${inv.card_cvv})</td>
+                </tr>
+            `;
+        });
+    } catch (error) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger"><i class="fas fa-exclamation-triangle"></i> ${error.message}</td></tr>`;
+    }
+}
+</script>
 <style>.font-sm { font-size: 0.9em; }</style>
 </body>
 </html>

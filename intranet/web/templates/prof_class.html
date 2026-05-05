@@ -19,7 +19,12 @@
         <a class="navbar-brand d-flex align-items-center" href="/prof_dashboard">
             <i class="fas fa-arrow-left me-3"></i> Diário de Classe: {{ cls.name }}
         </a>
-        <a href="/logout" class="btn btn-outline-light btn-sm"><i class="fas fa-sign-out-alt"></i> Sair</a>
+        <div class="ms-auto d-flex align-items-center">
+            {% if is_impersonating %}
+            <a href="/admin/stop_impersonate" class="btn btn-warning btn-sm me-2"><i class="fas fa-arrow-left"></i> Voltar ao Admin</a>
+            {% endif %}
+            <a href="/logout" class="btn btn-outline-light btn-sm"><i class="fas fa-sign-out-alt"></i> Sair</a>
+        </div>
     </div>
 </nav>
 

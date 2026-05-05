@@ -310,9 +310,11 @@ def prof_dashboard(request: Request, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "professor":
         return RedirectResponse(url="/login")
     prof_id = int(request.cookies.get("user_id"))
+    is_impersonating = request.cookies.get("impersonator_admin_id") is not None
     return templates.TemplateResponse(request=request, name="prof_dashboard.html", context={
         "professor": db.query(Professor).filter(Professor.id == prof_id).first(),
-        "classes": db.query(Class).filter(Class.professor_id == prof_id).all()
+        "classes": db.query(Class).filter(Class.professor_id == prof_id).all(),
+        "is_impersonating": is_impersonating
     })
 
 @app.get("/prof_dashboard/class/{class_id}", response_class=HTMLResponse)
@@ -321,8 +323,9 @@ def prof_class_view(request: Request, class_id: int, date: str = "", db: Session
     cls = db.query(Class).filter(Class.id == class_id, Class.professor_id == prof_id).first()
     today = date if date else datetime.datetime.now().strftime("%Y-%m-%d")
     absent_ids = [a.student_id for a in db.query(Attendance).filter(Attendance.class_id == class_id, Attendance.date == today).all()]
+    is_impersonating = request.cookies.get("impersonator_admin_id") is not None
     return templates.TemplateResponse(request=request, name="prof_class.html", context={
-        "cls": cls, "today": today, "absent_student_ids": absent_ids
+        "cls": cls, "today": today, "absent_student_ids": absent_ids, "is_impersonating": is_impersonating
     })
 
 @app.get("/student_dashboard", response_class=HTMLResponse)
@@ -330,7 +333,11 @@ def student_dashboard(request: Request, db: Session = Depends(get_db)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "student":
         return RedirectResponse(url="/login")
     sid = int(request.cookies.get("user_id"))
-    return templates.TemplateResponse(request=request, name="student_dashboard.html", context={"student": db.query(Student).filter(Student.id == sid).first()})
+    is_impersonating = request.cookies.get("impersonator_admin_id") is not None
+    return templates.TemplateResponse(request=request, name="student_dashboard.html", context={
+        "student": db.query(Student).filter(Student.id == sid).first(), 
+        "is_impersonating": is_impersonating
+    })
 
 # Outras rotas administrativas (resets e deletes) seguem o mesmo padrão...
 @app.post("/students/delete/{student_id}")
@@ -384,6 +391,8 @@ def impersonate_user(role: str, user_id: int, request: Request, db: Session = De
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login")
     
+    admin_id = request.cookies.get("user_id")
+
     if role == "student":
         user = db.query(Student).filter(Student.id == user_id).first()
         target_url = "/student_dashboard"
@@ -400,6 +409,20 @@ def impersonate_user(role: str, user_id: int, request: Request, db: Session = De
     response.set_cookie(key="session", value="authenticated")
     response.set_cookie(key="role", value=role)
     response.set_cookie(key="user_id", value=str(user_id))
+    response.set_cookie(key="impersonator_admin_id", value=str(admin_id))
+    return response
+
+@app.get("/admin/stop_impersonate")
+def stop_impersonate(request: Request):
+    admin_id = request.cookies.get("impersonator_admin_id")
+    if not admin_id:
+        return RedirectResponse(url="/login")
+        
+    response = RedirectResponse(url="/admin_dashboard", status_code=302)
+    response.set_cookie(key="session", value="authenticated")
+    response.set_cookie(key="role", value="admin")
+    response.set_cookie(key="user_id", value=str(admin_id))
+    response.delete_cookie(key="impersonator_admin_id")
     return response
 
 @app.post("/students/reset_password/{student_id}")

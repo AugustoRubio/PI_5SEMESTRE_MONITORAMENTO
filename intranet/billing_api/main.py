@@ -55,6 +55,16 @@ class PaymentRequest(BaseModel):
     invoice_id: int
     amount: float
 
+@app.get("/invoices")
+def get_all_invoices(limit: int = 100):
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT id, student_id, amount, status, card_number, card_cvv FROM invoices ORDER BY id DESC LIMIT ?", (limit,))
+    rows = c.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
 # =========================================================================
 # VULNERABILITY 1: BOLA (Broken Object Level Authorization)
 # Permite que o Aluno 1 visualize os dados (incluindo o cartão de crédito) do Aluno 2
