@@ -403,7 +403,7 @@ def impersonate_user(role: str, user_id: int, request: Request, db: Session = De
     return response
 
 @app.post("/students/reset_password/{student_id}")
-def reset_student_password(student_id: int, new_password: str = Form(...), request: Request, db: Session = Depends(get_db)):
+def reset_student_password(student_id: int, request: Request, db: Session = Depends(get_db), new_password: str = Form(...)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login")
     st = db.query(Student).filter(Student.id == student_id).first()
@@ -413,7 +413,7 @@ def reset_student_password(student_id: int, new_password: str = Form(...), reque
     return RedirectResponse(url="/admin_dashboard")
 
 @app.post("/professors/reset_password/{prof_id}")
-def reset_prof_password(prof_id: int, new_password: str = Form(...), request: Request, db: Session = Depends(get_db)):
+def reset_prof_password(prof_id: int, request: Request, db: Session = Depends(get_db), new_password: str = Form(...)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login")
     p = db.query(Professor).filter(Professor.id == prof_id).first()
@@ -423,7 +423,7 @@ def reset_prof_password(prof_id: int, new_password: str = Form(...), request: Re
     return RedirectResponse(url="/admin_dashboard")
 
 @app.post("/admin/change_password")
-def change_admin_password(new_password: str = Form(...), request: Request, db: Session = Depends(get_db)):
+def change_admin_password(request: Request, db: Session = Depends(get_db), new_password: str = Form(...)):
     if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
         return RedirectResponse(url="/login")
     admin_id = request.cookies.get("user_id")
@@ -432,3 +432,4 @@ def change_admin_password(new_password: str = Form(...), request: Request, db: S
         admin.password = pwd_context.hash(new_password)
         db.commit()
     return RedirectResponse(url="/admin_dashboard")
+
