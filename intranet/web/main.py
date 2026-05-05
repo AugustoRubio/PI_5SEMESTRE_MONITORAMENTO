@@ -377,3 +377,58 @@ def delete_grade(class_id: int, grade_id: int, db: Session = Depends(get_db)):
     g = db.query(Grade).filter(Grade.id == grade_id).first()
     if g: db.delete(g); db.commit()
     return RedirectResponse(url=f"/prof_dashboard/class/{class_id}")
+
+# --- NOVAS ROTAS ADMINISTRATIVAS (IMPERSONATE E SENHAS) ---
+@app.get("/admin/impersonate/{role}/{user_id}")
+def impersonate_user(role: str, user_id: int, request: Request, db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login")
+    
+    if role == "student":
+        user = db.query(Student).filter(Student.id == user_id).first()
+        target_url = "/student_dashboard"
+    elif role == "professor":
+        user = db.query(Professor).filter(Professor.id == user_id).first()
+        target_url = "/prof_dashboard"
+    else:
+        return RedirectResponse(url="/admin_dashboard")
+
+    if not user:
+        return RedirectResponse(url="/admin_dashboard?error=UserNotFound")
+
+    response = RedirectResponse(url=target_url, status_code=302)
+    response.set_cookie(key="session", value="authenticated")
+    response.set_cookie(key="role", value=role)
+    response.set_cookie(key="user_id", value=str(user_id))
+    return response
+
+@app.post("/students/reset_password/{student_id}")
+def reset_student_password(student_id: int, new_password: str = Form(...), request: Request, db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login")
+    st = db.query(Student).filter(Student.id == student_id).first()
+    if st:
+        st.password = pwd_context.hash(new_password)
+        db.commit()
+    return RedirectResponse(url="/admin_dashboard")
+
+@app.post("/professors/reset_password/{prof_id}")
+def reset_prof_password(prof_id: int, new_password: str = Form(...), request: Request, db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login")
+    p = db.query(Professor).filter(Professor.id == prof_id).first()
+    if p:
+        p.password = pwd_context.hash(new_password)
+        db.commit()
+    return RedirectResponse(url="/admin_dashboard")
+
+@app.post("/admin/change_password")
+def change_admin_password(new_password: str = Form(...), request: Request, db: Session = Depends(get_db)):
+    if request.cookies.get("session") != "authenticated" or request.cookies.get("role") != "admin":
+        return RedirectResponse(url="/login")
+    admin_id = request.cookies.get("user_id")
+    admin = db.query(Admin).filter(Admin.id == admin_id).first()
+    if admin:
+        admin.password = pwd_context.hash(new_password)
+        db.commit()
+    return RedirectResponse(url="/admin_dashboard")
