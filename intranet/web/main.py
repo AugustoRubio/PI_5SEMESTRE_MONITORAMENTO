@@ -344,26 +344,26 @@ def student_dashboard(request: Request, db: Session = Depends(get_db)):
 def delete_student(student_id: int, db: Session = Depends(get_db)):
     st = db.query(Student).filter(Student.id == student_id).first()
     if st: db.delete(st); db.commit()
-    return RedirectResponse(url="/admin_dashboard")
+    return RedirectResponse(url="/admin_dashboard", status_code=303)
 
 @app.post("/professors/delete/{prof_id}")
 def delete_professor(prof_id: int, db: Session = Depends(get_db)):
     p = db.query(Professor).filter(Professor.id == prof_id).first()
     if p: db.delete(p); db.commit()
-    return RedirectResponse(url="/admin_dashboard")
+    return RedirectResponse(url="/admin_dashboard", status_code=303)
 
 @app.post("/classes")
 def create_class(name: str = Form(...), professor_id: int = Form(...), student_ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
     new_class = Class(name=name, professor_id=professor_id)
     new_class.students = db.query(Student).filter(Student.id.in_(student_ids)).all()
     db.add(new_class); db.commit()
-    return RedirectResponse(url="/admin_dashboard")
+    return RedirectResponse(url="/admin_dashboard", status_code=303)
 
 @app.post("/classes/delete/{class_id}")
 def delete_class(class_id: int, db: Session = Depends(get_db)):
     c = db.query(Class).filter(Class.id == class_id).first()
     if c: db.delete(c); db.commit()
-    return RedirectResponse(url="/admin_dashboard")
+    return RedirectResponse(url="/admin_dashboard", status_code=303)
 
 @app.post("/prof_dashboard/class/{class_id}/attendance")
 def mark_attendance(class_id: int, date: str = Form(...), absent_students: list[int] = Form(default=[]), db: Session = Depends(get_db)):
@@ -371,19 +371,19 @@ def mark_attendance(class_id: int, date: str = Form(...), absent_students: list[
     for s_id in absent_students:
         db.add(Attendance(student_id=s_id, class_id=class_id, date=date, absent=1))
     db.commit()
-    return RedirectResponse(url=f"/prof_dashboard/class/{class_id}?date={date}")
+    return RedirectResponse(url=f"/prof_dashboard/class/{class_id}?date={date}", status_code=303)
 
 @app.post("/prof_dashboard/class/{class_id}/grade")
 def give_grade(class_id: int, student_id: int = Form(...), value: str = Form(...), description: str = Form(...), db: Session = Depends(get_db)):
     db.add(Grade(student_id=student_id, class_id=class_id, value=value, description=description))
     db.commit()
-    return RedirectResponse(url=f"/prof_dashboard/class/{class_id}")
+    return RedirectResponse(url=f"/prof_dashboard/class/{class_id}", status_code=303)
 
 @app.post("/prof_dashboard/class/{class_id}/grade/delete/{grade_id}")
 def delete_grade(class_id: int, grade_id: int, db: Session = Depends(get_db)):
     g = db.query(Grade).filter(Grade.id == grade_id).first()
     if g: db.delete(g); db.commit()
-    return RedirectResponse(url=f"/prof_dashboard/class/{class_id}")
+    return RedirectResponse(url=f"/prof_dashboard/class/{class_id}", status_code=303)
 
 # --- NOVAS ROTAS ADMINISTRATIVAS (IMPERSONATE E SENHAS) ---
 @app.get("/admin/impersonate/{role}/{user_id}")
@@ -400,7 +400,7 @@ def impersonate_user(role: str, user_id: int, request: Request, db: Session = De
         user = db.query(Professor).filter(Professor.id == user_id).first()
         target_url = "/prof_dashboard"
     else:
-        return RedirectResponse(url="/admin_dashboard")
+        return RedirectResponse(url="/admin_dashboard", status_code=303)
 
     if not user:
         return RedirectResponse(url="/admin_dashboard?error=UserNotFound")
@@ -433,7 +433,7 @@ def reset_student_password(student_id: int, request: Request, db: Session = Depe
     if st:
         st.password = pwd_context.hash(new_password)
         db.commit()
-    return RedirectResponse(url="/admin_dashboard")
+    return RedirectResponse(url="/admin_dashboard", status_code=303)
 
 @app.post("/professors/reset_password/{prof_id}")
 def reset_prof_password(prof_id: int, request: Request, db: Session = Depends(get_db), new_password: str = Form(...)):
@@ -443,7 +443,7 @@ def reset_prof_password(prof_id: int, request: Request, db: Session = Depends(ge
     if p:
         p.password = pwd_context.hash(new_password)
         db.commit()
-    return RedirectResponse(url="/admin_dashboard")
+    return RedirectResponse(url="/admin_dashboard", status_code=303)
 
 @app.post("/admin/change_password")
 def change_admin_password(request: Request, db: Session = Depends(get_db), new_password: str = Form(...)):
@@ -454,5 +454,5 @@ def change_admin_password(request: Request, db: Session = Depends(get_db), new_p
     if admin:
         admin.password = pwd_context.hash(new_password)
         db.commit()
-    return RedirectResponse(url="/admin_dashboard")
+    return RedirectResponse(url="/admin_dashboard", status_code=303)
 
