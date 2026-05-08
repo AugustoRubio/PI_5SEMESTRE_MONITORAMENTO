@@ -7,11 +7,13 @@ Este documento detalha a arquitetura lógica, os fluxos de dados, os pontos de v
 ```mermaid
 flowchart TD
     %% ==========================================
-    %% Definições de Estilo (Alta Fidelidade)
+    %% Definições de Estilo (Alta Fidelidade - Safe Colors)
     %% ==========================================
     classDef attackerNode fill:mistyrose,stroke:darkred,stroke-width:3px,color:black,font-weight:bold;
     classDef targetNode fill:aliceblue,stroke:darkblue,stroke-width:3px,color:black,font-weight:bold;
     classDef microserviceNode fill:honeydew,stroke:darkgreen,stroke-width:3px,color:black,font-weight:bold;
+    classDef securityNode fill:lavender,stroke:indigo,stroke-width:3px,color:black,font-weight:bold;
+    classDef monitorNode fill:ivory,stroke:goldenrod,stroke-width:3px,color:black,font-weight:bold;
     classDef vulnerability fill:lightyellow,stroke:darkorange,stroke-width:3px,color:black,stroke-dasharray: 5 5;
 
     %% Estilo global para as setas
@@ -40,17 +42,25 @@ flowchart TD
             SNMP_TEMP["🌡️ Sensores Temp"]:::attackerNode
         end
 
-        %% Conexões de Controle Interno
-        WP_Admin --> |"Define Alvos"| Botnet_Agent
-        WP_Admin --> |"Config MIBs"| SNMP_Simulator
-        WP_Stats -.-> |"Lê Métricas"| Botnet_Agent
-        WP_Attacks --> |"Gera Payload"| BOT_DDOS
+        %% Conexões ancoradas em nós específicos para evitar sobreposição de textos
+        WP_Admin --> |"Define Alvos"| BOT_DDOS
+        WP_Admin --> |"Config MIBs"| SNMP_APC
+        WP_Stats -.-> |"Lê Métricas Docker"| BOT_STUD
+        WP_Attacks --> |"Payload"| BOT_DDOS
+    end
+
+    %% ==========================================
+    %% Subgrafo: Appliance de Segurança (Gateway)
+    %% ==========================================
+    subgraph Security_Appliance ["🛡️ 2. GATEWAY DE SEGURANÇA (IPS/IDS)"]
+        direction TB
+        PFSENSE["🔥 pfSense + Suricata\n(Deep Packet Inspection & Firewall)"]:::securityNode
     end
 
     %% ==========================================
     %% Subgrafo: Intranet Alvo (Aplicação Monitorada)
     %% ==========================================
-    subgraph Intranet_App ["🎯 2. INTRANET (Alvo Principal)"]
+    subgraph Intranet_App ["🎯 3. INTRANET (Alvo Principal)"]
         direction TB
         INT_Setup["🛠️ Setup\n(Configuração de DB)"]
         INT_Login["🔐 Portal de Login\n(Entry Point)"]
@@ -75,7 +85,7 @@ flowchart TD
     %% ==========================================
     %% Subgrafo: Microserviço de Faturamento
     %% ==========================================
-    subgraph Billing_Microservice ["💰 3. BILLING API (Microserviço SOA)"]
+    subgraph Billing_Microservice ["💰 4. BILLING API (Microserviço SOA)"]
         direction TB
         BILL_Invoices["📄 Listar Faturas\n(/invoices/{id})"]
         BILL_Pay["💳 Processar Pagamento\n(/pay)"]
@@ -85,32 +95,42 @@ flowchart TD
     end
 
     %% ==========================================
-    %% Subgrafo: Camada de Monitoramento (Externo)
+    %% Subgrafo: Camada de Monitoramento (Zabbix)
     %% ==========================================
-    subgraph Monitoring ["📊 MONITORAMENTO (Zabbix/Syslog)"]
-        ZABBIX["🖥️ Zabbix Server\n(LLD & Trappers)"]
+    subgraph Monitoring ["📊 5. MONITORAMENTO CENTRAL"]
+        direction TB
+        ZABBIX["🖥️ Zabbix Server\n(LLD, Traps, Triggers & Dashboards)"]:::monitorNode
     end
 
     %% ==========================================
     %% Conexões de Alta Visibilidade (Fluxo Completo)
     %% ==========================================
     
-    %% Atacante -> Alvo
-    BOT_DDOS ===> |"DDoS / Exploit Flood"| INT_Login
-    BOT_STUD ===> |"Navegação Humana"| INT_Login
-    BOT_PROF ===> |"Carga de Banco"| INT_Login
-    BOT_SOA ===> |"Stress Financeiro"| BILL_Invoices
+    %% Tráfego do Atacante Passa pelo Firewall/IPS
+    BOT_DDOS ===> |"Flood L7 Lixo"| PFSENSE
+    BOT_STUD ===> |"Auth Stress (Bcrypt)"| PFSENSE
+    WP_Attacks ===> |"Injeção L7 (POST)"| PFSENSE
+    
+    %% Firewall encaminha para a Aplicação
+    PFSENSE ===> |"Tráfego Filtrado"| INT_Login
+    BOT_PROF ===> |"Carga Banco/Local"| INT_Login
+    BOT_SOA ===> |"BOLA HTTP Flood"| BILL_Invoices
     
     %% Alvo -> Microserviço
-    STUD_Billing ===> |"Consumo Interno"| BILL_Invoices
+    STUD_Billing ===> |"Consumo de API"| BILL_Invoices
     
-    %% Fluxo de Monitoramento (Onde os dados são coletados)
-    INT_Sec -.-> |"Pull de Métricas"| ZABBIX
-    SNMP_Simulator -.-> |"SNMP Polling"| ZABBIX
-    INT_Login -.-> |"Logs de Segurança"| ZABBIX
+    %% ==========================================
+    %% O que o Zabbix monitora? (Pontos Chave)
+    %% ==========================================
+    PFSENSE -.-> |"1. Alertas DPI\n(eve.json: SQLi, XSS, Path Traversal)"| ZABBIX
+    INT_Sec -.-> |"2. LLD Metrics API\n(Detecção de Bruteforce/Falhas)"| ZABBIX
+    SNMP_Simulator -.-> |"3. SNMP Polling\n(Status Bateria, Temperatura)"| ZABBIX
 
+    %% ==========================================
     %% Estilização de Subgrafos
+    %% ==========================================
     style Web_Panel fill:white,stroke:darkred,stroke-width:2px,color:black
+    style Security_Appliance fill:ghostwhite,stroke:indigo,stroke-width:2px,color:black
     style Intranet_App fill:white,stroke:darkblue,stroke-width:2px,color:black
     style Billing_Microservice fill:white,stroke:darkgreen,stroke-width:2px,color:black
     style Dashboards fill:aliceblue,stroke:dodgerblue,stroke-dasharray: 5 5,color:black
@@ -120,48 +140,41 @@ flowchart TD
     class WP_Stats,WP_Attacks,WP_Admin attackerNode;
     class INT_Setup,INT_Login,INT_Admin,INT_Prof,INT_Stud,INT_Sec,PROF_Actions,STUD_Billing,INT_Router targetNode;
     class BILL_Invoices,BILL_Pay microserviceNode;
-    class ZABBIX microserviceNode;
 ```
 
-## Detalhamento das Rotas e Funcionalidades
+## Especificações Técnicas e Carga do Sistema
 
-### 1. Web Panel (`/web_panel`)
-Interface de controle utilizada para orquestrar as simulações e ataques contra a infraestrutura.
+### 1. Botnet Agent (Capacidade de Simulação)
+O projeto utiliza um motor assíncrono (`aiohttp`) para gerar carga volumétrica e estressar o monitoramento.
 
-| Rota | Função Técnica | Detalhes |
-| :--- | :--- | :--- |
-| `/` | `read_root` | Dashboard central com métricas de consumo de CPU/Memória dos simuladores. |
-| `/attacks` | `attacks_page` | Disparo de injeções (SQLi, XSS, Path Traversal) via POST para a Intranet. |
-| `/simulation` | `simulation_page` | Ativação da Botnet que emula comportamento de Alunos e Professores. |
-| `/stress` | `stress_page` | Geração de carga volumétrica para testar as regras de Firewall/IPS. |
-| `/devices` | `devices_page` | Controle de simuladores SNMP (Nobreaks, Sensores de Temperatura). |
-| `/admin` | `admin_page` | Gestão de usuários do próprio Painel de Controle e Alvos de Rede. |
+| Tipo de Bot | Qtd de Workers | Ações Principais | Impacto no Monitoramento |
+| :--- | :---: | :--- | :--- |
+| **DDoS Bot** | 50 | POST Flood com payload de 20KB de dados lixo. | Estresse de CPU e Tráfego no pfSense/Suricata. |
+| **Aluno Bot** | 10 | Login (Bcrypt), navegação randômica, consulta de notas. | Estresse de CPU (Criptografia) nos containers. |
+| **Prof Bot** | 10 | Login, lançamento de notas em massa, registro de presença. | Estresse de I/O de Banco de Dados (MySQL). |
+| **SOA Bot** | 30 | Acesso direto a faturas (BOLA) e fraudes de valor (Tampering). | Gatilhos de DLP e Estresse na Billing API. |
 
-### 2. Intranet (`/intranet/web`)
-Aplicação acadêmica completa, servindo como o alvo principal do monitoramento.
+### 2. Os 3 Pilares do Monitoramento (Zabbix)
+A integração com o **Zabbix Server** ocorre lendo métricas de 3 camadas distintas da infraestrutura:
 
-| Rota | Função Técnica | Detalhes |
-| :--- | :--- | :--- |
-| `/setup` | `setup_post` | Configuração dinâmica da conexão com o MySQL e criação de tabelas. |
-| `/login` | `login` | Autenticação central. Falhas aqui são coletadas pelo Zabbix. |
-| `/admin_dashboard`| `admin_dashboard` | Painel de gestão. Inclui a função `/admin/impersonate/{role}/{id}`. |
-| `/prof_dashboard` | `prof_dashboard` | Visualização de turmas e chamada (`/attendance`) e notas (`/grade`). |
-| `/student_dashboard`| `student_dashboard`| Consulta de faturas (consome a API de Billing). |
-| `/security/metrics`| `security_metrics`| API que expõe tentativas de login malsucedidas em formato JSON. |
+1. **Inspeção Profunda (DPI) via Suricata**:
+   * O tráfego dos bots passa pelo **pfSense**.
+   * O **Suricata** analisa os pacotes (Layer 7) procurando assinaturas maliciosas (SQLi, XSS, Path Traversal disparados pelo `WP_Attacks`).
+   * Alertas são escritos no `eve.json` e lidos pelo Zabbix (Log Trapping).
+2. **Monitoramento de Aplicação (Bruteforce)**:
+   * A Intranet possui uma API em `/security/metrics` que expõe logs em tempo real de tentativas de login malsucedidas.
+   * O Zabbix utiliza **LLD (Low-Level Discovery)** para alertar ataques de Bruteforce (vindos do *Aluno Bot*).
+3. **Monitoramento IoT/Hardware (SNMP)**:
+   * O **SNMP Simulator** emula dispositivos reais (Nobreaks APC, Sensores de Temperatura).
+   * O Zabbix realiza *Polling* ativo utilizando as MIBs e Templates (`zabbix_templates/`) configurados no projeto, acionando triggers caso a bateria caia ou a temperatura suba.
 
-### 3. Billing API (`/intranet/billing_api`)
-Microserviço que simula uma arquitetura SOA com vulnerabilidades de design.
+### 3. Recursos de Infraestrutura (VEX)
+O projeto está preparado para rodar em arquiteturas virtualizadas com as seguintes metas:
 
-| Rota | Função Técnica | Detalhes |
-| :--- | :--- | :--- |
-| `/invoices/{id}` | `get_invoices` | Retorna faturas. **Vulnerabilidade BOLA**: Permite ver faturas de outros IDs. |
-| `/pay` | `pay_invoice` | Processa pagamentos. **Parameter Tampering**: Confia no valor enviado pelo cliente. |
-
-### 4. Camada de Monitoramento (Zabbix)
-O Zabbix atua como o receptor central de dados de todos os componentes:
-- **LPO (Low-Level Discovery)**: Mapeia os containers via Metrics API.
-- **SNMP Polling**: Coleta dados dos simuladores de hardware (Nobreaks/Sensores).
-- **Security Trapping**: Monitora o arquivo `eve.json` (via Suricata) e a `Metrics API` da Intranet.
+- **Gateway/Firewall**: pfSense (Mínimo 2 vCPUs, 2GB RAM para aguentar o Suricata inline).
+- **Alvo (Intranet + API + DB)**: VM com 4 vCPUs e 4GB RAM (Recomendado devido ao Bcrypt stress).
+- **Atacante (Web Panel + Bots)**: VM Dockerizada com 2 vCPUs e 2GB RAM.
+- **Monitoramento**: VM Zabbix Server 6.0 LTS (2 vCPUs, 2GB RAM).
 
 ---
 *Este diagrama é atualizado automaticamente conforme novas rotas ou capacidades de carga são integradas ao sistema.*
