@@ -1,39 +1,40 @@
 # Diagrama de Funcionalidades e Rotas
 
-Este documento detalha a arquitetura lógica, os fluxos de dados e os pontos de vulnerabilidade dos sistemas que compõem o ecossistema de monitoramento.
+Este documento detalha a arquitetura lógica, os fluxos de dados, os pontos de vulnerabilidade e a capacidade de carga da Botnet que compõem o ecossistema de monitoramento.
 
-## Mapa de Fluxo e Interações
+## Mapa de Fluxo, Interações e Capacidade de Carga
 
 ```mermaid
 flowchart TD
     %% ==========================================
     %% Definições de Estilo (Alta Fidelidade)
-    %% USANDO APENAS NOMES DE CORES PARA EVITAR BUGS DE ENCODING NO GITHUB
     %% ==========================================
     classDef attackerNode fill:mistyrose,stroke:darkred,stroke-width:3px,color:black,font-weight:bold;
     classDef targetNode fill:aliceblue,stroke:darkblue,stroke-width:3px,color:black,font-weight:bold;
     classDef microserviceNode fill:honeydew,stroke:darkgreen,stroke-width:3px,color:black,font-weight:bold;
     classDef vulnerability fill:lightyellow,stroke:darkorange,stroke-width:3px,color:black,stroke-dasharray: 5 5;
+    classDef metricsNode fill:white,stroke:dimgray,stroke-width:1px,color:black,font-size:10px;
 
-    %% Estilo global para as setas (links) e seus textos (preto)
+    %% Estilo global para as setas
     linkStyle default stroke:dimgray,stroke-width:3px,color:black;
 
     %% ==========================================
-    %% Subgrafo: Painel do Atacante (C2)
+    %% Subgrafo: Painel do Atacante (C2) e Botnet
     %% ==========================================
-    subgraph Web_Panel ["🚨 1. WEB PANEL (Comando & Controle)"]
+    subgraph Web_Panel ["🚨 1. WEB PANEL & BOTNET (C2)"]
         direction TB
-        WP_Stats["📊 Dashboard\n(Estatísticas Docker)"]
+        WP_Stats["📊 Dashboard\n(Monitoramento Docker Stats)"]
         WP_Attacks["⚔️ Central de Ataques\n(SQLi, XSS, Path Traversal)"]
-        WP_Stress["🔥 Estresse L7\n(Botnet DDoS Sim)"]
-        WP_Sim["👥 Simulador de Uso\n(User Behavior Sim)"]
-        WP_SNMP["🔌 SNMP Manager\n(Controle de MIBs)"]
-        WP_Admin["⚙️ Configurações\n(Ambiente & Usuários)"]
+        
+        subgraph Botnet_Agent ["🤖 BOTNET AGENT (Capacidade de Carga)"]
+            direction LR
+            BOT_DDOS["🔥 DDoS Bot\n(50 Workers)\nPayload: 20KB/req"]:::attackerNode
+            BOT_STUD["🎓 Aluno Bot\n(10 Workers)\nAuth + Bcrypt Stress"]:::attackerNode
+            BOT_PROF["👨‍🏫 Prof Bot\n(10 Workers)\nDB Write/Read Batch"]:::attackerNode
+            BOT_SOA["💰 SOA Bot\n(30 Workers)\nBOLA/Tamper Stress"]:::attackerNode
+        end
 
-        %% Detalhes das Ações de Ataque
-        WP_Attacks --- ATK_SQLI((Injeção SQL)):::vulnerability
-        WP_Attacks --- ATK_XSS((XSS / Scripts)):::vulnerability
-        WP_Sim --- SIM_Botnet([Controle de Alunos/Profs Fake])
+        WP_Stats -.-> |"Métricas CPU/MEM"| Botnet_Agent
     end
 
     %% ==========================================
@@ -44,7 +45,6 @@ flowchart TD
         INT_Setup["🛠️ Setup\n(Configuração de DB)"]
         INT_Login["🔐 Portal de Login\n(Entry Point)"]
         
-        %% Roteamento por Perfil
         INT_Login ==> |"Sessão Ativa"| INT_Router{Seletor de Perfil}
         
         subgraph Dashboards ["Painéis Internos"]
@@ -54,12 +54,11 @@ flowchart TD
         end
 
         %% Ações Específicas Detalhadas
-        INT_Admin --- ADM_Impersonate((Vulnerabilidade:\nIDOR / Impersonate)):::vulnerability
+        INT_Admin --- ADM_Impersonate((IDOR / Impersonate)):::vulnerability
         INT_Prof --- PROF_Actions["Lançar Notas\nRegistrar Presença"]
         INT_Stud --- STUD_Billing["Acessar Área Financeira"]
         
-        %% Métrica para Zabbix
-        INT_Sec["🛡️ Security Metrics API\n(Fail Logs para Zabbix)"]
+        INT_Sec["🛡️ Metrics API\n(Fail Logs para Zabbix)"]
     end
 
     %% ==========================================
@@ -69,27 +68,22 @@ flowchart TD
         direction TB
         BILL_Invoices["📄 Listar Faturas\n(/invoices/{id})"]
         BILL_Pay["💳 Processar Pagamento\n(/pay)"]
-        BILL_Status["💓 Healthcheck\n(/status)"]
-
-        %% Vulnerabilidades do Microserviço
-        BILL_Invoices --- VULN_BOLA((Vulnerabilidade BOLA\nVazamento de Cartão)):::vulnerability
-        BILL_Pay --- VULN_Tamper((Parameter Tampering\nFraude de Valor)):::vulnerability
+        
+        BILL_Invoices --- VULN_BOLA((Vulnerabilidade BOLA)):::vulnerability
+        BILL_Pay --- VULN_Tamper((Parameter Tampering)):::vulnerability
     end
 
     %% ==========================================
     %% Conexões de Alta Visibilidade (Inter-Sistemas)
     %% ==========================================
     
-    %% Fluxo de Ataque (Web Panel -> Intranet)
-    ATK_SQLI ===> |"Envio de Payloads Maliciosos"| INT_Login
-    ATK_XSS ===> |"Injeção de Scripts"| INT_Login
-    SIM_Botnet ===> |"Tráfego de Navegação Simulado"| INT_Login
+    BOT_DDOS ===> |"POST Flood 20KB"| INT_Login
+    BOT_STUD ===> |"Auth + Navegação"| INT_Login
+    BOT_PROF ===> |"Batch DB Writes"| INT_Login
+    BOT_SOA ===> |"JSON Flood"| BILL_Invoices
     
-    %% Fluxo de Dados (Intranet -> Billing)
-    STUD_Billing ===> |"Request JSON (BOLA Flaw)"| BILL_Invoices
-    
-    %% Fluxo de Monitoramento (Intranet -> Zabbix/Security)
-    INT_Login -.-> |"Log de Falhas"| INT_Sec
+    STUD_Billing ===> |"Request JSON"| BILL_Invoices
+    INT_Login -.-> |"Zabbix Monitoring"| INT_Sec
 
     %% ==========================================
     %% Legenda de Cores
@@ -102,7 +96,7 @@ flowchart TD
         L4((Ponto de Vulnerabilidade)):::vulnerability
     end
 
-    %% Estilização de Subgrafos (Fundo Branco + Texto Preto forçado)
+    %% Estilização de Subgrafos
     style Web_Panel fill:white,stroke:darkred,stroke-width:2px,color:black
     style Intranet_App fill:white,stroke:darkblue,stroke-width:2px,color:black
     style Billing_Microservice fill:white,stroke:darkgreen,stroke-width:2px,color:black
@@ -110,45 +104,36 @@ flowchart TD
     style Legenda fill:white,stroke:gray,stroke-width:2px,color:black
 
     %% Aplicação de Classes aos nós
-    class WP_Stats,WP_Attacks,WP_Stress,WP_Sim,WP_SNMP,WP_Admin attackerNode;
+    class WP_Stats,WP_Attacks attackerNode;
     class INT_Setup,INT_Login,INT_Admin,INT_Prof,INT_Stud,INT_Sec,PROF_Actions,STUD_Billing,INT_Router targetNode;
-    class BILL_Invoices,BILL_Pay,BILL_Status microserviceNode;
+    class BILL_Invoices,BILL_Pay microserviceNode;
 ```
 
-## Detalhamento das Rotas e Funcionalidades
+## Especificações Técnicas e Carga do Sistema
 
-### 1. Web Panel (`/web_panel`)
-Interface de controle utilizada para orquestrar as simulações e ataques contra a infraestrutura.
+### 1. Botnet Agent (Capacidade de Simulação)
+O projeto utiliza um motor assíncrono (`aiohttp`) para gerar carga volumétrica e estressar o monitoramento.
 
-| Rota | Função Técnica | Detalhes |
-| :--- | :--- | :--- |
-| `/` | `read_root` | Dashboard central com métricas de consumo de CPU/Memória dos simuladores. |
-| `/attacks` | `attacks_page` | Disparo de injeções (SQLi, XSS, Path Traversal) via POST para a Intranet. |
-| `/simulation` | `simulation_page` | Ativação da Botnet que emula comportamento de Alunos e Professores. |
-| `/stress` | `stress_page` | Geração de carga volumétrica para testar as regras de Firewall/IPS. |
-| `/devices` | `devices_page` | Controle de simuladores SNMP (Nobreaks, Sensores de Temperatura). |
-| `/admin` | `admin_page` | Gestão de usuários do próprio Painel de Controle. |
+| Tipo de Bot | Qtd de Workers | Ações Principais | Impacto no Monitoramento |
+| :--- | :---: | :--- | :--- |
+| **DDoS Bot** | 50 | POST Flood com payload de 20KB de dados lixo. | Estresse de CPU no Firewall e IPS (Suricata). |
+| **Aluno Bot** | 10 | Login (Bcrypt), navegação randômica, consulta de notas. | Estresse de CPU (Criptografia) e Sessions. |
+| **Prof Bot** | 10 | Login, lançamento de notas em massa, registro de presença. | Estresse de I/O de Banco de Dados (MySQL). |
+| **SOA Bot** | 30 | Acesso direto a faturas (BOLA) e fraudes de valor (Tampering). | Gatilhos de DLP (Vazamento de Cartão de Crédito). |
 
-### 2. Intranet (`/intranet/web`)
-Aplicação acadêmica completa, servindo como o alvo principal do monitoramento.
+### 2. Recursos e Monitoramento Docker
+O **Web Panel** consome a API do Docker Engine para expor métricas em tempo real:
 
-| Rota | Função Técnica | Detalhes |
-| :--- | :--- | :--- |
-| `/setup` | `setup_post` | Configuração dinâmica da conexão com o MySQL e criação de tabelas. |
-| `/login` | `login` | Autenticação central. Falhas aqui são enviadas ao Zabbix. |
-| `/admin_dashboard`| `admin_dashboard` | Painel de gestão. Inclui a função `/admin/impersonate/{role}/{id}`. |
-| `/prof_dashboard` | `prof_dashboard` | Visualização de turmas e chamada (`/attendance`) e notas (`/grade`). |
-| `/student_dashboard`| `student_dashboard`| Consulta de faturas (consome a API de Billing). |
-| `/security/metrics`| `security_metrics`| API que expõe tentativas de login malsucedidas em formato JSON. |
+- **CPU Usage (%)**: Calculado via `cpu_delta` e `system_delta`, permitindo ver o impacto de cada bot no host.
+- **Memory Usage (%)**: Monitoramento de *Memory Leaks* durante testes de estresse longos.
+- **I/O Batching**: O simulador de professor utiliza `aiomysql` com `pool_size=100` e `max_overflow=200` para suportar milhares de requisições simultâneas.
 
-### 3. Billing API (`/intranet/billing_api`)
-Microserviço que simula uma arquitetura SOA com vulnerabilidades de design.
+### 3. Recursos de Infraestrutura (VEX)
+O projeto está preparado para rodar em arquiteturas virtualizadas com as seguintes metas:
 
-| Rota | Função Técnica | Detalhes |
-| :--- | :--- | :--- |
-| `/invoices/{id}` | `get_invoices` | Retorna faturas. **Vulnerabilidade BOLA**: Permite ver faturas de outros IDs. |
-| `/pay` | `pay_invoice` | Processa pagamentos. **Parameter Tampering**: Confia no valor enviado pelo cliente. |
-| `/status` | `status` | Retorna o status da réplica e saúde do microserviço. |
+- **Alvo (Intranet)**: VM com 4 vCPUs e 4GB RAM (Mínimo recomendado para Bcrypt stress).
+- **Atacante (Web Panel)**: VM com 2 vCPUs e 2GB RAM.
+- **Banco de Dados**: MySQL 8.0 otimizado para conexões simultâneas.
 
 ---
-*Este diagrama é atualizado automaticamente conforme novas rotas são integradas ao sistema.*
+*Este diagrama é atualizado automaticamente conforme novas rotas ou capacidades de carga são integradas ao sistema.*
