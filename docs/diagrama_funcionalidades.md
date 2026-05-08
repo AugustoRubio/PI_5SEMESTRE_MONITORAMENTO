@@ -101,12 +101,12 @@ flowchart TD
         L4((Ponto de Vulnerabilidade)):::vulnerability
     end
 
-    %% Estilização de Subgrafos garantindo contraste (Fundo Branco + Texto Preto)
-    style Web_Panel fill:#ffffff,stroke:#b71c1c,stroke-width:2px,color:#000000
-    style Intranet_App fill:#ffffff,stroke:#0d47a1,stroke-width:2px,color:#000000
-    style Billing_Microservice fill:#ffffff,stroke:#1b5e20,stroke-width:2px,color:#000000
-    style Dashboards fill:#f1f8ff,stroke:#90caf9,stroke-dasharray: 5 5,color:#000000
-    style Legenda fill:#ffffff,stroke:#9e9e9e,stroke-width:2px,color:#000000
+    %% Estilização de Subgrafos garantindo contraste (Fundo Branco)
+    style Web_Panel fill:#ffffff,stroke:#b71c1c,stroke-width:2px
+    style Intranet_App fill:#ffffff,stroke:#0d47a1,stroke-width:2px
+    style Billing_Microservice fill:#ffffff,stroke:#1b5e20,stroke-width:2px
+    style Dashboards fill:#f1f8ff,stroke:#90caf9,stroke-dasharray: 5 5
+    style Legenda fill:#ffffff,stroke:#9e9e9e,stroke-width:2px
 
     %% Aplicação de Classes aos nós
     class WP_Stats,WP_Attacks,WP_Stress,WP_Sim,WP_SNMP,WP_Admin attackerNode;
