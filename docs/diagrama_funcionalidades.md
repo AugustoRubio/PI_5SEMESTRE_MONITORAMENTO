@@ -9,11 +9,13 @@ flowchart TD
     %% ==========================================
     %% Definições de Estilo de Alto Contraste
     %% ==========================================
-    classDef attackerNode fill:#ffcdd2,stroke:#b71c1c,stroke-width:3px,color:#000,font-weight:bold;
-    classDef targetNode fill:#bbdefb,stroke:#0d47a1,stroke-width:3px,color:#000,font-weight:bold;
-    classDef microserviceNode fill:#c8e6c9,stroke:#1b5e20,stroke-width:3px,color:#000,font-weight:bold;
-    classDef vulnerability fill:#fff9c4,stroke:#f57f17,stroke-width:3px,color:#000,stroke-dasharray: 5 5;
-    classDef connectionLabel font-style:italic,font-weight:bold,background-color:#fff;
+    classDef attackerNode fill:#ffcdd2,stroke:#b71c1c,stroke-width:3px,color:#000000,font-weight:bold;
+    classDef targetNode fill:#bbdefb,stroke:#0d47a1,stroke-width:3px,color:#000000,font-weight:bold;
+    classDef microserviceNode fill:#c8e6c9,stroke:#1b5e20,stroke-width:3px,color:#000000,font-weight:bold;
+    classDef vulnerability fill:#fff9c4,stroke:#f57f17,stroke-width:3px,color:#000000,stroke-dasharray: 5 5;
+
+    %% Estilo global para as setas (links) e seus textos
+    linkStyle default stroke:#333333,stroke-width:3px,color:#000000;
 
     %% ==========================================
     %% Subgrafo: Painel do Atacante (C2)
@@ -99,15 +101,16 @@ flowchart TD
         L4((Ponto de Vulnerabilidade)):::vulnerability
     end
 
-    %% Estilização de Subgrafos
-    style Web_Panel fill:#fff,stroke:#b71c1c,stroke-width:2px
-    style Intranet_App fill:#fff,stroke:#0d47a1,stroke-width:2px
-    style Billing_Microservice fill:#fff,stroke:#1b5e20,stroke-width:2px
-    style Dashboards fill:#f1f8ff,stroke:#90caf9,stroke-dasharray: 5 5
+    %% Estilização de Subgrafos garantindo contraste (Fundo Branco + Texto Preto)
+    style Web_Panel fill:#ffffff,stroke:#b71c1c,stroke-width:2px,color:#000000
+    style Intranet_App fill:#ffffff,stroke:#0d47a1,stroke-width:2px,color:#000000
+    style Billing_Microservice fill:#ffffff,stroke:#1b5e20,stroke-width:2px,color:#000000
+    style Dashboards fill:#f1f8ff,stroke:#90caf9,stroke-dasharray: 5 5,color:#000000
+    style Legenda fill:#ffffff,stroke:#9e9e9e,stroke-width:2px,color:#000000
 
     %% Aplicação de Classes aos nós
     class WP_Stats,WP_Attacks,WP_Stress,WP_Sim,WP_SNMP,WP_Admin attackerNode;
-    class INT_Setup,INT_Login,INT_Admin,INT_Prof,INT_Stud,INT_Sec,PROF_Actions,STUD_Billing targetNode;
+    class INT_Setup,INT_Login,INT_Admin,INT_Prof,INT_Stud,INT_Sec,PROF_Actions,STUD_Billing,INT_Router targetNode;
     class BILL_Invoices,BILL_Pay,BILL_Status microserviceNode;
 ```
 
