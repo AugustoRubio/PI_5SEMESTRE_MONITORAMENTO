@@ -7,49 +7,86 @@ Este documento descreve o fluxo lógico e as rotas dos componentes principais do
 O projeto é composto por três blocos principais que interagem entre si para simular um ambiente acadêmico monitorado por sistemas de segurança (pfSense, Suricata, Zabbix).
 
 ```mermaid
-graph TD
-    subgraph Web_Panel ["Web Panel (C2 & Simulator)"]
-        WP_Index["/ (Dashboard)"] --> WP_Stats["Estatísticas Docker"]
-        WP_Index --> WP_Attacks["/attacks (Central de Ataques)"]
-        WP_Index --> WP_Stress["/stress (Estresse L7)"]
-        WP_Index --> WP_Sim["/simulation (Simular Alunos/Profs)"]
-        WP_Index --> WP_SNMP["/devices (Simuladores SNMP)"]
-        
-        WP_Attacks --> ATK_SQLI["SQLi / XSS / Path Traversal"]
-        WP_Sim --> SIM_LOGIN["Logins Randômicos [SIM]"]
-        WP_Sim --> SIM_ACT["Ações: Notas e Chamadas"]
+flowchart TB
+    %% ==========================================
+    %% Definição de Estilos (Cores e Formatos)
+    %% ==========================================
+    classDef attacker fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#b71c1c;
+    classDef target fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1;
+    classDef microservice fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20;
+    classDef vuln fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#e65100,stroke-dasharray: 5 5;
+    classDef legendStyle fill:#f5f5f5,stroke:#9e9e9e,stroke-width:1px;
+
+    %% ==========================================
+    %% Legenda (Subgrafo visual)
+    %% ==========================================
+    subgraph Legenda
+        L1[Ambiente Atacante / C2]:::attacker
+        L2[Aplicação Alvo / Intranet]:::target
+        L3[Microserviços Internos]:::microservice
+        L4((Vulnerabilidade / Gatilho)):::vuln
     end
-
-    subgraph Intranet_Web ["Intranet (Target App)"]
-        INT_Setup["/setup (Config DB)"] --> INT_Login["/login (Auth)"]
-        INT_Login -- "Role: Admin" --> INT_Admin["/admin_dashboard"]
-        INT_Login -- "Role: Prof" --> INT_Prof["/prof_dashboard"]
-        INT_Login -- "Role: Aluno" --> INT_Stud["/student_dashboard"]
-
-        INT_Admin -- "Impersonate" --> INT_Prof
-        INT_Admin -- "Impersonate" --> INT_Stud
-        
-        INT_Prof --> INT_Class["/prof_dashboard/class/{id}"]
-        INT_Class --> INT_Grade["Lançar Notas"]
-        INT_Class --> INT_Attend["Realizar Chamada"]
-
-        INT_Admin --> INT_Users["Gerenciar Alunos/Profs"]
-    end
-
-    subgraph SOA_Billing ["Billing API (Microservice)"]
-        BILL_Invoices["/invoices/{student_id}"] -- "Gatilho DLP" --> BILL_Data["Vazamento de Cartão (BOLA)"]
-        BILL_Pay["/pay"] -- "Parameter Tampering" --> BILL_Fraud["Fraude de Valor"]
-    end
-
-    %% Conexões de Interação
-    WP_Attacks -.->|Injeção de Payloads| INT_Login
-    WP_Sim -.->|Tráfego Simulado| INT_Login
-    INT_Stud -.->|Consome| BILL_Invoices
     
-    %% Estilização
-    style Web_Panel fill:#f9f,stroke:#333,stroke-width:2px
-    style Intranet_Web fill:#bbf,stroke:#333,stroke-width:2px
-    style SOA_Billing fill:#bfb,stroke:#333,stroke-width:2px
+    %% Ocultar conexões da legenda
+    L1 ~~~ L2 ~~~ L3 ~~~ L4
+    style Legenda fill:#fafafa,stroke:#bdbdbd,stroke-width:1px,stroke-dasharray: 5 5
+
+    %% ==========================================
+    %% Blocos Principais
+    %% ==========================================
+    
+    subgraph Web_Panel ["1. Web Panel (Atacante & Simulador)"]
+        direction LR
+        WP_Index["/ (Dashboard)"]
+        
+        WP_Index --> WP_Attacks["/attacks"]
+        WP_Index --> WP_Sim["/simulation"]
+        WP_Index --> WP_Misc["/stress & /devices"]
+        
+        WP_Attacks -.-> ATK_Payloads((Payloads Maliciosos)):::vuln
+        WP_Sim -.-> SIM_Traffic([Tráfego Simulado])
+    end
+
+    subgraph Intranet_Web ["2. Intranet (Aplicação Alvo)"]
+        direction TB
+        INT_Setup["/setup"] --> INT_Login["/login (Ponto de Entrada)"]
+        
+        INT_Login --> |"Autenticação\n(Brute Force Target)"| RoleRouter{Perfil}
+        
+        RoleRouter -- "Admin" --> INT_Admin["/admin_dashboard"]
+        RoleRouter -- "Professor" --> INT_Prof["/prof_dashboard"]
+        RoleRouter -- "Aluno" --> INT_Stud["/student_dashboard"]
+
+        %% Detalhes Internos
+        INT_Prof --> INT_Class["/class/{id} (Notas e Chamadas)"]
+        
+        %% Funcionalidade sensível
+        INT_Admin -.-> |"/impersonate"| Vuln_Impersonate((Bypass de Sessão)):::vuln
+        Vuln_Impersonate -.-> INT_Prof
+        Vuln_Impersonate -.-> INT_Stud
+    end
+
+    subgraph SOA_Billing ["3. Billing API (Microserviço)"]
+        direction TB
+        BILL_Invoices["/invoices/{student_id}"] -.-> Vuln_BOLA((Vulnerabilidade BOLA\nVazamento DLP)):::vuln
+        BILL_Pay["/pay"] -.-> Vuln_Fraud((Parameter Tampering)):::vuln
+    end
+
+    %% ==========================================
+    %% Conexões Inter-Sistemas (Desenhadas para evitar cruzamentos)
+    %% ==========================================
+    
+    %% Conectando o Atacante ao Alvo
+    ATK_Payloads ==> |"Ataques Web"| INT_Login
+    SIM_Traffic ==> |"Navegação"| INT_Login
+    
+    %% Conectando o Alvo ao Microserviço
+    INT_Stud ==> |"Consulta Faturas"| BILL_Invoices
+
+    %% Aplicando as classes principais aos subgrafos (mermaid trick: apply to nodes)
+    class Web_Panel,WP_Index,WP_Attacks,WP_Sim,WP_Misc attacker;
+    class Intranet_Web,INT_Setup,INT_Login,RoleRouter,INT_Admin,INT_Prof,INT_Stud,INT_Class target;
+    class SOA_Billing,BILL_Invoices,BILL_Pay microservice;
 ```
 
 ## Detalhamento de Rotas
