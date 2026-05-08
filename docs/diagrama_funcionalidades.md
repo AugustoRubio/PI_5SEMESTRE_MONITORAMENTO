@@ -8,15 +8,15 @@ Este documento detalha a arquitetura lógica, os fluxos de dados e os pontos de 
 flowchart TD
     %% ==========================================
     %% Definições de Estilo (Alta Fidelidade)
-    %% Cores de fundo claras com texto PRETO forçado (#000)
+    %% USANDO APENAS NOMES DE CORES PARA EVITAR BUGS DE ENCODING NO GITHUB
     %% ==========================================
-    classDef attackerNode fill:#ffcdd2,stroke:#b71c1c,stroke-width:3px,color:#000,font-weight:bold;
-    classDef targetNode fill:#bbdefb,stroke:#0d47a1,stroke-width:3px,color:#000,font-weight:bold;
-    classDef microserviceNode fill:#c8e6c9,stroke:#1b5e20,stroke-width:3px,color:#000,font-weight:bold;
-    classDef vulnerability fill:#fff9c4,stroke:#f57f17,stroke-width:3px,color:#000,stroke-dasharray: 5 5;
+    classDef attackerNode fill:mistyrose,stroke:darkred,stroke-width:3px,color:black,font-weight:bold;
+    classDef targetNode fill:aliceblue,stroke:darkblue,stroke-width:3px,color:black,font-weight:bold;
+    classDef microserviceNode fill:honeydew,stroke:darkgreen,stroke-width:3px,color:black,font-weight:bold;
+    classDef vulnerability fill:lightyellow,stroke:darkorange,stroke-width:3px,color:black,stroke-dasharray: 5 5;
 
     %% Estilo global para as setas (links) e seus textos (preto)
-    linkStyle default stroke:#333,stroke-width:3px,color:#000;
+    linkStyle default stroke:dimgray,stroke-width:3px,color:black;
 
     %% ==========================================
     %% Subgrafo: Painel do Atacante (C2)
@@ -103,11 +103,11 @@ flowchart TD
     end
 
     %% Estilização de Subgrafos (Fundo Branco + Texto Preto forçado)
-    style Web_Panel fill:#fff,stroke:#b71c1c,stroke-width:2px,color:#000
-    style Intranet_App fill:#fff,stroke:#0d47a1,stroke-width:2px,color:#000
-    style Billing_Microservice fill:#fff,stroke:#1b5e20,stroke-width:2px,color:#000
-    style Dashboards fill:#f1f8ff,stroke:#90caf9,stroke-dasharray: 5 5,color:#000
-    style Legenda fill:#fff,stroke:#9e9e9e,stroke-width:2px,color:#000
+    style Web_Panel fill:white,stroke:darkred,stroke-width:2px,color:black
+    style Intranet_App fill:white,stroke:darkblue,stroke-width:2px,color:black
+    style Billing_Microservice fill:white,stroke:darkgreen,stroke-width:2px,color:black
+    style Dashboards fill:aliceblue,stroke:dodgerblue,stroke-dasharray: 5 5,color:black
+    style Legenda fill:white,stroke:gray,stroke-width:2px,color:black
 
     %% Aplicação de Classes aos nós
     class WP_Stats,WP_Attacks,WP_Stress,WP_Sim,WP_SNMP,WP_Admin attackerNode;
