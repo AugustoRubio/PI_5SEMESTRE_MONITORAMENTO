@@ -9,6 +9,9 @@ zabbix_export:
       groups:
         - name: Templates/Applications
       macros:
+        - macro: '{$INTRANET.IP}'
+          value: '192.168.1.100'
+          description: 'IP ou Hostname do servidor da Intranet'
         - macro: '{$INTRANET.SCHEME}'
           value: 'https'
           description: 'Protocolo de conexão (http ou https)'
@@ -20,7 +23,7 @@ zabbix_export:
           name: 'Intranet: Obter Métricas de Negócio'
           type: HTTP_AGENT
           key: intranet.metrics.get
-          url: '{$INTRANET.SCHEME}://{HOST.CONN}:{$INTRANET.PORT}/business/metrics'
+          url: '{$INTRANET.SCHEME}://{$INTRANET.IP}:{$INTRANET.PORT}/business/metrics'
           value_type: TEXT
           delay: 1m
           description: 'Obtém o JSON com as métricas de negócios (Alunos, Professores, Notas) da Intranet.'
@@ -65,7 +68,7 @@ zabbix_export:
           name: 'Billing: Obter Métricas Financeiras'
           type: HTTP_AGENT
           key: billing.metrics.get
-          url: '{$INTRANET.SCHEME}://{HOST.CONN}:{$INTRANET.PORT}/api/billing/metrics'
+          url: '{$INTRANET.SCHEME}://{$INTRANET.IP}:{$INTRANET.PORT}/api/billing/metrics'
           value_type: TEXT
           delay: 1m
           description: 'Obtém o JSON com as métricas financeiras do microsserviço de pagamentos.'
