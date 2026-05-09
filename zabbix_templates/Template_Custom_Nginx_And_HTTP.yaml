@@ -1,0 +1,119 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - name: Templates/Applications
+  templates:
+    - uuid: f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1
+      template: 'Template Custom Nginx and HTTP Codes'
+      name: 'Template Custom Nginx and HTTP Codes'
+      description: 'Template 100% customizado para ler o stub_status do Nginx e os códigos de resposta HTTP (200, 300, 400, 500) gerados pela Intranet.'
+      groups:
+        - name: Templates/Applications
+      macros:
+        - macro: '{$INTRANET.IP}'
+          value: '192.168.1.100'
+          description: 'Obrigatório: Coloque aqui o IP do seu servidor da Intranet.'
+        - macro: '{$INTRANET.PORT}'
+          value: '443'
+          description: 'Porta do servidor (ex: 443 para HTTPS ou 80 para HTTP).'
+        - macro: '{$INTRANET.SCHEME}'
+          value: 'https'
+          description: 'http ou https'
+      items:
+        - uuid: a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1
+          name: 'Nginx: Obter RAW Stub Status'
+          type: HTTP_AGENT
+          key: nginx.raw.status
+          url: '{$INTRANET.SCHEME}://{$INTRANET.IP}:{$INTRANET.PORT}/basic_status'
+          value_type: TEXT
+          delay: 30s
+          description: 'Coleta bruta do /basic_status do Nginx.'
+        - uuid: a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2
+          name: 'Nginx: Conexões Ativas'
+          type: DEPENDENT
+          key: nginx.active_connections
+          value_type: FLOAT
+          master_item:
+            key: nginx.raw.status
+          preprocessing:
+            - type: REGEX
+              parameters:
+                - 'Active connections:\s+([0-9]+)'
+                - \1
+        - uuid: a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3
+          name: 'Nginx: Total de Requisições Aceitas'
+          type: DEPENDENT
+          key: nginx.accepted
+          value_type: FLOAT
+          master_item:
+            key: nginx.raw.status
+          preprocessing:
+            - type: REGEX
+              parameters:
+                - 'server accepts handled requests\s*\n\s+([0-9]+)'
+                - \1
+        - uuid: a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4
+          name: 'Nginx: Total de Requisições Processadas'
+          type: DEPENDENT
+          key: nginx.requests
+          value_type: FLOAT
+          master_item:
+            key: nginx.raw.status
+          preprocessing:
+            - type: REGEX
+              parameters:
+                - 'server accepts handled requests\s*\n\s+[0-9]+\s+[0-9]+\s+([0-9]+)'
+                - \1
+                
+        - uuid: b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1
+          name: 'Intranet: Obter RAW HTTP Metrics'
+          type: HTTP_AGENT
+          key: intranet.http.raw
+          url: '{$INTRANET.SCHEME}://{$INTRANET.IP}:{$INTRANET.PORT}/business/metrics'
+          value_type: TEXT
+          delay: 30s
+          description: 'Coleta os códigos HTTP diretamente do backend FastAPI.'
+        - uuid: b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2
+          name: 'Intranet HTTP 200s (Sucesso)'
+          type: DEPENDENT
+          key: http.2xx
+          value_type: FLOAT
+          master_item:
+            key: intranet.http.raw
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.http_2xx'
+        - uuid: b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3
+          name: 'Intranet HTTP 300s (Redirecionamentos)'
+          type: DEPENDENT
+          key: http.3xx
+          value_type: FLOAT
+          master_item:
+            key: intranet.http.raw
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.http_3xx'
+        - uuid: b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4
+          name: 'Intranet HTTP 400s (Erros de Cliente)'
+          type: DEPENDENT
+          key: http.4xx
+          value_type: FLOAT
+          master_item:
+            key: intranet.http.raw
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.http_4xx'
+        - uuid: b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5
+          name: 'Intranet HTTP 500s (Erros de Servidor)'
+          type: DEPENDENT
+          key: http.5xx
+          value_type: FLOAT
+          master_item:
+            key: intranet.http.raw
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.http_5xx'

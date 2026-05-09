@@ -153,6 +153,28 @@ if DB_USER and DB_PASSWORD:
 app = FastAPI(title="Intranet Faculdade")
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
+# --- CUSTOM HTTP METRICS TRACKER ---
+http_status_counters = {
+    "2xx": 0,
+    "3xx": 0,
+    "4xx": 0,
+    "5xx": 0
+}
+
+@app.middleware("http")
+async def track_http_codes(request: Request, call_next):
+    response = await call_next(request)
+    status = response.status_code
+    if 200 <= status < 300:
+        http_status_counters["2xx"] += 1
+    elif 300 <= status < 400:
+        http_status_counters["3xx"] += 1
+    elif 400 <= status < 500:
+        http_status_counters["4xx"] += 1
+    elif 500 <= status < 600:
+        http_status_counters["5xx"] += 1
+    return response
+
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if not os.path.exists(static_dir):
     os.makedirs(static_dir)
@@ -215,7 +237,11 @@ def business_metrics(db: Session = Depends(get_db)):
     return {
         "total_students": total_students,
         "total_professors": total_professors,
-        "total_grades": total_grades
+        "total_grades": total_grades,
+        "http_2xx": http_status_counters["2xx"],
+        "http_3xx": http_status_counters["3xx"],
+        "http_4xx": http_status_counters["4xx"],
+        "http_5xx": http_status_counters["5xx"]
     }
 
 # --- ROTAS DE SETUP ---
