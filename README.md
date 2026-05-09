@@ -9,6 +9,37 @@ A arquitetura do projeto integra diversas tecnologias de rede e segurança, incl
 
 ---
 
+## 🌐 Topologia de Rede e Roteamento (GNS3 + FRR/OSPF)
+
+O ambiente GNS3 está estruturado de forma a simular um cenário Enterprise redundante, composto por 5 camadas arquiteturais:
+
+- **Nível 1: Comunicação Externa e Host (Camada Física)**
+  - `bond0` (10.10.250.3/29): Conexão com o mundo real. Agregação LACP apontando para o gateway principal da infraestrutura (10.10.250.1). Recebe o NAT (Masquerade) para acesso à internet.
+  - `tun-gre` (10.255.255.1/30): Túnel GRE Ponto-a-Ponto conectado à VPS externa onde o **Zabbix Server reside (10.255.255.2)**. Configurado no OSPF como point-to-point.
+  - **Redes Docker** (10.200.101.0/24 e 192.168.100.0/24): Redes internas anunciadas obrigatoriamente no FRR do Debian para roteamento TCP reverso.
+
+- **Nível 2: A Ponte (Virtualização / TAP)**
+  Conectam o Kernel do Debian aos roteadores dentro do GNS3.
+  - `tap0` (192.168.1.1/28): Gateway da Rota Principal.
+  - `tap1` (192.168.2.1/28): Gateway da Rota Secundária (Failover).
+
+- **Nível 3: Segurança e Borda do GNS3 (Firewalls pfSense)**
+  Atuam como ABR (Area Border Routers), filtrando o tráfego e repassando as rotas da rede local virtual para o host Debian.
+  - **pfSense 1:** Porta de entrada principal (Interface WAN ligada à tap0 com IP 192.168.1.2).
+  - **pfSense 2:** Porta de entrada redundante (Interface WAN ligada à tap1 com IP 192.168.2.2).
+
+- **Nível 4: Distribuição Interna (Switches Core MikroTik)**
+  O coração da rede GNS3, que gerencia as LANs e executam os testes de conectividade do Zabbix (SNMP).
+  - **Switch Core 1:** Equipamento principal (10.10.0.2).
+  - **Switch Core 2:** Equipamento de redundância (10.10.0.6).
+  - *Trânsito Interno:* Sub-redes 10.10.0.x/30 para comunicação cruzada, garantindo alta disponibilidade.
+
+- **Nível 5: Aplicações e Serviços (Alvos da Intranet)**
+  - **Rede de Aplicação** (10.10.100.0/27): Rede final virtualizada.
+  - **Alvo de Estresse** (10.10.100.4 e 10.10.101.4): Servidores da Intranet e da API SOA, monitorados pelo Zabbix Proxy através do túnel GRE.
+
+---
+
 ## 🎛️ Painel de Controle (Web Panel)
 **Diretório:** `/web_panel/`
 
