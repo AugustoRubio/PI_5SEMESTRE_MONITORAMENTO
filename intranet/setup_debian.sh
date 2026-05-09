@@ -61,7 +61,7 @@ sudo cp certs/key.pem /etc/nginx/ssl/key.pem
 # Ajustar o socket do PHP na configuração do Nginx para a versão instalada
 # Criamos uma cópia temporária para não alterar o arquivo original do repositório
 cp nginx/default.conf nginx/default.conf.tmp
-sed -i "s|fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;|fastcgi_pass unix:$PHP_SOCK;|" nginx/default.conf.tmp
+sed -i "s|fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;|fastcgi_pass unix:$PHP_SOCK;|g" nginx/default.conf.tmp
 
 sudo cp nginx/default.conf.tmp /etc/nginx/sites-available/intranet
 rm nginx/default.conf.tmp
