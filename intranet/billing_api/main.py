@@ -51,6 +51,27 @@ def status():
         "replica": os.environ.get("HOSTNAME", "unknown")
     }
 
+@app.get("/metrics")
+def billing_metrics():
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    
+    # Total de Faturas Geradas
+    c.execute("SELECT COUNT(*) FROM invoices")
+    total_invoices = c.fetchone()[0]
+    
+    # Valor Total Não Pago (PENDING)
+    c.execute("SELECT SUM(amount) FROM invoices WHERE status = 'PENDING'")
+    unpaid_result = c.fetchone()[0]
+    unpaid_amount = float(unpaid_result) if unpaid_result is not None else 0.0
+    
+    conn.close()
+    
+    return {
+        "total_invoices": total_invoices,
+        "unpaid_amount": unpaid_amount
+    }
+
 class PaymentRequest(BaseModel):
     invoice_id: int
     amount: float

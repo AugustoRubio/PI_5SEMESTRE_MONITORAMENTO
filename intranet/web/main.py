@@ -201,6 +201,23 @@ def security_metrics(db: Session = Depends(get_db)):
         "system_time": now
     }
 
+# --- ENDPOINT DE NEGÓCIOS (PARA ZABBIX) ---
+@app.get("/business/metrics")
+@app.get("/business/metrics/")
+def business_metrics(db: Session = Depends(get_db)):
+    if db is None:
+        return {"error": "Banco de dados não configurado"}
+    
+    total_students = db.query(Student).count()
+    total_professors = db.query(Professor).count()
+    total_grades = db.query(Grade).count()
+
+    return {
+        "total_students": total_students,
+        "total_professors": total_professors,
+        "total_grades": total_grades
+    }
+
 # --- ROTAS DE SETUP ---
 @app.get("/setup", response_class=HTMLResponse)
 def setup_get(request: Request):
