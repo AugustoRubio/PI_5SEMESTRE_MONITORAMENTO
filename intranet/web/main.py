@@ -237,7 +237,14 @@ def business_metrics(db: Session = Depends(get_db)):
     return {
         "total_students": total_students,
         "total_professors": total_professors,
-        "total_grades": total_grades,
+        "total_grades": total_grades
+    }
+
+# --- ENDPOINT DE CÓDIGOS HTTP (PARA ZABBIX) ---
+@app.get("/http/metrics")
+@app.get("/http/metrics/")
+def http_metrics():
+    return {
         "http_2xx": http_status_counters["2xx"],
         "http_3xx": http_status_counters["3xx"],
         "http_4xx": http_status_counters["4xx"],

@@ -1,5 +1,7 @@
 zabbix_export:
   version: '7.0'
+  template_groups:
+    - name: Templates/Applications
   templates:
     - uuid: d41d8cd98f004204a9800998ecf8427e
       template: 'Template Intranet Business Metrics'
@@ -9,14 +11,17 @@ zabbix_export:
       groups:
         - name: Templates/Applications
       macros:
+        - macro: '{$INTRANET.HOST_HEADER}'
+          value: '10.10.100.4'
+          description: 'IP interno da Intranet para roteamento de Proxy'
         - macro: '{$INTRANET.IP}'
-          value: '192.168.1.100'
-          description: 'IP ou Hostname do servidor da Intranet'
+          value: '10.255.255.2'
+          description: 'IP ou Hostname do servidor da Intranet (ou proxy GRE)'
         - macro: '{$INTRANET.SCHEME}'
-          value: 'https'
+          value: 'http'
           description: 'Protocolo de conexão (http ou https)'
         - macro: '{$INTRANET.PORT}'
-          value: '443'
+          value: '80'
           description: 'Porta de conexão com a Intranet'
       items:
         - uuid: 3e25960a79eb4fe2b2c8a221f7edbe47
@@ -27,6 +32,9 @@ zabbix_export:
           value_type: TEXT
           delay: 1m
           description: 'Obtém o JSON com as métricas de negócios (Alunos, Professores, Notas) da Intranet.'
+          headers:
+            - name: 'Host'
+              value: '{$INTRANET.HOST_HEADER}'
         - uuid: 8f14e45fceea4b209d73dcb5a6d59b36
           name: 'Intranet: Total de Alunos'
           type: DEPENDENT
@@ -72,6 +80,9 @@ zabbix_export:
           value_type: TEXT
           delay: 1m
           description: 'Obtém o JSON com as métricas financeiras do microsserviço de pagamentos.'
+          headers:
+            - name: 'Host'
+              value: '{$INTRANET.HOST_HEADER}'
         - uuid: d14210cfef4f45209baecb0ba0882e3c
           name: 'Billing: Total de Faturas'
           type: DEPENDENT

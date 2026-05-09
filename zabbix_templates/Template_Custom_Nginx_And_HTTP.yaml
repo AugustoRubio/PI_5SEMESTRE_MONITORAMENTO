@@ -4,9 +4,9 @@ zabbix_export:
     - name: Templates/Applications
   templates:
     - uuid: b542a229c15542158309a68a5717ce24
-      template: 'Template Intranet Completo'
-      name: 'Template Intranet Completo (Nginx, HTTP, Business)'
-      description: 'Template unificado: lê stub_status do Nginx, códigos HTTP gerados pela Intranet e as métricas de negócio (Alunos, Notas, Faturas), suportando roteamento SNI via Proxy Zabbix.'
+      template: 'Template Custom Nginx and HTTP Codes'
+      name: 'Template Custom Nginx and HTTP Codes'
+      description: 'Template 100% customizado para ler o stub_status do Nginx e os códigos de resposta HTTP (200, 300, 400, 500) gerados pela Intranet.'
       groups:
         - name: Templates/Applications
       macros:
@@ -15,7 +15,7 @@ zabbix_export:
           description: 'Obrigatório para o Proxy saber para qual servidor interno rotear (ex: 10.10.100.4 ou 10.10.101.4)'
         - macro: '{$INTRANET.IP}'
           value: '10.255.255.2'
-          description: 'O IP do servidor ou do Proxy/Túnel GRE (onde o Zabbix vai conectar fisicamente).'
+          description: 'O IP alvo do monitoramento.'
         - macro: '{$INTRANET.PORT}'
           value: '80'
           description: 'Porta do servidor (ex: 443 para HTTPS ou 80 para HTTP).'
@@ -72,24 +72,23 @@ zabbix_export:
                 - \1
                 
         - uuid: a1b2c3d4e5f647a89b0c1d2e3f4a5b6c
-          name: 'Intranet: Obter RAW Metrics'
+          name: 'Intranet: Obter RAW HTTP Metrics'
           type: HTTP_AGENT
-          key: intranet.metrics.raw
-          url: '{$INTRANET.SCHEME}://{$INTRANET.IP}:{$INTRANET.PORT}/business/metrics'
+          key: intranet.http.raw
+          url: '{$INTRANET.SCHEME}://{$INTRANET.IP}:{$INTRANET.PORT}/http/metrics'
           value_type: TEXT
           delay: 30s
-          description: 'Coleta as métricas de negócio e códigos HTTP do backend FastAPI.'
+          description: 'Coleta os códigos HTTP diretamente do backend FastAPI.'
           headers:
             - name: 'Host'
               value: '{$INTRANET.HOST_HEADER}'
-        
         - uuid: c6b5a4f3e2d140b98a7b6c5d4e3f2a1b
           name: 'Intranet HTTP 200s (Sucesso)'
           type: DEPENDENT
           key: http.2xx
           value_type: FLOAT
           master_item:
-            key: intranet.metrics.raw
+            key: intranet.http.raw
           preprocessing:
             - type: JSONPATH
               parameters:
@@ -100,7 +99,7 @@ zabbix_export:
           key: http.3xx
           value_type: FLOAT
           master_item:
-            key: intranet.metrics.raw
+            key: intranet.http.raw
           preprocessing:
             - type: JSONPATH
               parameters:
@@ -111,7 +110,7 @@ zabbix_export:
           key: http.4xx
           value_type: FLOAT
           master_item:
-            key: intranet.metrics.raw
+            key: intranet.http.raw
           preprocessing:
             - type: JSONPATH
               parameters:
@@ -122,76 +121,8 @@ zabbix_export:
           key: http.5xx
           value_type: FLOAT
           master_item:
-            key: intranet.metrics.raw
+            key: intranet.http.raw
           preprocessing:
             - type: JSONPATH
               parameters:
                 - '$.http_5xx'
-
-        - uuid: e1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6
-          name: 'Intranet: Total de Alunos'
-          type: DEPENDENT
-          key: intranet.metrics.students
-          value_type: FLOAT
-          master_item:
-            key: intranet.metrics.raw
-          preprocessing:
-            - type: JSONPATH
-              parameters:
-                - '$.total_students'
-        - uuid: f2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7
-          name: 'Intranet: Total de Professores'
-          type: DEPENDENT
-          key: intranet.metrics.professors
-          value_type: FLOAT
-          master_item:
-            key: intranet.metrics.raw
-          preprocessing:
-            - type: JSONPATH
-              parameters:
-                - '$.total_professors'
-        - uuid: g3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8
-          name: 'Intranet: Total de Notas Lançadas'
-          type: DEPENDENT
-          key: intranet.metrics.grades
-          value_type: FLOAT
-          master_item:
-            key: intranet.metrics.raw
-          preprocessing:
-            - type: JSONPATH
-              parameters:
-                - '$.total_grades'
-
-        - uuid: h4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9
-          name: 'Billing: Obter Métricas Financeiras RAW'
-          type: HTTP_AGENT
-          key: billing.metrics.get
-          url: '{$INTRANET.SCHEME}://{$INTRANET.IP}:{$INTRANET.PORT}/api/billing/metrics'
-          value_type: TEXT
-          delay: 1m
-          headers:
-            - name: 'Host'
-              value: '{$INTRANET.HOST_HEADER}'
-        - uuid: i5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0
-          name: 'Billing: Total de Faturas'
-          type: DEPENDENT
-          key: billing.metrics.invoices
-          value_type: FLOAT
-          master_item:
-            key: billing.metrics.get
-          preprocessing:
-            - type: JSONPATH
-              parameters:
-                - '$.total_invoices'
-        - uuid: j6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1
-          name: 'Billing: Valor Total Inadimplente'
-          type: DEPENDENT
-          key: billing.metrics.unpaid
-          value_type: FLOAT
-          units: 'R$'
-          master_item:
-            key: billing.metrics.get
-          preprocessing:
-            - type: JSONPATH
-              parameters:
-                - '$.unpaid_amount'
