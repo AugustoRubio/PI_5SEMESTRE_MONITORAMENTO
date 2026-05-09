@@ -28,6 +28,7 @@ zabbix_export:
           url: '{$INTRANET.SCHEME}://{$INTRANET.IP}:{$INTRANET.PORT}/basic_status'
           value_type: TEXT
           delay: 30s
+          timeout: 10s
           description: 'Coleta bruta do /basic_status do Nginx.'
           headers:
             - name: 'Host'
@@ -76,6 +77,7 @@ zabbix_export:
           url: '{$INTRANET.SCHEME}://{$INTRANET.IP}:{$INTRANET.PORT}/http/metrics'
           value_type: TEXT
           delay: 30s
+          timeout: 10s
           description: 'Coleta os códigos HTTP diretamente do backend FastAPI.'
           headers:
             - name: 'Host'
