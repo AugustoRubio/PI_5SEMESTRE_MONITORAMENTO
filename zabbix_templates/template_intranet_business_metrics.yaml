@@ -16,10 +16,10 @@ zabbix_export:
           value: '10.255.255.2'
           description: 'IP ou Hostname do servidor da Intranet (ou proxy GRE)'
         - macro: '{$INTRANET.SCHEME}'
-          value: 'http'
+          value: 'https'
           description: 'Protocolo de conexão (http ou https)'
         - macro: '{$INTRANET.PORT}'
-          value: '80'
+          value: '443'
           description: 'Porta de conexão com a Intranet'
       items:
         - uuid: 2f4a56b78c9d41369b52a14589c67d1f
@@ -28,8 +28,8 @@ zabbix_export:
           key: intranet.metrics.get
           url: '{$INTRANET.SCHEME}://{$INTRANET.IP}:{$INTRANET.PORT}/business/metrics'
           value_type: TEXT
-          delay: 1m
-          timeout: 10s
+          delay: 2m
+          timeout: 30s
           description: 'Obtém o JSON com as métricas de negócios (Alunos, Professores, Notas) da Intranet.'
           headers:
             - name: 'Host'
@@ -77,8 +77,8 @@ zabbix_export:
           key: billing.metrics.get
           url: '{$INTRANET.SCHEME}://{$INTRANET.IP}:{$INTRANET.PORT}/api/billing/metrics'
           value_type: TEXT
-          delay: 1m
-          timeout: 10s
+          delay: 2m
+          timeout: 30s
           description: 'Obtém o JSON com as métricas financeiras do microsserviço de pagamentos.'
           headers:
             - name: 'Host'

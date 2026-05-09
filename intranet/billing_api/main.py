@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import random
 import sqlite3
 import os
+import time
 from faker import Faker
 
 app = FastAPI(title="Billing Microservice API", description="API Isolada de Pagamentos e Faturas", version="1.0.0")
@@ -51,8 +52,17 @@ def status():
         "replica": os.environ.get("HOSTNAME", "unknown")
     }
 
+billing_metrics_cache = {
+    "data": None,
+    "timestamp": 0
+}
+
 @app.get("/metrics")
 def billing_metrics():
+    now = time.time()
+    if billing_metrics_cache["data"] and (now - billing_metrics_cache["timestamp"] < 30):
+        return billing_metrics_cache["data"]
+
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     
@@ -67,10 +77,13 @@ def billing_metrics():
     
     conn.close()
     
-    return {
+    billing_metrics_cache["data"] = {
         "total_invoices": total_invoices,
         "unpaid_amount": unpaid_amount
     }
+    billing_metrics_cache["timestamp"] = now
+    
+    return billing_metrics_cache["data"]
 
 class PaymentRequest(BaseModel):
     invoice_id: int

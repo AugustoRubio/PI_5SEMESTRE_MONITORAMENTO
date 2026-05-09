@@ -224,21 +224,33 @@ def security_metrics(db: Session = Depends(get_db)):
     }
 
 # --- ENDPOINT DE NEGÓCIOS (PARA ZABBIX) ---
+business_metrics_cache = {
+    "data": None,
+    "timestamp": 0
+}
+
 @app.get("/business/metrics")
 @app.get("/business/metrics/")
 def business_metrics(db: Session = Depends(get_db)):
     if db is None:
         return {"error": "Banco de dados não configurado"}
     
+    now = time.time()
+    if business_metrics_cache["data"] and (now - business_metrics_cache["timestamp"] < 30):
+        return business_metrics_cache["data"]
+    
     total_students = db.query(Student).count()
     total_professors = db.query(Professor).count()
     total_grades = db.query(Grade).count()
 
-    return {
+    business_metrics_cache["data"] = {
         "total_students": total_students,
         "total_professors": total_professors,
         "total_grades": total_grades
     }
+    business_metrics_cache["timestamp"] = now
+
+    return business_metrics_cache["data"]
 
 # --- ENDPOINT DE CÓDIGOS HTTP (PARA ZABBIX) ---
 @app.get("/http/metrics")
