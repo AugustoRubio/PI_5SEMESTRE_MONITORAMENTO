@@ -57,6 +57,14 @@ presets = {
     "soa_flood": {
         "name": "Estresse em Microsserviços (SOA/Billing API)",
         "service": "bot_soa", "scale": 15, "duration": 300
+    },
+    "gerador_erros": {
+        "name": "Gerador de Anomalias HTTP (4xx/5xx)",
+        "service": "bot_errors", "scale": 10, "duration": 300
+    },
+    "simular_queda": {
+        "name": "Simulação de Queda de Conexão (Timeout Zabbix)",
+        "service": "chaos_outage", "scale": 1, "duration": 240
     }
 }
 
@@ -206,6 +214,54 @@ async def _orchestrate_stress_task(config: StressConfig, preset_config: dict, pr
         # 1. Limpar ambiente anterior
         await stop_docker_botnet()
         await asyncio.sleep(2) # Aguarda a rede do container soa_stress_pi se restabelecer após o restart
+
+        # --- Lógica Exclusiva para Simulação de Queda (Timeout Zabbix) ---
+        if preset_name == "simular_queda":
+            base_url = config.target_url.rstrip('/')
+            
+            add_stress_log(f"[*] Ativando Simulação de Indisponibilidade no Alvo ({base_url})...")
+            try:
+                import aiohttp
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(f"{base_url}/chaos/outage?status=true", ssl=False) as resp:
+                        if resp.status == 200:
+                            add_stress_log("[+] Simulação de queda de conexão ATIVADA no alvo. Zabbix deve gerar alerta de NODATA nos próximos 3-4 minutos.")
+                        else:
+                            add_stress_log(f"[-] O servidor alvo não aceitou o comando de outage. HTTP {resp.status}")
+                            stress_status["is_running"] = False
+                            return
+            except Exception as e:
+                add_stress_log(f"[-] Falha ao contatar alvo para iniciar outage: {e}")
+                stress_status["is_running"] = False
+                return
+
+            duration = preset_config["duration"]
+            end_time = time.time() + duration
+            
+            while time.time() < end_time and stress_status["is_running"]:
+                for _ in range(5):
+                    if not stress_status["is_running"]: break
+                    await asyncio.sleep(1)
+                
+                if not stress_status["is_running"]: break
+                
+                # Simulando requisições zeradas
+                stress_status["requests_sent"] = 0
+                add_stress_log(f"[>] Aguardando o timeout de {duration} segundos para trigger do Zabbix...")
+            
+            add_stress_log(f"[*] Tempo de outage esgotado ou cancelado. Revertendo...")
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(f"{base_url}/chaos/outage?status=false", ssl=False) as resp:
+                        if resp.status == 200:
+                            add_stress_log("[+] Conexão do servidor RESTABELECIDA com sucesso.")
+                        else:
+                            add_stress_log(f"[-] O servidor alvo falhou ao tentar restaurar. HTTP {resp.status}")
+            except Exception as e:
+                add_stress_log(f"[-] Falha ao reverter outage: {e}")
+                
+            stress_status["is_running"] = False
+            return
 
         # --- Lógica Exclusiva para o SOA Flood (Apache Bench Centralizado) ---
         if preset_name == "soa_flood":

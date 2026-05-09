@@ -1,7 +1,7 @@
 zabbix_export:
   version: '7.0'
   templates:
-    - uuid: f3e5c9b2a7d148468b12e3a4c5d6f7a8
+    - uuid: d41d8cd98f004204a9800998ecf8427e
       template: 'Template Custom Nginx and HTTP Codes'
       name: 'Template Custom Nginx and HTTP Codes'
       description: 'Template 100% customizado para ler o stub_status do Nginx e os códigos de resposta HTTP (200, 300, 400, 500) gerados pela Intranet.'
@@ -24,7 +24,7 @@ zabbix_export:
           value: '100'
           description: 'Limite de alerta para quantidade de erros 4xx/5xx'
       items:
-        - uuid: b7d2f1a3c5e840159a6c4b2d1f3e5a7b
+        - uuid: 3e25960a79eb4fe2b2c8a221f7edbe47
           name: 'Nginx: Obter RAW Stub Status'
           type: HTTP_AGENT
           key: nginx.raw.status
@@ -36,7 +36,7 @@ zabbix_export:
           headers:
             - name: 'Host'
               value: '{$INTRANET.HOST_HEADER}'
-        - uuid: c1a2b3c4d5e64f788a9b0c1d2e3f4a5b
+        - uuid: 8f14e45fceea4b209d73dcb5a6d59b36
           name: 'Nginx: Conexões Ativas'
           type: DEPENDENT
           key: nginx.active_connections
@@ -48,7 +48,7 @@ zabbix_export:
               parameters:
                 - 'Active connections:\s+([0-9]+)'
                 - \1
-        - uuid: e5d4c3b2a1f04987ba12c3d4e5f6a7b8
+        - uuid: c29f60bc9fb54d76b17a15998a4d46c8
           name: 'Nginx: Total de Requisições Aceitas'
           type: DEPENDENT
           key: nginx.accepted
@@ -60,7 +60,7 @@ zabbix_export:
               parameters:
                 - 'server accepts handled requests\s*\n\s+([0-9]+)'
                 - \1
-        - uuid: a8b7c6d5e4f342108c3a1b2d4e5f6a7b
+        - uuid: 4f92bc44ebc441cf8fc1e0deeb10dfc9
           name: 'Nginx: Total de Requisições Processadas'
           type: DEPENDENT
           key: nginx.requests
@@ -73,7 +73,7 @@ zabbix_export:
                 - 'server accepts handled requests\s*\n\s+[0-9]+\s+[0-9]+\s+([0-9]+)'
                 - \1
                 
-        - uuid: d1e2f3a4b5c641899d2e3f4a5b6c7d8e
+        - uuid: a37b425ef5f54924b22c71095d31215b
           name: 'Intranet: Obter RAW HTTP Metrics'
           type: HTTP_AGENT
           key: intranet.http.raw
@@ -85,7 +85,7 @@ zabbix_export:
           headers:
             - name: 'Host'
               value: '{$INTRANET.HOST_HEADER}'
-        - uuid: 1a2b3c4d5e6f47018a9b0c1d2e3f4a5b
+        - uuid: d14210cfef4f45209baecb0ba0882e3c
           name: 'Intranet HTTP 200s (Sucesso)'
           type: DEPENDENT
           key: http.2xx
@@ -96,7 +96,7 @@ zabbix_export:
             - type: JSONPATH
               parameters:
                 - '$.http_2xx'
-        - uuid: 2f3e4d5c6b7a4812b1a2b3c4d5e6f7a8
+        - uuid: b46781284d7249a58bb0e02660d5b599
           name: 'Intranet HTTP 300s (Redirecionamentos)'
           type: DEPENDENT
           key: http.3xx
@@ -107,7 +107,7 @@ zabbix_export:
             - type: JSONPATH
               parameters:
                 - '$.http_3xx'
-        - uuid: 3c4d5e6f7a8b49239c1d2e3f4a5b6c7d
+        - uuid: f473e0c812d341a986c7b91d20f5e43a
           name: 'Intranet HTTP 400s (Erros de Cliente)'
           type: DEPENDENT
           key: http.4xx
@@ -118,7 +118,7 @@ zabbix_export:
             - type: JSONPATH
               parameters:
                 - '$.http_4xx'
-        - uuid: 4e5f6a7b8c9d4034aa1b2c3d4e5f6a7b
+        - uuid: a93b4c1028f44d8b8e11c3857d91e6b2
           name: 'Intranet HTTP 500s (Erros de Servidor)'
           type: DEPENDENT
           key: http.5xx
@@ -137,7 +137,7 @@ zabbix_export:
         - tag: target
           value: intranet
   triggers:
-    - uuid: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d
+    - uuid: b8c5e6d2a7194f83b1a2c4e5d6f7a8b9
       expression: 'nodata(/Template Custom Nginx and HTTP Codes/nginx.raw.status,3m)=1'
       name: 'Nginx: Falha ao obter stub_status'
       priority: HIGH
@@ -145,7 +145,7 @@ zabbix_export:
       tags:
         - tag: scope
           value: availability
-    - uuid: 2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e
+    - uuid: d419b7c82e05417ab98f01a3c6d5e7f2
       expression: 'nodata(/Template Custom Nginx and HTTP Codes/intranet.http.raw,3m)=1'
       name: 'Intranet: Falha ao obter métricas HTTP'
       priority: HIGH
@@ -153,7 +153,7 @@ zabbix_export:
       tags:
         - tag: scope
           value: availability
-    - uuid: 3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f
+    - uuid: 7c89a012b3d445e68f7a9b0c1d2e3f4a
       expression: 'change(/Template Custom Nginx and HTTP Codes/http.5xx) > {$HTTP.ERRORS.MAX.WARN}'
       name: 'Intranet: Alta taxa de erros 5xx (Servidor)'
       priority: AVERAGE
@@ -161,7 +161,7 @@ zabbix_export:
       tags:
         - tag: scope
           value: performance
-    - uuid: 4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a
+    - uuid: e2a4c6d8b0f143a789c1e2f3a4b5c6d7
       expression: 'change(/Template Custom Nginx and HTTP Codes/http.4xx) > {$HTTP.ERRORS.MAX.WARN}'
       name: 'Intranet: Alta taxa de erros 4xx (Cliente)'
       priority: WARNING

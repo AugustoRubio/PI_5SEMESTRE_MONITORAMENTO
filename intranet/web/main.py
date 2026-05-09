@@ -153,7 +153,7 @@ if DB_USER and DB_PASSWORD:
 app = FastAPI(title="Intranet Faculdade")
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
-# --- CUSTOM HTTP METRICS TRACKER ---
+# --- CUSTOM HTTP METRICS TRACKER & CHAOS MODE ---
 http_status_counters = {
     "2xx": 0,
     "3xx": 0,
@@ -161,8 +161,17 @@ http_status_counters = {
     "5xx": 0
 }
 
+chaos_mode = {
+    "outage": False
+}
+
 @app.middleware("http")
 async def track_http_codes(request: Request, call_next):
+    # Se outage estiver ativo, simula timeout longo para as rotas do Zabbix (nodata trigger)
+    if chaos_mode["outage"] and request.url.path in ["/http/metrics", "/http/metrics/", "/business/metrics", "/business/metrics/"]:
+        import asyncio
+        await asyncio.sleep(35) # Maior que o timeout de 30s do Zabbix
+        
     response = await call_next(request)
     status = response.status_code
     if 200 <= status < 300:
@@ -174,6 +183,24 @@ async def track_http_codes(request: Request, call_next):
     elif 500 <= status < 600:
         http_status_counters["5xx"] += 1
     return response
+
+# --- CHAOS ENDPOINTS (SIMULAÇÃO DE ERROS PARA O ZABBIX) ---
+@app.get("/chaos/400")
+@app.post("/chaos/400")
+def trigger_400():
+    from fastapi import Response
+    return Response(status_code=400, content="Simulated Client Error (400)")
+
+@app.get("/chaos/500")
+@app.post("/chaos/500")
+def trigger_500():
+    from fastapi import Response
+    return Response(status_code=500, content="Simulated Server Error (500)")
+
+@app.post("/chaos/outage")
+def toggle_outage(status: bool):
+    chaos_mode["outage"] = status
+    return {"outage": status, "message": "Simulação de queda " + ("ativada" if status else "desativada")}
 
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if not os.path.exists(static_dir):

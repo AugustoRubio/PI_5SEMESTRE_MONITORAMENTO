@@ -41,6 +41,14 @@
     networks:
       - lab_bridge
 
+  bot_errors:
+    build: .
+    environment:
+      - BOT_TYPE=errors
+      - TARGET_URL=${TARGET_URL:-https://10.10.100.4}
+    networks:
+      - lab_bridge
+
 networks:
   lab_bridge:
     driver: bridge
