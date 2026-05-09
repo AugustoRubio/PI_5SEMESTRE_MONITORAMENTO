@@ -142,6 +142,9 @@ flowchart TD
     class BILL_Invoices,BILL_Pay microserviceNode;
 ```
 
+> **Dica para uso no Word:** O diagrama acima foi convertido para uma imagem pronta para ser copiada e colada.  
+> ![Diagrama de Funcionalidades](diagrama_funcionalidades.png)
+
 ## Especificações Técnicas e Carga do Sistema
 
 ### 1. Botnet Agent (Capacidade de Simulação)
