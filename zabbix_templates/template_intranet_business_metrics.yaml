@@ -1,9 +1,7 @@
 zabbix_export:
-  version: '6.4'
-  template_groups:
-    - name: Templates/Applications
+  version: '7.0'
   templates:
-    - uuid: bba1234567894bcdafe9876543210abc
+    - uuid: d41d8cd98f004204a9800998ecf8427e
       template: 'Template Intranet Business Metrics'
       name: 'Template Intranet Business Metrics'
       description: |
@@ -11,19 +9,22 @@ zabbix_export:
       groups:
         - name: Templates/Applications
       macros:
-        - macro: '{$INTRANET_URL}'
-          value: 'https://192.168.1.100'
-          description: 'URL base da intranet (ex: https://192.168.1.100)'
+        - macro: '{$INTRANET.SCHEME}'
+          value: 'https'
+          description: 'Protocolo de conexão (http ou https)'
+        - macro: '{$INTRANET.PORT}'
+          value: '443'
+          description: 'Porta de conexão com a Intranet'
       items:
-        - uuid: m1a2b3c4d5e6f7g8
+        - uuid: 3e25960a79eb4fe2b2c8a221f7edbe47
           name: 'Intranet: Obter Métricas de Negócio'
           type: HTTP_AGENT
           key: intranet.metrics.get
-          url: '{$INTRANET_URL}/business/metrics'
+          url: '{$INTRANET.SCHEME}://{HOST.CONN}:{$INTRANET.PORT}/business/metrics'
           value_type: TEXT
           delay: 1m
           description: 'Obtém o JSON com as métricas de negócios (Alunos, Professores, Notas) da Intranet.'
-        - uuid: d1a2b3c4d5e6f7g8
+        - uuid: 8f14e45fceea4b209d73dcb5a6d59b36
           name: 'Intranet: Total de Alunos'
           type: DEPENDENT
           key: intranet.metrics.students
@@ -35,7 +36,7 @@ zabbix_export:
                 - '$.total_students'
           master_item:
             key: intranet.metrics.get
-        - uuid: d2a2b3c4d5e6f7g8
+        - uuid: c29f60bc9fb54d76b17a15998a4d46c8
           name: 'Intranet: Total de Professores'
           type: DEPENDENT
           key: intranet.metrics.professors
@@ -47,7 +48,7 @@ zabbix_export:
                 - '$.total_professors'
           master_item:
             key: intranet.metrics.get
-        - uuid: d3a2b3c4d5e6f7g8
+        - uuid: 4f92bc44ebc441cf8fc1e0deeb10dfc9
           name: 'Intranet: Total de Notas Lançadas'
           type: DEPENDENT
           key: intranet.metrics.grades
@@ -60,15 +61,15 @@ zabbix_export:
           master_item:
             key: intranet.metrics.get
             
-        - uuid: m2a2b3c4d5e6f7g8
+        - uuid: a37b425ef5f54924b22c71095d31215b
           name: 'Billing: Obter Métricas Financeiras'
           type: HTTP_AGENT
           key: billing.metrics.get
-          url: '{$INTRANET_URL}/api/billing/metrics'
+          url: '{$INTRANET.SCHEME}://{HOST.CONN}:{$INTRANET.PORT}/api/billing/metrics'
           value_type: TEXT
           delay: 1m
           description: 'Obtém o JSON com as métricas financeiras do microsserviço de pagamentos.'
-        - uuid: d4a2b3c4d5e6f7g8
+        - uuid: d14210cfef4f45209baecb0ba0882e3c
           name: 'Billing: Total de Faturas'
           type: DEPENDENT
           key: billing.metrics.invoices
@@ -80,7 +81,7 @@ zabbix_export:
                 - '$.total_invoices'
           master_item:
             key: billing.metrics.get
-        - uuid: d5a2b3c4d5e6f7g8
+        - uuid: b46781284d7249a58bb0e02660d5b599
           name: 'Billing: Valor Total Inadimplente'
           type: DEPENDENT
           key: billing.metrics.unpaid
