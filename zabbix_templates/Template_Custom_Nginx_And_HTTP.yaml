@@ -126,3 +126,47 @@ zabbix_export:
             - type: JSONPATH
               parameters:
                 - '$.http_5xx'
+      tags:
+        - tag: class
+          value: application
+        - tag: target
+          value: nginx
+        - tag: target
+          value: intranet
+      macros:
+        - macro: '{$HTTP.ERRORS.MAX.WARN}'
+          value: '100'
+          description: 'Limite de alerta para quantidade de erros 4xx/5xx'
+  triggers:
+    - uuid: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d
+      expression: 'nodata(/Template Custom Nginx and HTTP Codes/nginx.raw.status,3m)=1'
+      name: 'Nginx: Falha ao obter stub_status'
+      priority: HIGH
+      description: 'O Zabbix não conseguiu coletar dados do Nginx nos últimos 3 minutos. O serviço pode estar inativo ou inacessível.'
+      tags:
+        - tag: scope
+          value: availability
+    - uuid: 2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e
+      expression: 'nodata(/Template Custom Nginx and HTTP Codes/intranet.http.raw,3m)=1'
+      name: 'Intranet: Falha ao obter métricas HTTP'
+      priority: HIGH
+      description: 'O Zabbix não conseguiu coletar as métricas HTTP da Intranet nos últimos 3 minutos. A API FastAPI pode estar travada ou offline.'
+      tags:
+        - tag: scope
+          value: availability
+    - uuid: 3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f
+      expression: 'change(/Template Custom Nginx and HTTP Codes/http.5xx) > {$HTTP.ERRORS.MAX.WARN}'
+      name: 'Intranet: Alta taxa de erros 5xx (Servidor)'
+      priority: AVERAGE
+      description: 'A quantidade de erros 5xx (Internal Server Error) aumentou subitamente em mais de {$HTTP.ERRORS.MAX.WARN} requisições.'
+      tags:
+        - tag: scope
+          value: performance
+    - uuid: 4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a
+      expression: 'change(/Template Custom Nginx and HTTP Codes/http.4xx) > {$HTTP.ERRORS.MAX.WARN}'
+      name: 'Intranet: Alta taxa de erros 4xx (Cliente)'
+      priority: WARNING
+      description: 'A quantidade de erros 4xx (Client Error) aumentou subitamente em mais de {$HTTP.ERRORS.MAX.WARN} requisições. Pode indicar ataque de Bruteforce ou Scanner de Vulnerabilidades.'
+      tags:
+        - tag: scope
+          value: security
