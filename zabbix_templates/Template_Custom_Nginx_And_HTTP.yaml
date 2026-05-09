@@ -21,7 +21,7 @@ zabbix_export:
           value: 'http'
           description: 'http ou https'
       items:
-        - uuid: a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1
+        - uuid: 6f1c7d2427b54a8e9e1c7f99991206d2
           name: 'Nginx: Obter RAW Stub Status'
           type: HTTP_AGENT
           key: nginx.raw.status
@@ -32,7 +32,7 @@ zabbix_export:
           headers:
             - name: 'Host'
               value: '{$INTRANET.HOST_HEADER}'
-        - uuid: a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2
+        - uuid: 1e3a9c4b72f14c2b8c25db9e61234b8c
           name: 'Nginx: Conexões Ativas'
           type: DEPENDENT
           key: nginx.active_connections
