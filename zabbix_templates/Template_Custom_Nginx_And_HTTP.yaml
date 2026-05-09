@@ -20,6 +20,9 @@ zabbix_export:
         - macro: '{$INTRANET.SCHEME}'
           value: 'https'
           description: 'http ou https'
+        - macro: '{$HTTP.ERRORS.MAX.WARN}'
+          value: '100'
+          description: 'Limite de alerta para quantidade de erros 4xx/5xx'
       items:
         - uuid: b7d2f1a3c5e840159a6c4b2d1f3e5a7b
           name: 'Nginx: Obter RAW Stub Status'
@@ -133,10 +136,6 @@ zabbix_export:
           value: nginx
         - tag: target
           value: intranet
-      macros:
-        - macro: '{$HTTP.ERRORS.MAX.WARN}'
-          value: '100'
-          description: 'Limite de alerta para quantidade de erros 4xx/5xx'
   triggers:
     - uuid: 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d
       expression: 'nodata(/Template Custom Nginx and HTTP Codes/nginx.raw.status,3m)=1'
