@@ -1,9 +1,7 @@
 zabbix_export:
   version: '7.0'
-  template_groups:
-    - name: Templates/Applications
   templates:
-    - uuid: f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1
+    - uuid: b542a229c15542158309a68a5717ce24
       template: 'Template Custom Nginx and HTTP Codes'
       name: 'Template Custom Nginx and HTTP Codes'
       description: 'Template 100% customizado para ler o stub_status do Nginx e os códigos de resposta HTTP (200, 300, 400, 500) gerados pela Intranet.'
@@ -20,7 +18,7 @@ zabbix_export:
           value: 'https'
           description: 'http ou https'
       items:
-        - uuid: a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1
+        - uuid: d3b140afac2b4c19b02a2bf80b85a3c2
           name: 'Nginx: Obter RAW Stub Status'
           type: HTTP_AGENT
           key: nginx.raw.status
@@ -28,7 +26,7 @@ zabbix_export:
           value_type: TEXT
           delay: 30s
           description: 'Coleta bruta do /basic_status do Nginx.'
-        - uuid: a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2
+        - uuid: e4b341fbbd5c4e36a3f124c60a2b0e98
           name: 'Nginx: Conexões Ativas'
           type: DEPENDENT
           key: nginx.active_connections
@@ -40,7 +38,7 @@ zabbix_export:
               parameters:
                 - 'Active connections:\s+([0-9]+)'
                 - \1
-        - uuid: a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3
+        - uuid: 8c25dbda0f0449a6a8b13d6a4c281e09
           name: 'Nginx: Total de Requisições Aceitas'
           type: DEPENDENT
           key: nginx.accepted
@@ -52,7 +50,7 @@ zabbix_export:
               parameters:
                 - 'server accepts handled requests\s*\n\s+([0-9]+)'
                 - \1
-        - uuid: a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4a4
+        - uuid: f1a3b5c7d9e142a38b4c5d6e7f8a9b0c
           name: 'Nginx: Total de Requisições Processadas'
           type: DEPENDENT
           key: nginx.requests
@@ -65,7 +63,7 @@ zabbix_export:
                 - 'server accepts handled requests\s*\n\s+[0-9]+\s+[0-9]+\s+([0-9]+)'
                 - \1
                 
-        - uuid: b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1b1
+        - uuid: a1b2c3d4e5f647a89b0c1d2e3f4a5b6c
           name: 'Intranet: Obter RAW HTTP Metrics'
           type: HTTP_AGENT
           key: intranet.http.raw
@@ -73,7 +71,7 @@ zabbix_export:
           value_type: TEXT
           delay: 30s
           description: 'Coleta os códigos HTTP diretamente do backend FastAPI.'
-        - uuid: b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2b2
+        - uuid: c6b5a4f3e2d140b98a7b6c5d4e3f2a1b
           name: 'Intranet HTTP 200s (Sucesso)'
           type: DEPENDENT
           key: http.2xx
@@ -84,7 +82,7 @@ zabbix_export:
             - type: JSONPATH
               parameters:
                 - '$.http_2xx'
-        - uuid: b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3
+        - uuid: 1a2b3c4d5e6f47a89b0c1d2e3f4a5b6c
           name: 'Intranet HTTP 300s (Redirecionamentos)'
           type: DEPENDENT
           key: http.3xx
@@ -95,7 +93,7 @@ zabbix_export:
             - type: JSONPATH
               parameters:
                 - '$.http_3xx'
-        - uuid: b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4b4
+        - uuid: 6c5b4a3f2e1d40c98b7a6c5d4e3f2a1b
           name: 'Intranet HTTP 400s (Erros de Cliente)'
           type: DEPENDENT
           key: http.4xx
@@ -106,7 +104,7 @@ zabbix_export:
             - type: JSONPATH
               parameters:
                 - '$.http_4xx'
-        - uuid: b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5b5
+        - uuid: d4e5f6a7b8c940d1a2b3c4d5e6f7a8b9
           name: 'Intranet HTTP 500s (Erros de Servidor)'
           type: DEPENDENT
           key: http.5xx
