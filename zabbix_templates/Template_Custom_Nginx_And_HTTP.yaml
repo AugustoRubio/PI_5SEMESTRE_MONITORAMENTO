@@ -8,17 +8,20 @@ zabbix_export:
       groups:
         - name: Templates/Applications
       macros:
+        - macro: '{$INTRANET.HOST_HEADER}'
+          value: '10.10.100.4'
+          description: 'Cabeçalho Host enviado ao Proxy (O IP interno ou Domínio da Intranet).'
         - macro: '{$INTRANET.IP}'
-          value: '192.168.1.100'
-          description: 'Obrigatório: Coloque aqui o IP do seu servidor da Intranet.'
+          value: '10.255.255.2'
+          description: 'O IP do servidor ou do Proxy/Túnel GRE (onde o Zabbix vai conectar fisicamente).'
         - macro: '{$INTRANET.PORT}'
-          value: '443'
+          value: '80'
           description: 'Porta do servidor (ex: 443 para HTTPS ou 80 para HTTP).'
         - macro: '{$INTRANET.SCHEME}'
-          value: 'https'
+          value: 'http'
           description: 'http ou https'
       items:
-        - uuid: d3b140afac2b4c19b02a2bf80b85a3c2
+        - uuid: a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1
           name: 'Nginx: Obter RAW Stub Status'
           type: HTTP_AGENT
           key: nginx.raw.status
@@ -26,7 +29,10 @@ zabbix_export:
           value_type: TEXT
           delay: 30s
           description: 'Coleta bruta do /basic_status do Nginx.'
-        - uuid: e4b341fbbd5c4e36a3f124c60a2b0e98
+          headers:
+            - name: 'Host'
+              value: '{$INTRANET.HOST_HEADER}'
+        - uuid: a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2
           name: 'Nginx: Conexões Ativas'
           type: DEPENDENT
           key: nginx.active_connections
@@ -71,6 +77,9 @@ zabbix_export:
           value_type: TEXT
           delay: 30s
           description: 'Coleta os códigos HTTP diretamente do backend FastAPI.'
+          headers:
+            - name: 'Host'
+              value: '{$INTRANET.HOST_HEADER}'
         - uuid: c6b5a4f3e2d140b98a7b6c5d4e3f2a1b
           name: 'Intranet HTTP 200s (Sucesso)'
           type: DEPENDENT
