@@ -1,0 +1,96 @@
+zabbix_export:
+  version: '6.4'
+  template_groups:
+    - uuid: 7df96b18c230490a9a0a9e2307226338
+      name: Templates/Applications
+  templates:
+    - uuid: bba1234567894bcdafe9876543210abc
+      template: 'Template Intranet Business Metrics'
+      name: 'Template Intranet Business Metrics'
+      description: |
+        Template para monitoramento de métricas de negócios (BAM - Business Activity Monitoring) da Intranet e da Billing API via HTTP Agent.
+      groups:
+        - name: Templates/Applications
+      macros:
+        - macro: '{$INTRANET_URL}'
+          value: 'https://192.168.1.100'
+          description: 'URL base da intranet (ex: https://192.168.1.100)'
+      items:
+        - uuid: m1a2b3c4d5e6f7g8
+          name: 'Intranet: Obter Métricas de Negócio'
+          type: HTTP_AGENT
+          key: intranet.metrics.get
+          url: '{$INTRANET_URL}/business/metrics'
+          value_type: TEXT
+          delay: 1m
+          description: 'Obtém o JSON com as métricas de negócios (Alunos, Professores, Notas) da Intranet.'
+        - uuid: d1a2b3c4d5e6f7g8
+          name: 'Intranet: Total de Alunos'
+          type: DEPENDENT
+          key: intranet.metrics.students
+          value_type: FLOAT
+          description: 'Número total de alunos cadastrados no banco de dados.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.total_students'
+          master_item:
+            key: intranet.metrics.get
+        - uuid: d2a2b3c4d5e6f7g8
+          name: 'Intranet: Total de Professores'
+          type: DEPENDENT
+          key: intranet.metrics.professors
+          value_type: FLOAT
+          description: 'Número total de professores cadastrados no banco de dados.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.total_professors'
+          master_item:
+            key: intranet.metrics.get
+        - uuid: d3a2b3c4d5e6f7g8
+          name: 'Intranet: Total de Notas Lançadas'
+          type: DEPENDENT
+          key: intranet.metrics.grades
+          value_type: FLOAT
+          description: 'Volume total de notas lançadas pelos professores no sistema.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.total_grades'
+          master_item:
+            key: intranet.metrics.get
+            
+        - uuid: m2a2b3c4d5e6f7g8
+          name: 'Billing: Obter Métricas Financeiras'
+          type: HTTP_AGENT
+          key: billing.metrics.get
+          url: '{$INTRANET_URL}/api/billing/metrics'
+          value_type: TEXT
+          delay: 1m
+          description: 'Obtém o JSON com as métricas financeiras do microsserviço de pagamentos.'
+        - uuid: d4a2b3c4d5e6f7g8
+          name: 'Billing: Total de Faturas'
+          type: DEPENDENT
+          key: billing.metrics.invoices
+          value_type: FLOAT
+          description: 'Número total de faturas geradas pelo sistema.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.total_invoices'
+          master_item:
+            key: billing.metrics.get
+        - uuid: d5a2b3c4d5e6f7g8
+          name: 'Billing: Valor Total Inadimplente'
+          type: DEPENDENT
+          key: billing.metrics.unpaid
+          value_type: FLOAT
+          units: 'R$'
+          description: 'Soma total em Reais (R$) de todas as faturas que constam como PENDING.'
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - '$.unpaid_amount'
+          master_item:
+            key: billing.metrics.get

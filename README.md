@@ -52,9 +52,10 @@ Scripts Bash e configurações Nginx para montar rapidamente as VMs Alvo que sof
 ## 📊 Monitoramento (Zabbix Templates)
 **Diretório:** `/zabbix_templates/`
 
-Repositório contendo templates exportados em YAML, focados em LLD (Low-Level Discovery) para monitoramento dinâmico. Destaques:
+Repositório contendo templates exportados em YAML, focados em LLD (Low-Level Discovery) e Business Activity Monitoring (BAM). Destaques:
 - **pfSense/Suricata:** Lê dinamicamente os alertas do `eve.json` e cria gatilhos baseados em severidade.
-- **SOA/Billing API:** Monitora tempo de resposta HTTP, uso de CPU e estado do autoscaler.
+- **SOA/Billing API e Autoscaler:** Monitora tempo de resposta HTTP, uso de CPU e estado do autoscaler.
+- **Métricas de Negócios (BAM):** Template HTTP Agent (`template_intranet_business_metrics.yaml`) que monitora ativamente as regras de negócios: quantidade de alunos e professores, volume de notas e montante inadimplente (faturas pendentes).
 - **Hardwares Simulados:** Templates SNMP customizados para ler OIDs da APC e sensores ambientais.
 
 ---
