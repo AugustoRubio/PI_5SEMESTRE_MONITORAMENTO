@@ -8,6 +8,9 @@ zabbix_export:
       groups:
         - name: Templates/Applications
       macros:
+        - macro: '{$INTRANET.HOST_HEADER}'
+          value: '10.10.100.4'
+          description: 'Obrigatório para o Proxy saber para qual servidor interno rotear (ex: 10.10.100.4 ou 10.10.101.4)'
         - macro: '{$INTRANET.IP}'
           value: '10.255.255.2'
           description: 'O IP alvo do monitoramento.'
@@ -26,6 +29,9 @@ zabbix_export:
           value_type: TEXT
           delay: 30s
           description: 'Coleta bruta do /basic_status do Nginx.'
+          headers:
+            - name: 'Host'
+              value: '{$INTRANET.HOST_HEADER}'
         - uuid: 1e3a9c4b72f14c2b8c25db9e61234b8c
           name: 'Nginx: Conexões Ativas'
           type: DEPENDENT
@@ -71,6 +77,9 @@ zabbix_export:
           value_type: TEXT
           delay: 30s
           description: 'Coleta os códigos HTTP diretamente do backend FastAPI.'
+          headers:
+            - name: 'Host'
+              value: '{$INTRANET.HOST_HEADER}'
         - uuid: c6b5a4f3e2d140b98a7b6c5d4e3f2a1b
           name: 'Intranet HTTP 200s (Sucesso)'
           type: DEPENDENT
