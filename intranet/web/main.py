@@ -9,6 +9,7 @@ import os
 import time
 import random
 import datetime
+import asyncio
 
 import urllib.parse
 from passlib.context import CryptContext
@@ -153,6 +154,64 @@ if DB_USER and DB_PASSWORD:
 app = FastAPI(title="Intranet Faculdade")
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
+# --- BACKGROUND METRICS BUFFER ---
+metrics_buffer = {
+    "business": {
+        "total_students": 0,
+        "total_professors": 0,
+        "total_grades": 0
+    },
+    "security": {
+        "total_failures": 0,
+        "failures_last_hour": 0,
+        "active_ips": 0,
+        "recent_failed_attempts": [],
+        "system_time": 0
+    }
+}
+
+async def update_metrics_worker():
+    """Roda em background de forma infinita, atualizando o dicionário na memória."""
+    while True:
+        if DB_CONFIGURED and SessionLocal:
+            db = SessionLocal()
+            try:
+                total_students = db.query(Student).count()
+                total_professors = db.query(Professor).count()
+                total_grades = db.query(Grade).count()
+                
+                metrics_buffer["business"] = {
+                    "total_students": total_students,
+                    "total_professors": total_professors,
+                    "total_grades": total_grades
+                }
+                
+                now_sec = int(time.time())
+                total_failures = db.query(LoginAttempt).filter(LoginAttempt.success == 0).count()
+                failures_last_hour = db.query(LoginAttempt).filter(LoginAttempt.success == 0, LoginAttempt.timestamp > now_sec - 3600).count()
+                active_ips = db.query(LoginAttempt.ip_address).filter(LoginAttempt.timestamp > now_sec - 300).distinct().count()
+                
+                recent_logs = db.query(LoginAttempt).filter(LoginAttempt.success == 0).order_by(LoginAttempt.timestamp.desc()).limit(10).all()
+                logs = [{"ip": l.ip_address, "user": l.username, "time": datetime.datetime.fromtimestamp(l.timestamp).strftime("%H:%M:%S")} for l in recent_logs]
+                
+                metrics_buffer["security"] = {
+                    "total_failures": total_failures,
+                    "failures_last_hour": failures_last_hour,
+                    "active_ips": active_ips,
+                    "recent_failed_attempts": logs,
+                    "system_time": now_sec
+                }
+            except Exception as e:
+                print(f"Erro no worker de métricas: {e}")
+            finally:
+                db.close()
+        
+        await asyncio.sleep(30)
+
+@app.on_event("startup")
+async def start_background_tasks():
+    asyncio.create_task(update_metrics_worker())
+
 # --- CUSTOM HTTP METRICS TRACKER & CHAOS MODE ---
 http_status_counters = {
     "2xx": 0,
@@ -230,54 +289,20 @@ def get_db():
 # --- ENDPOINT DE SEGURANÇA ---
 @app.get("/security/metrics")
 @app.get("/security/metrics/")
-def security_metrics(db: Session = Depends(get_db)):
-    if db is None:
+def security_metrics():
+    if not DB_CONFIGURED:
         return {"total_failures": 0, "error": "Banco de dados não configurado"}
     
-    now = int(time.time())
-    total_failures = db.query(LoginAttempt).filter(LoginAttempt.success == 0).count()
-    failures_last_hour = db.query(LoginAttempt).filter(LoginAttempt.success == 0, LoginAttempt.timestamp > now - 3600).count()
-    active_ips = db.query(LoginAttempt.ip_address).filter(LoginAttempt.timestamp > now - 300).distinct().count()
-    
-    recent_logs = db.query(LoginAttempt).filter(LoginAttempt.success == 0).order_by(LoginAttempt.timestamp.desc()).limit(10).all()
-    logs = [{"ip": l.ip_address, "user": l.username, "time": datetime.datetime.fromtimestamp(l.timestamp).strftime("%H:%M:%S")} for l in recent_logs]
-
-    return {
-        "total_failures": total_failures,
-        "failures_last_hour": failures_last_hour,
-        "active_ips": active_ips,
-        "recent_failed_attempts": logs,
-        "system_time": now
-    }
+    return metrics_buffer["security"]
 
 # --- ENDPOINT DE NEGÓCIOS (PARA ZABBIX) ---
-business_metrics_cache = {
-    "data": None,
-    "timestamp": 0
-}
-
 @app.get("/business/metrics")
 @app.get("/business/metrics/")
-def business_metrics(db: Session = Depends(get_db)):
-    if db is None:
+def business_metrics():
+    if not DB_CONFIGURED:
         return {"error": "Banco de dados não configurado"}
     
-    now = time.time()
-    if business_metrics_cache["data"] and (now - business_metrics_cache["timestamp"] < 30):
-        return business_metrics_cache["data"]
-    
-    total_students = db.query(Student).count()
-    total_professors = db.query(Professor).count()
-    total_grades = db.query(Grade).count()
-
-    business_metrics_cache["data"] = {
-        "total_students": total_students,
-        "total_professors": total_professors,
-        "total_grades": total_grades
-    }
-    business_metrics_cache["timestamp"] = now
-
-    return business_metrics_cache["data"]
+    return metrics_buffer["business"]
 
 # --- ENDPOINT DE CÓDIGOS HTTP (PARA ZABBIX) ---
 @app.get("/http/metrics")
